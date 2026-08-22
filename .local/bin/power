@@ -1,0 +1,30 @@
+#!/bin/sh
+# dmenu-driven power menu: lock, logout, suspend, reboot, shutdown.
+# Destructive actions require a second confirmation to avoid accidents.
+
+confirm() {
+    [ "$(printf 'No\nYes' | dmenu -p "$1?")" = "Yes" ]
+}
+
+choice=$(printf '%s\n' "Lock" "Logout" "Suspend" "Reboot" "Shutdown" | dmenu -p "power")
+
+case "$choice" in
+    Lock)
+        exec slock
+        ;;
+    Logout)
+        confirm "Logout" && pkill -TERM -u "$USER" dwm
+        ;;
+    Suspend)
+        confirm "Suspend" && { slock & loginctl suspend; }
+        ;;
+    Reboot)
+        confirm "Reboot" && loginctl reboot
+        ;;
+    Shutdown)
+        confirm "Shutdown" && loginctl poweroff
+        ;;
+    *)
+        exit 0
+        ;;
+esac

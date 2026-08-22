@@ -1,0 +1,38 @@
+#!/bin/sh
+# dmenu-driven output/input device selection over wpctl.
+# Volume/mute already have dedicated keys in dwm; this covers device switching.
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Audio" "$1"
+}
+
+# Extract "id<TAB>name" lines from wpctl status for a given section header
+# (Sinks or Sources), stopping at the next section.
+list_section() {
+    wpctl status | awk -v section="$1" '
+        $0 ~ section { infield=1; next }
+        infield && /^ *├─|^ *└─/ && $0 !~ /[0-9]+\./ { infield=0 }
+        infield && match($0, /[0-9]+\./) {
+            id = substr($0, RSTART, RLENGTH-1)
+            name = substr($0, RSTART+RLENGTH+1)
+            sub(/ *\[vol:.*/, "", name)
+            gsub(/^ +| +$/, "", name)
+            print id "\t" name
+        }
+    '
+}
+
+pick_and_set() {
+    section="$1"
+    entries=$(list_section "$section")
+    name=$(printf '%s\n' "$entries" | awk -F'\t' '{print $2}' | dmenu -p "$2")
+    [ -z "$name" ] && return 1
+    id=$(printf '%s\n' "$entries" | awk -F'\t' -v n="$name" '$2 == n {print $1; exit}')
+    [ -n "$id" ] && wpctl set-default "$id" && notify "$2 switched"
+}
+
+case "$(printf '%s\n' "Output device" "Input device" | dmenu -p "audio")" in
+    "Output device") pick_and_set "Sinks:" "Output" ;;
+    "Input device")  pick_and_set "Sources:" "Input" ;;
+    *) exit 0 ;;
+esac

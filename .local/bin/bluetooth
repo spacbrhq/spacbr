@@ -1,0 +1,62 @@
+#!/bin/sh
+# dmenu-driven front-end over bluetoothctl.
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Bluetooth" "$1"
+}
+
+pick_device() {
+    list=$(bluetoothctl devices)
+    name=$(printf '%s\n' "$list" | sed -E 's/^Device [0-9A-F:]+ //' | dmenu -p "$1")
+    [ -z "$name" ] && return 1
+    printf '%s\n' "$list" | awk -v n="$name" '$0 ~ ("Device [0-9A-F:]+ " n "$") {print $2; exit}'
+}
+
+toggle_power() {
+    if bluetoothctl show | grep -q "Powered: yes"; then
+        bluetoothctl power off && notify "Powered off"
+    else
+        bluetoothctl power on && notify "Powered on"
+    fi
+}
+
+scan_and_pair() {
+    notify "Scanning (10s)..."
+    bluetoothctl --timeout 10 scan on >/dev/null 2>&1
+    mac=$(pick_device "connect")
+    [ -z "$mac" ] && exit 0
+    bluetoothctl trust "$mac"
+    bluetoothctl connect "$mac" && notify "Connected" || notify "Connect failed"
+}
+
+choice=$(printf '%s\n' \
+    "Toggle power" \
+    "Scan & connect new device" \
+    "Connect known device" \
+    "Disconnect device" \
+    "Remove device" \
+    | dmenu -p "bluetooth")
+
+case "$choice" in
+    "Toggle power")
+        toggle_power
+        ;;
+    "Scan & connect new device")
+        scan_and_pair
+        ;;
+    "Connect known device")
+        mac=$(pick_device "connect")
+        [ -n "$mac" ] && { bluetoothctl connect "$mac" && notify "Connected" || notify "Connect failed"; }
+        ;;
+    "Disconnect device")
+        mac=$(pick_device "disconnect")
+        [ -n "$mac" ] && { bluetoothctl disconnect "$mac" && notify "Disconnected"; }
+        ;;
+    "Remove device")
+        mac=$(pick_device "remove")
+        [ -n "$mac" ] && { bluetoothctl remove "$mac" && notify "Removed"; }
+        ;;
+    *)
+        exit 0
+        ;;
+esac

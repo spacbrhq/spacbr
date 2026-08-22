@@ -12,6 +12,10 @@
 #define PASSMENU "~/.local/bin/passmenu"
 #define DISPLAYCTL "~/.local/bin/display"
 #define LOCKSCREEN "slock"
+#define AUDIOCTL "~/.local/bin/audio"
+#define BLUETOOTHCTL "~/.local/bin/bluetooth"
+#define WALLPAPERCTL "~/.local/bin/wallpaper"
+#define POWERMENU "~/.local/bin/power"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -90,6 +94,11 @@ static const Key keys[] = {
 	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAYCTL) },
 	{ MODKEY|ShiftMask,             XK_l,      spawn,          SHCMD(LOCKSCREEN) },
 	{ 0, 			 XF86XK_ScreenSaver,	   spawn,	       SHCMD(LOCKSCREEN) },
+	{ MODKEY|ShiftMask,             XK_p,      spawn,          SHCMD(POWERMENU) },
+	{ 0, 			 XF86XK_PowerOff,		   spawn,	       SHCMD(POWERMENU) },
+	{ MODKEY|ShiftMask,             XK_a,      spawn,          SHCMD(AUDIOCTL) },
+	{ MODKEY|ShiftMask,             XK_w,      spawn,          SHCMD(WALLPAPERCTL) },
+	{ 0, 			 XF86XK_Bluetooth,		   spawn,	       SHCMD(BLUETOOTHCTL) },
     { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
     { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
     { 0,             XF86XK_AudioMute,         spawn,          SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },

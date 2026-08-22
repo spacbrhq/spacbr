@@ -1,0 +1,51 @@
+#!/bin/sh
+# set/next/previous/random wallpaper over hsetroot.
+# Usage: wallpaper [set|next|previous|random]   (no arg = dmenu picker)
+
+bgdir="$XDG_DATA_HOME/backgrounds"
+statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
+statefile="$statedir/wallpaper"
+mkdir -p "$statedir"
+
+list() {
+    find "$bgdir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | sort
+}
+
+current() {
+    [ -f "$statefile" ] && cat "$statefile"
+}
+
+apply() {
+    [ -f "$1" ] || return 1
+    hsetroot -fill "$1"
+    printf '%s\n' "$1" > "$statefile"
+}
+
+step() {
+    files=$(list)
+    cur=$(current)
+    total=$(printf '%s\n' "$files" | wc -l)
+    idx=$(printf '%s\n' "$files" | grep -nFx "$cur" | cut -d: -f1)
+    [ -z "$idx" ] && idx=1
+    if [ "$1" = "next" ]; then
+        idx=$(( idx % total + 1 ))
+    else
+        idx=$(( (idx - 2 + total) % total + 1 ))
+    fi
+    apply "$(printf '%s\n' "$files" | sed -n "${idx}p")"
+}
+
+case "$1" in
+    next)     step next ;;
+    previous) step previous ;;
+    random)   apply "$(list | shuf -n1)" ;;
+    set)      apply "$2" ;;
+    "")
+        choice=$(list | xargs -n1 basename | dmenu -p "wallpaper")
+        [ -n "$choice" ] && apply "$bgdir/$choice"
+        ;;
+    *)
+        echo "Usage: $0 [set FILE|next|previous|random]" >&2
+        exit 1
+        ;;
+esac
