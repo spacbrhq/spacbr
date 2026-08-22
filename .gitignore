@@ -1,0 +1,22 @@
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor backups/swap
+*.orig
+*.swp
+*.swo
+*~
+
+# Generated/state (not source of truth)
+.config/nvim/undo/*
+!.config/nvim/undo/.gitkeep
+.config/vim/undo/*
+!.config/vim/undo/.gitkeep
+.cache/
+.local/state/
+
+# Secrets — never committed
+*.pem
+*.key
+.env

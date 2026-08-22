@@ -1,0 +1,161 @@
+" eightharsh's vimrc
+
+" CORE
+set nocompatible
+set encoding=utf-8
+set hidden
+set clipboard=unnamed,unnamedplus
+set mouse=a
+set nobackup
+set noswapfile
+set undofile
+set undodir=~/.config/vim/undo
+set shortmess+=I
+
+" UI
+set number
+set relativenumber
+set scrolloff=8
+set nowrap
+set splitbelow
+set splitright
+set cursorline
+
+" SEARCH
+set hlsearch
+set incsearch
+set ignorecase
+set smartcase
+
+" INDENT
+set autoindent
+set tabstop=4
+set shiftwidth=4
+set expandtab
+
+" LEADER
+let mapleader=" "
+
+" KEYMAPS
+
+" Save / Quit
+nnoremap <leader>w :w<CR>
+nnoremap <leader>q :q<CR>
+nnoremap <leader>Q :qa!<CR>
+
+" Clear search highlight
+nnoremap <leader>h :noh<CR>
+
+" Window navigation
+nnoremap <C-h> <C-w>h
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-l> <C-w>l
+
+" Better indenting in visual mode (stays in visual)
+vnoremap < <gv
+vnoremap > >gv
+
+" Move lines up/down
+nnoremap <A-j> :m .+1<CR>==
+nnoremap <A-k> :m .-2<CR>==
+vnoremap <A-j> :m '>+1<CR>gv=gv
+vnoremap <A-k> :m '<-2<CR>gv=gv
+
+" Stay centered when jumping
+nnoremap n nzzzv
+nnoremap N Nzzzv
+nnoremap <C-d> <C-d>zz
+nnoremap <C-u> <C-u>zz
+
+" Don't yank on paste (keeps register clean)
+xnoremap <leader>p "_dP
+
+" Yank to end of line (consistent with D, C)
+nnoremap Y y$
+
+" MARKDOWN
+let g:markdown_fenced_languages = ['bash', 'python', 'javascript', 'vim', 'sh']
+let g:markdown_syntax_conceal = 0
+
+augroup markdown_settings
+    autocmd!
+    autocmd FileType markdown setlocal wrap
+    autocmd FileType markdown setlocal linebreak
+    autocmd FileType markdown setlocal breakindent
+    autocmd FileType markdown setlocal scrolloff=4
+augroup END
+
+" COLORS
+set termguicolors
+syntax on
+highlight clear
+
+" --- Base ---
+highlight Normal       guifg=#e1e3e7 guibg=NONE
+highlight LineNr       guifg=#404552 guibg=NONE
+highlight CursorLineNr guifg=#ffffff guibg=NONE    gui=bold   cterm=bold
+highlight CursorLine   guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
+highlight SignColumn   guifg=#404552 guibg=NONE
+
+" --- Syntax ---
+highlight Comment      guifg=#60e1e0 guibg=NONE
+highlight String       guifg=#9bcf4f guibg=NONE
+highlight Keyword      guifg=#dab6fc guibg=NONE
+highlight Function     guifg=#4084d6 guibg=NONE
+highlight Type         guifg=#f6d13a guibg=NONE
+highlight Constant     guifg=#fda685 guibg=NONE
+highlight Number       guifg=#fda685 guibg=NONE
+highlight Statement    guifg=#dab6fc guibg=NONE
+highlight PreProc      guifg=#60e1e0 guibg=NONE
+highlight Special      guifg=#9bcf4f guibg=NONE
+highlight Identifier   guifg=#e1e3e7 guibg=NONE
+highlight Error        guifg=#ed4737 guibg=NONE
+
+" --- Spell (disabled visually) ---
+highlight SpellBad     guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
+highlight SpellCap     guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
+highlight SpellRare    guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
+highlight SpellLocal   guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
+
+" --- UI Elements ---
+highlight Visual       guifg=#1e2030 guibg=#ffffff
+highlight VisualNOS    guifg=#1e2030 guibg=#ffffff
+highlight Search       guifg=#1e2030 guibg=#f6d13a
+highlight IncSearch    guifg=#1e2030 guibg=#60e1e0
+highlight MatchParen   guifg=#f6d13a guibg=NONE    gui=bold
+highlight StatusLine   guifg=#e1e3e7 guibg=#2d3043 gui=NONE
+highlight StatusLineNC guifg=#404552 guibg=#1e2030 gui=NONE
+highlight VertSplit    guifg=#404552 guibg=NONE
+highlight Pmenu        guifg=#e1e3e7 guibg=#2d3043
+highlight PmenuSel     guifg=#1e2030 guibg=#dab6fc
+highlight PmenuSbar    guifg=NONE    guibg=#404552
+highlight PmenuThumb   guifg=NONE    guibg=#dab6fc
+highlight WildMenu     guifg=#1e2030 guibg=#f6d13a
+highlight ColorColumn  guifg=NONE    guibg=#2d3043
+highlight EndOfBuffer  guifg=#404552 guibg=NONE
+highlight NonText      guifg=#404552 guibg=NONE
+highlight Folded       guifg=#60e1e0 guibg=#2d3043
+highlight Title        guifg=#dab6fc guibg=NONE    gui=bold
+highlight Todo         guifg=#f6d13a guibg=NONE    gui=bold
+highlight Directory    guifg=#4084d6 guibg=NONE
+
+" --- Markdown ---
+highlight markdownH1            guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH2            guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH3            guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH4            guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH1Delimiter   guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH2Delimiter   guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownH3Delimiter   guifg=#dab6fc guibg=NONE gui=bold
+highlight markdownBold          guifg=#f6d13a guibg=NONE gui=bold
+highlight markdownItalic        guifg=#60e1e0 guibg=NONE gui=italic
+highlight markdownCode          guifg=#9bcf4f guibg=NONE
+highlight markdownCodeBlock     guifg=#9bcf4f guibg=NONE
+highlight markdownCodeDelimiter guifg=#404552 guibg=NONE
+highlight markdownLinkText      guifg=#4084d6 guibg=NONE gui=NONE
+highlight markdownUrl           guifg=#404552 guibg=NONE
+highlight markdownListMarker    guifg=#60e1e0 guibg=NONE
+highlight markdownRule          guifg=#404552 guibg=NONE
+highlight markdownBlockquote    guifg=#60e1e0 guibg=NONE gui=italic
+

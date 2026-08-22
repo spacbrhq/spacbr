@@ -1,0 +1,46 @@
+#!/bin/sh
+case $BLOCK_BUTTON in
+    1) "$TERMINAL" -e nmtui; pkill -RTMIN+4 dwmblocks ;;
+    6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+cache="/tmp/netstatus_cache_${USER}"
+lock="/tmp/netstatus_lock_${USER}.lock"
+
+# Detect ethernet interface
+eth_iface="$(ip -o link show | awk -F': ' '$2 ~ /^e/{print $2; exit}')"
+
+# Ethernet
+if [ -n "$eth_iface" ]; then
+    read -r eth_state < "/sys/class/net/$eth_iface/operstate" 2>/dev/null
+    if [ "$eth_state" = 'up' ]; then
+        stale=$(( $(date +%s) - $(stat -c %Y "$cache" 2>/dev/null || echo 0) ))
+        if [ ! -f "$cache" ] || [ "$stale" -ge 30 ]; then
+            if mkdir "$lock" 2>/dev/null; then
+                (
+                    trap 'rm -rf "$lock"' EXIT
+                    gw="$(ip route | awk '/default/ { print $3; exit }')"
+                    if ping -c1 -W1 -q "$gw" >/dev/null 2>&1; then
+                        if ping -c1 -W2 -q 9.9.9.9 >/dev/null 2>&1 \
+                        || ping -c1 -W2 -q 1.1.1.1 >/dev/null 2>&1; then
+                            echo online > "$cache.tmp"
+                        else
+                            echo offline > "$cache.tmp"
+                        fi
+                    else
+                        echo offline > "$cache.tmp"
+                    fi
+                    mv "$cache.tmp" "$cache"
+                ) &
+            fi
+        fi
+        read -r netstatus < "$cache" 2>/dev/null
+        [ "$netstatus" = 'online' ] && ethericon=" online" || ethericon=" offline"
+    else
+        ethericon=" disconnected"
+    fi
+else
+    ethericon=" no eth"
+fi
+
+printf "%s\n" "$ethericon"

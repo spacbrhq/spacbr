@@ -1,0 +1,33 @@
+!/bin/sh
+userresources=$HOME/.config/xresources
+usermodmap=$HOME/.config/xmodmap
+sysresources=/etc/X11/xinit/.Xresources
+sysmodmap=/etc/X11/xinit/.Xmodmap
+
+# merge in defaults and keymaps
+[ -f $sysresources ] && xrdb -merge $sysresources
+[ -f $sysmodmap ] && xmodmap $sysmodmap
+[ -f "$userresources" ] && xrdb -merge "$userresources"
+[ -f "$usermodmap" ] && xmodmap "$usermodmap"
+
+# Automatically set dpi
+xrandr --auto
+xrandr --dpi 96
+
+# Other things
+export SSH_AUTH_SOCK
+export XDG_SESSION_TYPE=X11
+export GDK_BACKEND=x11
+export GTK_THEME="Arc-Dark"
+export QT_QPA_PLATFORMTHEME=gtk
+# Fix misbehaving Java apps
+export _JAVA_AWT_WM_NONREPARENTING=1
+
+# Start programs
+dwmblocks &
+pipewire &
+pipewire-pulse &
+wireplumber &
+picom --config ~/.config/picom/picom.conf &
+hsetroot -fill ~/.local/share/backgrounds/cars.jpg &
+exec dbus-launch dwm

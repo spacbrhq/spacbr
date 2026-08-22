@@ -1,0 +1,45 @@
+slock - simple screen locker
+============================
+simple screen locker utility for X.
+
+
+Requirements
+------------
+In order to build slock you need the Xlib header files.
+
+
+Patches
+-------
+This fork includes the following patches:
+    - alpha: adds true transparency to slock.
+    - DPMS: turns off the monitor after a configurable amount of time.
+    - message (xft): Adds a message to the lock screen with Xft font support.
+
+
+More
+----
+Since this build of slock only makes the background transparent, it is intended
+to be used with a compositor that is able to provide blur on transparent windows,
+like picom for example. Please refer to picom's manual, under the BLUR section, for
+more information about how to enable window blurring. Alternatively, a value of 1.0
+can be set on config.h for the alpha variable if blur or transparency isn't desired.
+
+Finally, Arch Linux, and Arch-based distributions need user and group set to "nobody",
+so it may be required to change the group value to "nogroup" in config.h if one
+isn't using any of these distributions.
+
+
+Installation
+------------
+Edit config.mk to match your local setup (slock is installed into
+the /usr/local namespace by default).
+
+Afterwards enter the following command to build and install slock
+(if necessary as root):
+
+    make clean install
+
+
+Running slock
+-------------
+Simply invoke the 'slock' command. To get out of it, enter your password.
