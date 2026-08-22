@@ -1,0 +1,22 @@
+# SPACBR — X11 / window-manager layer
+#
+# The graphical session itself: Xorg, the libraries the Suckless
+# components are built against, and the session infrastructure that
+# owns one responsibility each (compositor, notifications, idle-lock).
+# One package per line; installed via: pacman -S --needed - < packages/x11
+
+xorg-server
+xorg-xinit
+xorg-xrandr
+xorg-xrdb
+xorg-xmodmap
+xorg-xset
+xorg-xsetroot
+libx11
+libxft
+libxinerama
+dbus
+picom
+dunst
+hsetroot
+xss-lock

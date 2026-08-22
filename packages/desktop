@@ -1,0 +1,38 @@
+# SPACBR — desktop capabilities
+#
+# Everything that backs a spacbr dmenu/CLI capability (§21-30 of
+# CLAUDE.md) plus the applications the existing config already assumes:
+# networking, audio, bluetooth, file management, documents, media,
+# browser, and the screenshot/clipboard/passmenu toolchain.
+# One package per line; installed via: pacman -S --needed - < packages/desktop
+
+networkmanager
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+bluez
+bluez-utils
+playerctl
+pcmanfm
+libfm
+gvfs
+udisks2
+zathura
+zathura-pdf-mupdf
+mpv
+yt-dlp
+firefox
+xclip
+libnotify
+imagemagick
+xdotool
+slop
+pass
+pass-otp
+gnupg
+# pinentry-gnome3 is what gpg-agent.conf currently points at; it pulls
+# in GNOME dependencies for a minimal system. pinentry-curses is a
+# lighter drop-in if you want to switch (update
+# .local/share/gnupg/gpg-agent.conf's pinentry-program to match).
+pinentry-gnome3

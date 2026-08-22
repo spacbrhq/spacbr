@@ -1,0 +1,16 @@
+# SPACBR — base packages
+#
+# Core system tooling that isn't specific to the graphical session:
+# build toolchain for the Suckless components, shell, and editors.
+# One package per line; installed via: pacman -S --needed - < packages/base
+
+base-devel
+git
+zsh
+zsh-syntax-highlighting
+neovim
+vim
+htop
+fontconfig
+freetype2
+ttf-hack

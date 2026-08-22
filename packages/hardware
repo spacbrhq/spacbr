@@ -1,0 +1,9 @@
+# SPACBR — hardware-dependent packages
+#
+# Not every SPACBR machine has the hardware these back (e.g. no
+# backlight on a desktop with an external monitor only). Kept separate
+# from packages/base and packages/desktop per §48 so machine-specific
+# needs don't leak into the portable package set.
+# One package per line; installed via: pacman -S --needed - < packages/hardware
+
+brightnessctl
