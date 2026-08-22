@@ -8,11 +8,10 @@
 #define TERMCLASS "St"
 #define BROWSER "firefox"
 #define EXPLORER "pcmanfm"
-#define MESSENGER "gajim"
 #define SCREENSHOT "screenshot"
 #define PASSMENU "~/.local/bin/passmenu"
-#define DISPLAY "arandr"
-#define SCREENSAVER "xscreensaver"
+#define DISPLAYCTL "~/.local/bin/display"
+#define LOCKSCREEN "slock"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -88,17 +87,15 @@ static const Key keys[] = {
     { MODKEY,                       XK_e,      spawn,          SHCMD(EXPLORER) },
     { MODKEY,                       XK_o,      spawn,          SHCMD(PASSMENU) },
     { 0,                            XK_Print,  spawn,          SHCMD(SCREENSHOT) },
-	{ 0, 			 XF86XK_Messenger,		   spawn,	       SHCMD(MESSENGER) },
-    /* Launch arandr with dislay button */
-	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAY) },
-	/* Open the screensaver with the key */
-	{ 0, 			 XF86XK_ScreenSaver,	   spawn,	       SHCMD(SCREENSAVER) },
+	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAYCTL) },
+	{ MODKEY|ShiftMask,             XK_l,      spawn,          SHCMD(LOCKSCREEN) },
+	{ 0, 			 XF86XK_ScreenSaver,	   spawn,	       SHCMD(LOCKSCREEN) },
     { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
     { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
     { 0,             XF86XK_AudioMute,         spawn,          SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
 	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
-    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("xbacklight -inc 5") },
-    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("xbacklight -dec 5") },
+    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("brightnessctl set 5%+") },
+    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("brightnessctl set 5%-") },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },

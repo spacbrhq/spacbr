@@ -1,0 +1,46 @@
+#!/bin/sh
+# dmenu-driven display management over xrandr.
+# Replaces the arandr GUI dependency with the keyboard -> dmenu -> action model.
+
+internal="$(xrandr --query | awk '/ connected/ && /^(eDP|LVDS)/ {print $1; exit}')"
+external="$(xrandr --query | awk -v skip="$internal" '/ connected/ && $1 != skip {print $1; exit}')"
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Display" "$1"
+}
+
+choice=$(printf '%s\n' \
+    "Detect / Auto" \
+    "Extend (external right of internal)" \
+    "Mirror" \
+    "External only" \
+    "Internal only" \
+    | dmenu -p "display")
+
+case "$choice" in
+    "Detect / Auto")
+        xrandr --auto
+        ;;
+    "Extend (external right of internal)")
+        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
+        xrandr --output "$internal" --auto --output "$external" --auto --right-of "$internal"
+        ;;
+    "Mirror")
+        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
+        xrandr --output "$internal" --auto --output "$external" --auto --same-as "$internal"
+        ;;
+    "External only")
+        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
+        xrandr --output "$internal" --off --output "$external" --auto
+        ;;
+    "Internal only")
+        [ -z "$internal" ] && { notify "No internal display detected"; exit 1; }
+        xrandr --output "$internal" --auto
+        [ -n "$external" ] && xrandr --output "$external" --off
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+notify "$choice"
