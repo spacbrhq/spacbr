@@ -1,0 +1,54 @@
+#!/bin/sh
+# SPACBR's management CLI. Once installed, its supporting install/
+# scripts and package manifests live under $XDG_DATA_HOME/spacbr
+# (deployed there by install/install.sh) so this works from anywhere,
+# regardless of where the original clone was.
+set -eu
+
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+SPACBR_SELF="$XDG_DATA_HOME/spacbr"
+
+usage() {
+    cat <<EOF
+spacbr — SPACBR management CLI
+
+  spacbr install      run the installer
+  spacbr update       re-apply SPACBR from its current source tree
+  spacbr repair       diagnose and fix common problems
+  spacbr uninstall    remove SPACBR-deployed files (packages/data untouched)
+  spacbr doctor       run diagnostics only, no changes
+  spacbr info         show system/version summary
+  spacbr version      print the installed SPACBR version
+
+  spacbr network      open nmtui (scan/connect/disconnect/saved networks)
+  spacbr audio        select output/input device
+  spacbr bluetooth     scan/connect/disconnect/trust/remove devices
+  spacbr display      xrandr layout menu
+  spacbr wallpaper     set/next/previous/random wallpaper
+  spacbr screenshot    full/window/region/color screenshot
+  spacbr power         lock/logout/suspend/reboot/shutdown menu
+EOF
+}
+
+case "${1:-}" in
+    install)    shift; exec "$SPACBR_SELF/install/install.sh" "$@" ;;
+    update)     shift; exec "$SPACBR_SELF/install/update.sh" "$@" ;;
+    repair)     shift; exec "$SPACBR_SELF/install/repair.sh" "$@" ;;
+    uninstall)  shift; exec "$SPACBR_SELF/install/uninstall.sh" "$@" ;;
+    doctor)     shift; exec "$SPACBR_SELF/install/doctor.sh" "$@" ;;
+    version)    cat "$SPACBR_SELF/VERSION" 2>/dev/null || echo "not installed" ;;
+    info)       shift; exec "$SPACBR_SELF/install/info.sh" "$@" ;;
+    network)    exec "${TERMINAL:-st}" -e nmtui ;;
+    audio)      shift; exec "$HOME/.local/bin/audio" "$@" ;;
+    bluetooth)  shift; exec "$HOME/.local/bin/bluetooth" "$@" ;;
+    display)    shift; exec "$HOME/.local/bin/display" "$@" ;;
+    wallpaper)  shift; exec "$HOME/.local/bin/wallpaper" "$@" ;;
+    screenshot) shift; exec "$HOME/.local/bin/screenshot" "$@" ;;
+    power)      shift; exec "$HOME/.local/bin/power" "$@" ;;
+    -h|--help|help|"") usage ;;
+    *)
+        echo "spacbr: unknown command '$1'" >&2
+        usage >&2
+        exit 1
+        ;;
+esac

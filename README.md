@@ -78,6 +78,20 @@ docs/           additional documentation
 
 Full bindings are in [`.local/src/dwm/config.h`](.local/src/dwm/config.h).
 
+## The `spacbr` CLI
+
+After install, `spacbr` is the management entry point:
+
+```
+spacbr install | update | repair | uninstall | doctor | info | version
+spacbr network | audio | bluetooth | display | wallpaper | screenshot | power
+```
+
+The first group manages the system itself (see `install/`). The second
+group are thin wrappers around the same `~/.local/bin/*` scripts the
+dwm keybindings call directly — useful when you'd rather type a
+command than remember a chord.
+
 ## Installing
 
 Not yet published. Once released:
@@ -99,9 +113,14 @@ CLAUDE.md §53-72 for why it's structured that way.
 
 ## Status
 
-Early — the visual system, Suckless patches, and dmenu contextual
-scripts are in place; the installer and `spacbr` CLI are still being
-built out. See `VERSION` for the current release.
+Early. In place: the visual system, Suckless patches, dmenu contextual
+scripts, package manifests, the installer (install/update/repair/
+uninstall/doctor), and the `spacbr` CLI. Not yet built: the versioned
+release channel and web bootstrap (§54-59), so `spacbr update`/`repair`
+without an explicit source directory can't fetch anything newer than
+what's already deployed — see the note at the top of `install/update.sh`.
+None of this has been run against a real Arch machine yet. See
+`VERSION` for the current release.
 
 ## License
 
