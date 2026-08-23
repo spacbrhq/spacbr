@@ -36,6 +36,14 @@ that handles `.config`/`.local`.
   this rule, every one of those three actions fails outright when
   triggered from dwm's power menu. See the rule file's own comment for
   the full story.
+- `nftables/` — `nftables.conf` deployed to `/etc/nftables.conf`, the
+  file the stock `nftables.service` loads at boot (no SPACBR-owned unit
+  needed — the package already ships one). Default-deny inbound
+  (loopback, established/related, ping, and SSH allowed; unrestricted
+  outbound), the real gap for a machine that runs sshd and had no
+  firewall at all. Applied and verified live with a background
+  auto-revert safety net (flush the ruleset after 90s unless cancelled)
+  so a mistake couldn't have caused a permanent SSH lockout.
 
 Don't add a file here speculatively. If a real
 need shows up (a specific device needing an Xorg quirk, a service

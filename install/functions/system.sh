@@ -53,3 +53,21 @@ deploy_modules_load() {
         ok "loaded kernel module(s) from $name"
     done
 }
+
+# deploy_nftables [SOURCE_DIR] -- copies system/nftables/nftables.conf
+# to /etc/nftables.conf and reloads the ruleset if it changed. The
+# nftables package already ships nftables.service to load this file at
+# boot; SPACBR doesn't need its own unit, just the file and the
+# service enabled (see enable_system_services).
+deploy_nftables() {
+    local src="${1:-$SPACBR_HOME}/system/nftables/nftables.conf"
+    local dest="/etc/nftables.conf"
+    [ -f "$src" ] || return 0
+    if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+        ok "nftables ruleset already up to date"
+        return 0
+    fi
+    sudo install -D -m 644 "$src" "$dest"
+    sudo systemctl reload-or-restart nftables 2>/dev/null || sudo systemctl restart nftables
+    ok "nftables ruleset deployed"
+}

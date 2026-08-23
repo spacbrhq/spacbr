@@ -37,6 +37,7 @@ keyboard shortcut → dmenu → action
 | Notifications | `dunst` |
 | Compositor | `picom` |
 | Networking | NetworkManager (`nmcli`/`nmtui`) |
+| Firewall | `nftables` (`system/nftables/nftables.conf`) |
 | Audio | PipeWire + WirePlumber (`wpctl`) |
 | Bluetooth | BlueZ (`bluetoothctl`) |
 | Brightness | `ddcutil` (DDC/CI — this machine has no backlight device; use `brightnessctl -c backlight` instead on a laptop) |

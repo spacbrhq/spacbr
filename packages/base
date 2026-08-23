@@ -8,6 +8,12 @@ base-devel
 git
 zsh
 zsh-syntax-highlighting
+# nftables — Arch's native firewall backend (ufw/firewalld are wrappers
+# around the same subsystem). Default-deny inbound except SSH/ping; see
+# system/nftables/nftables.conf for the actual ruleset and its
+# reasoning. Not desktop-specific, so it belongs here, not
+# packages/desktop.
+nftables
 neovim
 vim
 # Language servers for nvim/init.lua's native vim.lsp config -- not

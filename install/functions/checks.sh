@@ -37,6 +37,15 @@ run_all_checks() {
     info "Networking / audio / bluetooth"
     run_check "NetworkManager"      "command -v nmcli" "pacman -S networkmanager"
     run_check "NetworkManager active" "systemctl is-active --quiet NetworkManager" "sudo systemctl enable --now NetworkManager"
+    run_check "nftables installed"  "command -v nft" "pacman -S nftables"
+    run_check "nftables enabled"    "systemctl is-enabled --quiet nftables" "sudo systemctl enable --now nftables"
+    # nftables.service is Type=oneshot -- it applies the ruleset once
+    # and correctly reports "inactive" afterward (no ongoing process),
+    # so is-active would be a false negative here. Check the actual
+    # kernel ruleset instead: sudo -n, not blocking sudo, same reason
+    # as the polkit rule check below -- never hang doctor on a password
+    # prompt.
+    run_check "firewall ruleset loaded" "sudo -n nft list ruleset 2>/dev/null | grep -q 'hook input'" "spacbr repair (or spacbr install) to deploy system/nftables/nftables.conf -- or re-run 'spacbr doctor' just after using sudo for something else"
     run_check "PipeWire"            "command -v pipewire" "pacman -S pipewire pipewire-pulse"
     run_check "WirePlumber"         "command -v wireplumber" "pacman -S wireplumber"
     run_check "BlueZ"               "command -v bluetoothctl" "pacman -S bluez bluez-utils"

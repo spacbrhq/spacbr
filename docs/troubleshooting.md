@@ -185,3 +185,26 @@ Suckless binaries. It never removes pacman packages (something else on
 your system might depend on them) or personal data (backgrounds,
 gnupg keyrings, documents). Remove those yourself if you actually want
 them gone.
+
+## A service/app that needs an inbound connection stopped working after install
+
+`nftables` (see `system/nftables/nftables.conf`) denies all inbound
+connections except SSH and ping by default — this is expected for
+anything that needs to *accept* incoming connections (a local web
+server, a sync tool, game hosting, etc.), not something that's broken.
+Add a rule for the port you need, e.g. `sudo nft add rule inet filter
+input tcp dport <port> accept`, then make it permanent by adding the
+same line to `system/nftables/nftables.conf` and re-running `spacbr
+repair` (or edit `/etc/nftables.conf` directly and `sudo systemctl
+restart nftables`, but that won't survive the next `spacbr
+install`/`update` overwriting the file from source). Outbound
+connections (browsing, updates, etc.) are never affected — only
+unsolicited *inbound* ones are.
+
+If you ever lock yourself out over SSH while editing this file
+remotely, the same safety-net pattern used when this was first set up
+works: `nft -c -f <file>` validates syntax without applying anything,
+and applying changes with a backgrounded `sleep 90 && nft flush
+ruleset` armed (cancel it once you've confirmed a fresh connection
+still works) means a mistake recovers on its own within 90 seconds
+instead of requiring physical access.

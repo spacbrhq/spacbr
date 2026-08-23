@@ -56,6 +56,7 @@ fi
 warn "Failures found above — attempting repair"
 install_all_packages
 build_and_install_suckless
+deploy_nftables "$SOURCE_DIR"
 enable_system_services
 deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"

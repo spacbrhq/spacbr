@@ -8,7 +8,8 @@ enable_system_services() {
     info "Enabling system services"
     sudo systemctl enable --now NetworkManager
     sudo systemctl enable --now bluetooth
-    ok "NetworkManager, bluetooth enabled"
+    sudo systemctl enable --now nftables
+    ok "NetworkManager, bluetooth, nftables enabled"
 }
 
 # Found for real on a fresh Arch install: nothing ever makes zsh the

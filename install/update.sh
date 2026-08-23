@@ -49,6 +49,7 @@ install_all_packages
 deploy_dotfiles "$SOURCE_DIR"
 deploy_self "$SOURCE_DIR"
 build_and_install_suckless
+deploy_nftables "$SOURCE_DIR"
 deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"
 
