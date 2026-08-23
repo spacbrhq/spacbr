@@ -9,7 +9,12 @@ static const Block blocks[] = {
 	{"DXB ", "TZ='Asia/Dubai' date '+%I:%M %p'",		5,		0},
 	{"TPE ", "TZ='Asia/Taipei' date '+%I:%M %p'",		5,		0},
 	{"", "date '+%b %d (%a) %I:%M %p'",					5,		0},
-	{"Bat: ", "cat /sys/class/power_supply/BAT0/capacity | sed 's/$/%/'",	5,		0},
+	/* Icon lives in the command, not the static field: dwmblocks always
+	 * copies the icon first, so a static "Bat: " label would render
+	 * forever even with no battery present. Verified for real on
+	 * battery-less desktop hardware -- empty icon + empty command
+	 * output is the only combination dwmblocks treats as "no block". */
+	{"", "for b in /sys/class/power_supply/BAT*/capacity; do [ -f $b ] && printf 'Bat: %s%%' $(cat $b) && break; done",	5,		0},
 };
 
 //sets delimiter between status commands. NULL character ('\0') means no delimiter.
