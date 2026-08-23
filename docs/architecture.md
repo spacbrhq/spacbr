@@ -54,6 +54,26 @@ The permanent UI (the dwmblocks bar) stays minimal on purpose — it
 shows state, not controls. Controls live behind the keyboard/dmenu
 layers so the desktop stays visually quiet.
 
+## Locking
+
+`slock` is the only lock mechanism (§7/§18) — every lock trigger
+(`MODKEY+Shift+L`, `XF86 ScreenSaver`, the power menu's Lock/Suspend,
+and `xss-lock`'s idle timeout) goes through `.local/bin/lock`, a thin
+wrapper, rather than the raw binary.
+
+`.local/bin/lock` wraps `slock` rather than patching it: the real
+Imlib2 blur patch (`tools.suckless.org/slock/patches/blur-pixelated-screen/`)
+targets slock 1.4 and fails 5+ hunks against this repo's 1.5 (already
+carrying the xresources patch) — hand-merging unverifiable C against
+X11/Imlib2 was judged too risky, the same call made earlier about the
+dmenu-xresources patch. The wrapper screenshots the desktop, blurs it
+with `imagemagick` (already a dependency), sets it as the root
+background, calls `slock`, then restores the real wallpaper on
+unlock — same visual result, zero new C code or dependencies, at the
+cost of a brief (sub-second) window where the real desktop is still
+visible before the blur/lock appears, since the capture happens before
+`slock` grabs the screen rather than after.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:

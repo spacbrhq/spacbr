@@ -10,13 +10,13 @@ choice=$(printf '%s\n' "Lock" "Logout" "Suspend" "Reboot" "Shutdown" | dmenu -p 
 
 case "$choice" in
     Lock)
-        exec slock
+        exec "$HOME/.local/bin/lock"
         ;;
     Logout)
         confirm "Logout" && pkill -TERM -u "$USER" dwm
         ;;
     Suspend)
-        confirm "Suspend" && { slock & loginctl suspend; }
+        confirm "Suspend" && { "$HOME/.local/bin/lock" & loginctl suspend; }
         ;;
     Reboot)
         confirm "Reboot" && loginctl reboot

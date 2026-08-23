@@ -39,6 +39,24 @@ alone installs to `/usr/local` instead of `~/.local/bin` — a
 user-writable, sometimes `nosuid`-mounted home directory can't safely
 host a setuid-root binary. Don't try to move it there.
 
+## Lock screen isn't blurred
+
+Locking goes through `.local/bin/lock` (a blur wrapper around `slock`)
+— see `docs/architecture.md`'s "Locking" section. If it's missing:
+
+- Check `MODKEY+Shift+L`, `XF86 ScreenSaver`, the power menu, and
+  `xinitrc`'s `xss-lock` line all point at `~/.local/bin/lock`, not
+  raw `slock` — `dwm/config.h`'s `LOCKSCREEN` macro. If dwm was built
+  before this changed, rebuild it.
+- The blur needs `import` and `magick` (both from `imagemagick`,
+  already a dependency) — it fails silently to a plain-color lock
+  screen if either is missing, rather than erroring, so check
+  `command -v import magick` if the blur never appears.
+- A brief moment of visible desktop before the blur/lock appears
+  (screenshot + blur takes a beat) is a known, accepted tradeoff of
+  doing this in a wrapper script instead of patching `slock` itself —
+  not a bug to chase.
+
 ## No sound / audio device missing
 
 - `spacbr doctor` checks PipeWire/WirePlumber are *installed*, not
