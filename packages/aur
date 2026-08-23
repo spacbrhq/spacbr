@@ -30,6 +30,16 @@ localsend
 # longer applies here specifically (the general "don't add apps
 # speculatively" principle still does everywhere else).
 
+mpdris2-rs
+# mpd doesn't expose MPRIS on its own (verified for real: no
+# org.mpris.* name on the session bus at all without this), which
+# silently broke dwm's playerctl-based media keys for mpd and left
+# fastfetch's Player/Media modules with nothing to read. Rust, not the
+# older Python mpdris2 (also available) -- smaller dependency
+# footprint for what's just a small D-Bus bridge daemon. Enabled by
+# setup_mpd() in services.sh, conditional on mpd being installed at
+# all like everything else that function does.
+
 # --- Considered from your previous AUR list and deliberately left out ---
 #
 # clipmenu-git     — turned out clipmenu is an OFFICIAL package now

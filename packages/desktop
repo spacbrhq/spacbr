@@ -30,6 +30,7 @@ mpv
 # ~/Music for no benefit on a single-user desktop.
 mpd
 rmpc
+# mpdris2-rs is AUR-only -- see packages/aur, not here.
 # nsxiv — Images had no owner (§7 names Documents/Media/Browser but
 # nothing for image/*), and handlr-regex was correctly routing
 # audio/video/pdf but had nowhere to send images. Suckless-lineage

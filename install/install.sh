@@ -47,6 +47,8 @@ deploy_polkit_rules
 deploy_modules_load
 setup_snapper
 setup_mpd
+setup_tailscale
+setup_syncthing
 set_default_shell
 
 info "Validating installation"

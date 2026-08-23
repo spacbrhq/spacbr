@@ -31,6 +31,12 @@ run_all_checks() {
 
     info "Session infrastructure"
     run_check "dunst"               "command -v dunst" "pacman -S dunst"
+    # Verified for real: dunst died twice in one session with "X
+    # connection to :0 broken" and no Restart= in the stock unit meant
+    # it only came back whenever some app's next notify-send happened
+    # to trigger D-Bus reactivation. This checks the override actually
+    # landed, not just that dunst itself is installed.
+    run_check "dunst auto-restart"  "[ \"\$(systemctl --user show dunst.service -p Restart --value 2>/dev/null)\" = on-failure ]" "spacbr repair (deploys .config/systemd/user/dunst.service.d/override.conf), then systemctl --user daemon-reload"
     run_check "picom"               "command -v picom" "pacman -S picom"
     run_check "xss-lock"            "command -v xss-lock" "pacman -S xss-lock"
 
@@ -71,6 +77,10 @@ run_all_checks() {
     # actually connects -- same reasoning as the nftables oneshot check
     # above.
     run_check "mpd.socket enabled"  "systemctl --user is-enabled --quiet mpd.socket" "systemctl --user enable --now mpd.socket"
+    # Conditional on mpdris2-rs actually being installed, like its own
+    # "mpdris2-rs (mpd MPRIS bridge)" check above -- no point failing
+    # this if that one already reported it's deliberately not present.
+    run_check "mpdris2-rs.service enabled" "! command -v mpdris2-rs >/dev/null 2>&1 || systemctl --user is-enabled --quiet mpdris2-rs.service" "systemctl --user enable --now mpdris2-rs.service"
 
     info "Snapshots"
     # snapper only makes sense on btrfs -- on any other filesystem,
@@ -139,8 +149,15 @@ run_all_checks() {
     run_check "nnn"       "command -v nnn" "pacman -S nnn"
     run_check "alacritty" "command -v alacritty" "pacman -S alacritty"
     run_check "tailscale" "command -v tailscale" "pacman -S tailscale"
+    run_check "tailscaled enabled" "systemctl is-enabled --quiet tailscaled.service" "spacbr repair (runs setup_tailscale) -- still needs 'tailscale up' yourself to join a tailnet"
     run_check "syncthing" "command -v syncthing" "pacman -S syncthing"
+    run_check "syncthing.service enabled" "systemctl --user is-enabled --quiet syncthing.service" "spacbr repair (runs setup_syncthing)"
     run_check "localsend" "command -v localsend" "paru -S localsend"
+    # mpdris2-rs is conditional on mpd actually being wanted -- not a
+    # hard requirement the way mpd/rmpc themselves are, so this is
+    # informational rather than something spacbr repair chases if it's
+    # deliberately not installed.
+    run_check "mpdris2-rs (mpd MPRIS bridge)" "command -v mpdris2-rs" "paru -S mpdris2-rs"
     run_check "git-delta" "command -v delta" "pacman -S git-delta"
     run_check "restic"    "command -v restic" "pacman -S restic"
     run_check "Claude Code CLI" "command -v claude" "npm config set prefix \$HOME/.local/share/npm && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code"

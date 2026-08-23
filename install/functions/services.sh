@@ -79,4 +79,39 @@ setup_mpd() {
     mkdir -p "$HOME/Music" "$HOME/.local/share/mpd/playlists" "$HOME/.local/state/mpd"
     systemctl --user enable --now mpd.socket
     ok "mpd.socket enabled (mpd.service starts on first connection, e.g. from rmpc)"
+
+    # mpd doesn't expose MPRIS on its own -- verified for real (no
+    # org.mpris.* name on the session bus at all without this) --
+    # which silently broke two things: dwm's playerctl-based media
+    # keys never controlled mpd, and fastfetch's Player/Media modules
+    # never had anything to read. mpdris2-rs (AUR, a small Rust MPRIS2
+    # bridge) fixes both.
+    if command -v mpdris2-rs >/dev/null 2>&1; then
+        systemctl --user enable --now mpdris2-rs.service
+        ok "mpdris2-rs enabled (bridges mpd to MPRIS)"
+    fi
+}
+
+# setup_tailscale -- enables tailscaled.service (system-level: it
+# manages network interfaces/routing directly, unlike mpd/syncthing).
+# Does NOT run `tailscale up` -- that's an interactive login (opens a
+# URL to authenticate into a specific tailnet), a real account-linking
+# decision only the user should make, not something to automate.
+setup_tailscale() {
+    command -v tailscale >/dev/null 2>&1 || return 0
+    sudo systemctl enable --now tailscaled.service
+    ok "tailscaled enabled (run 'tailscale up' yourself to actually join a tailnet)"
+}
+
+# setup_syncthing -- enables the user-level syncthing.service (not the
+# system-wide syncthing@<user>.service template the package also
+# ships -- that needs explicit permission setup for no benefit on a
+# single-user desktop, same reasoning as setup_mpd). Doesn't configure
+# any devices/folders -- that's done through its web UI
+# (127.0.0.1:8384) and is specific to what you're actually syncing
+# with what, not something to guess at here.
+setup_syncthing() {
+    command -v syncthing >/dev/null 2>&1 || return 0
+    systemctl --user enable --now syncthing.service
+    ok "syncthing enabled (configure devices/folders at 127.0.0.1:8384)"
 }

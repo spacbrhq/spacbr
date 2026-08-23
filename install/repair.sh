@@ -63,6 +63,8 @@ deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"
 setup_snapper
 setup_mpd
+setup_tailscale
+setup_syncthing
 
 info "Re-checking"
 run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"

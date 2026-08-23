@@ -14,6 +14,14 @@ sysmodmap=/etc/X11/xinit/.Xmodmap
 xrandr --auto
 xrandr --dpi 96
 
+# Keyboard repeat: X11's own default (660ms delay, 25/sec) is
+# noticeably sluggish for normal typing/navigation -- this is the
+# standard, broadly-agreed-on fix, not a guess at personal preference
+# the way mouse acceleration/speed would be (no touchpad on this
+# machine -- checked via `xinput list`, a desktop with a USB mouse and
+# a gaming keyboard only, so no touchpad tuning applies here).
+xset r rate 250 35
+
 # Other things
 export SSH_AUTH_SOCK
 export XDG_SESSION_TYPE=X11
