@@ -41,9 +41,12 @@ qrencode
 papirus-icon-theme
 hicolor-icon-theme
 adwaita-cursors
-# gtk2 runtime — this repo tracks .config/gtk-2.0/gtkrc; without the
-# gtk2 package itself that config has nothing to apply to.
-gtk2
+# gtk2 runtime — this repo tracks .config/gtk-2.0/gtkrc; without a
+# GTK2-compatible runtime that config has nothing to apply to. Actual
+# GTK2 was removed from the official Arch repos entirely (confirmed
+# live against pacman) -- gtk2-compat ("simulates the presence of
+# GTK+2, but tries to use GTK+3") is the current replacement.
+gtk2-compat
 # ffmpeg — .config/shell/aliasrc already aliases it
 # ("ffmpeg -hide_banner"); ffmpegthumbnailer backs pcmanfm's icon-view
 # thumbnails (view_mode=icon in pcmanfm.conf).
@@ -70,8 +73,10 @@ handlr-regex
 # acceptable ("clipboard history through dmenu only if useful").
 # clipmenud is started from xinitrc; MODKEY+c opens the picker.
 clipmenu
-# pinentry-gnome3 is what gpg-agent.conf currently points at; it pulls
-# in GNOME dependencies for a minimal system. pinentry-curses is a
-# lighter drop-in if you want to switch (update
-# .local/share/gnupg/gpg-agent.conf's pinentry-program to match).
-pinentry-gnome3
+# gpg-agent.conf points at /usr/bin/pinentry-gnome3. The package named
+# "pinentry-gnome3" was removed from the Arch repos entirely (confirmed
+# live against pacman) -- Arch consolidated every pinentry frontend
+# (curses/emacs/gnome3/gtk/qt/tty) into one "pinentry" package that
+# ships all the binaries, including pinentry-gnome3 itself, so the
+# gpg-agent.conf path still works unchanged with just this one package.
+pinentry

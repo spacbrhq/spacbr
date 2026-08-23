@@ -24,9 +24,23 @@ install_all_packages() {
         install_package_set "$pkgset"
     done
     if [ -s "$SPACBR_HOME/packages/aur" ] && _pkg_list "$SPACBR_HOME/packages/aur" | grep -q .; then
-        require_cmd paru
-        info "Installing packages/aur"
-        _pkg_list "$SPACBR_HOME/packages/aur" | xargs -r paru -S --needed --noconfirm
-        ok "packages/aur"
+        if command -v paru >/dev/null 2>&1; then
+            info "Installing packages/aur"
+            _pkg_list "$SPACBR_HOME/packages/aur" | xargs -r paru -S --needed --noconfirm
+            ok "packages/aur"
+        else
+            # §43: the core installer must work without an AUR helper.
+            # AUR entries are supplementary (themes, etc.), never
+            # anything the base desktop depends on to function --
+            # skip them with a clear warning instead of dying and
+            # losing the Suckless builds/services/validation that
+            # haven't run yet. Deliberately not auto-bootstrapping
+            # paru here: that means building and trusting an AUR
+            # PKGBUILD unattended inside an automated installer, which
+            # is a real supply-chain step a human should decide on,
+            # not something to do blindly on their behalf.
+            warn "paru not found — skipping packages/aur ($(_pkg_list "$SPACBR_HOME/packages/aur" | wc -l) package(s), see the file for what's skipped)"
+            warn "install an AUR helper yourself and re-run 'spacbr install' (or install those packages manually) if you want them"
+        fi
     fi
 }

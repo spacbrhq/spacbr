@@ -40,7 +40,13 @@ run_all_checks() {
     run_check "PipeWire"            "command -v pipewire" "pacman -S pipewire pipewire-pulse"
     run_check "WirePlumber"         "command -v wireplumber" "pacman -S wireplumber"
     run_check "BlueZ"               "command -v bluetoothctl" "pacman -S bluez bluez-utils"
-    run_check "bluetooth service active" "systemctl is-active --quiet bluetooth" "sudo systemctl enable --now bluetooth"
+    # /sys/class/bluetooth only exists if there's actual BT hardware --
+    # on a desktop with none, systemd correctly leaves the (enabled)
+    # service inactive rather than failing to start it, and that's not
+    # a problem to report. Verified for real: a BT-less test machine
+    # showed "bluetooth service active" as a false-positive failure
+    # before this check accounted for hardware absence.
+    run_check "bluetooth service active" "[ ! -d /sys/class/bluetooth ] || systemctl is-active --quiet bluetooth" "sudo systemctl enable --now bluetooth"
 
     info "Hardware utilities"
     run_check "brightnessctl"       "command -v brightnessctl" "pacman -S brightnessctl"
@@ -49,6 +55,7 @@ run_all_checks() {
     info "Session extras"
     run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"
     run_check "polkit agent"        "[ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]" "pacman -S polkit-gnome"
+    run_check "login shell is zsh"  "[ \"\$(getent passwd \"\$USER\" | cut -d: -f7)\" = \"\$(command -v zsh)\" ]" "sudo usermod -s \$(command -v zsh) \$USER — without this, .zshrc's tty1 auto-startx never runs"
 
     info "Visual system consistency"
     run_check "dwm colors match palette"   "grep -q '#2f343f' \"\$HOME/.local/src/dwm/config.h\" 2>/dev/null" "dwm/config.h's normbgcolor etc. should match .config/xresources's dwm.* keys"

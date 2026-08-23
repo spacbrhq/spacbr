@@ -7,11 +7,17 @@
 #
 # arc-gtk-theme — the Arc-Dark GTK theme every gtk-2.0/3.0/4.0 config
 # and xinitrc's GTK_THEME already assume. Not in the official repos
-# (confirmed via archlinux.org/packages). UNVERIFIED against the AUR
-# itself — AUR's anti-bot check blocked automated lookup of the exact
-# package name/maintenance status. Confirm with `paru -Si arc-gtk-theme`
-# before relying on this line; the installer will simply fail loudly
-# here if the name is wrong, rather than silently doing nothing.
+# (confirmed via archlinux.org/packages). Package name and existence
+# now confirmed live via the AUR RPC API (curl from a real machine —
+# the AUR web UI's anti-bot check blocks this from elsewhere), but:
+# last actually updated 2025-03-31, flagged out-of-date by another
+# user on 2025-11-30, still unaddressed by the maintainer as of this
+# writing — a real maintenance-health concern per §42's "avoid
+# abandoned packages", not just a theoretical one. Might still build
+# and work fine (an out-of-date flag doesn't always mean broken), but
+# hasn't been verified either way. Your call whether that's an
+# acceptable risk for something this central to the visual identity,
+# or worth finding/building an alternative for.
 arc-gtk-theme
 
 # --- Considered from your previous AUR list and deliberately left out ---

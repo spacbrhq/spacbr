@@ -21,9 +21,20 @@ _manifest_add() {
 # deploy_tree SRC_DIR DEST_DIR — copies every file under SRC_DIR into
 # the matching path under DEST_DIR. Differing existing files are
 # backed up first; identical files are left untouched.
+#
+# Every variable here is `local`: this is called repeatedly from
+# within deploy_dotfiles, which itself uses a variable named `src` —
+# plain (non-local) shell variables share global scope across function
+# calls, so without `local` each call here would clobber the caller's
+# own `src` right in the middle of deploy_dotfiles's sequence of calls.
+# That happened for real: found via an actual install run, where the
+# four deploy_tree calls in deploy_dotfiles ended up building each
+# subsequent path on top of the *previous* call's already-corrupted
+# source directory instead of the real one.
 deploy_tree() {
-    src="$1"
-    dest="$2"
+    local src="$1"
+    local dest="$2"
+    local file rel target
     [ -d "$src" ] || return 0
     find "$src" -type f | while IFS= read -r file; do
         _should_skip "$file" && continue
@@ -45,7 +56,8 @@ deploy_tree() {
 # isn't SPACBR_HOME (e.g. spacbr update was invoked from the deployed
 # copy, which never holds .config/.local — see deploy_self).
 deploy_dotfiles() {
-    src="${1:-$SPACBR_HOME}"
+    local src="${1:-$SPACBR_HOME}"
+    local f target
     info "Deploying .config, .local/bin, .local/share, .local/src from $src"
     deploy_tree "$src/.config" "$HOME/.config"
     deploy_tree "$src/.local/bin" "$HOME/.local/bin"
@@ -74,7 +86,8 @@ deploy_dotfiles() {
 # SPACBR_SELF (running update from the deployed copy with nothing new
 # to copy from).
 deploy_self() {
-    src="${1:-$SPACBR_HOME}"
+    local src="${1:-$SPACBR_HOME}"
+    local item
     if [ "$src" = "$SPACBR_SELF" ]; then
         ok "SPACBR support files already in place ($SPACBR_SELF)"
         return 0

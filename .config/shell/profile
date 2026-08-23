@@ -1,6 +1,13 @@
 #!/bin/sh
 
-export PATH="$PATH:${$(find ~/.local/bin -type d -printf %p:)%%:}"
+# Prepend, not append: SPACBR's own built binaries (dwm/dmenu/st/
+# dwmblocks) must win over any same-named system package on PATH.
+# Found for real: clipmenu hard-depends on the official `dmenu`
+# package (/usr/bin/dmenu) -- appending here meant that generic
+# community dmenu silently shadowed SPACBR's own patched/palette-
+# colored build at ~/.local/bin/dmenu every time, since /usr/bin
+# always came first in PATH.
+export PATH="${$(find ~/.local/bin -type d -printf %p:)%%:}:$PATH"
 unsetopt PROMPT_SP
 
 export XDG_CONFIG_HOME="$HOME/.config"
