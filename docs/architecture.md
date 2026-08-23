@@ -169,6 +169,48 @@ desktop/video content isn't built from edge-to-edge saturated primary
 colors, so this is treated as an accepted, documented limit rather
 than tuned further at the cost of a much darker default lock screen.
 
+A fixed-color box behind the message was added at one point to make a
+locked screen unmistakable at a glance (see the git history for that
+version), but it's now the same `colorname[INIT]`/`[INPUT]`/`[FAILED]`
+pixel the window background itself would use if the screenshot capture
+had failed — `writemessage()` takes the current color as a parameter
+instead of hardcoding one. This gets both properties at once: a solid
+box is still always visible against the blur, and its color now
+actually shows the auth state (neutral at rest, accent blue while
+typing, red on a wrong password) instead of being permanently one
+fixed color regardless of what's happening.
+
+## Firewall
+
+`nftables` owns this, not `ufw` or `firewalld`: it's Arch's native
+netfilter backend already (both of those are wrappers generating rules
+for the same subsystem), and a static ruleset loaded once at boot by
+the stock `nftables.service` (see `system/nftables/nftables.conf`) has
+no need for an extra abstraction layer just to be more approachable.
+This was a real, previously-unaddressed gap, not a speculative
+hardening pass — this machine runs `sshd` and had no firewall at all
+before this.
+
+Policy: default-deny inbound (loopback, established/related traffic,
+ping, and SSH allowed through), unrestricted outbound. The actual
+threat model for a personal desktop is unsolicited inbound connections
+-- auditing or whitelisting the machine's own outbound traffic would
+break far more than it protects and isn't what solves a real problem
+here.
+
+Applying a default-deny firewall remotely over the exact connection
+that could get cut off by a mistake in it is a genuine risk, not a
+theoretical one -- so it wasn't applied blind. Sequence used: validate
+the ruleset syntax only first (`nft -c -f`, applies nothing), arm a
+backgrounded safety net (`sleep 90 && nft flush ruleset`, cancellable),
+apply the real ruleset, open a *fresh* SSH connection to confirm it
+still works, then cancel the safety net -- repeated a second time for
+making it persistent (`/etc/nftables.conf` + enabling the service),
+since reloading from the file is a second point where a typo could
+lock things out. If either step had failed, the SSH session would have
+recovered on its own within 90 seconds with no manual intervention
+needed.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:
@@ -381,7 +423,9 @@ already deployed — see the top of `install/update.sh`.
 | `release/` | Maintainer-only: build/publish releases, the web bootstrap script — never deployed |
 | `docs/` | This directory |
 
-`system/` (systemd/X11 integration beyond what's already in
-`.config/xinitrc` and the packages' own default units) is currently
-empty — nothing has needed custom unit files or Xorg drop-ins yet. It
-stays in the layout for when something does.
+`system/` holds files that live outside `$HOME` (root-owned, under
+`/etc`) — `polkit/` (passwordless power actions), `modules-load.d/`
+(`i2c-dev` for ddcutil), and `nftables/` (the firewall ruleset), each
+deployed by `install/functions/system.sh`, not the regular
+`deploy_tree` path. `services/` and `x11/` stay empty until a real need
+shows up — see `system/README.md`.

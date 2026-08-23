@@ -112,7 +112,7 @@ dontkillme(void)
 #endif
 
 static void
-writemessage(Display *dpy, Window win, int screen)
+writemessage(Display *dpy, Window win, int screen, unsigned long boxpixel)
 {
 	int len, line_len, width, height, s_width, s_height, i, j, k, tab_replace, tab_size;
         XftFont *fontinfo;
@@ -175,22 +175,23 @@ writemessage(Display *dpy, Window win, int screen)
 	width  = (s_width - ext_msg.width)/2;
 
 	/* Solid highlight box behind the message, drawn before the text
-	 * itself. Verified for real this was needed: against the heavy
-	 * blur+darken this config applies to the captured background (see
-	 * config.h's dimAlpha), plain text floating on top reads as "the
-	 * screen is broken/black" rather than "this is a lock prompt" --
-	 * a solid, on-palette box makes it unmistakably a UI element. */
+	 * itself, in whichever of colorname[INIT]/[INPUT]/[FAILED] the
+	 * caller passes in for the current auth state -- not a fixed
+	 * color. This is what actually shows the INPUT/FAILED feedback
+	 * against the heavy blur+darken this config applies to the
+	 * captured background (see config.h's dimAlpha): a fixed-color box
+	 * made a locked screen unmistakable at a glance, but couldn't tell
+	 * "typing" from "wrong password" the way the box's own color now
+	 * does. */
 	{
-		XColor boxcolor, boxdummy;
 		GC boxgc;
 		int box_pad_x = 24, box_pad_y = 16;
 		int box_x = width - box_pad_x;
 		int box_y = height - fontinfo->ascent - box_pad_y;
 		int box_w = ext_msg.width + 2*box_pad_x;
 		int box_h = fontinfo->ascent + fontinfo->descent + 20*k + 2*box_pad_y;
-		XAllocNamedColor(dpy, DefaultColormap(dpy, screen), "#4084d6", &boxcolor, &boxdummy);
 		boxgc = XCreateGC(dpy, win, 0, NULL);
-		XSetForeground(dpy, boxgc, boxcolor.pixel);
+		XSetForeground(dpy, boxgc, boxpixel);
 		XFillRectangle(dpy, win, boxgc, box_x, box_y, box_w, box_h);
 		XFreeGC(dpy, boxgc);
 	}
@@ -337,9 +338,12 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 					 * -- that's inherent to this patch, not a bug.
 					 * The colors[color] (not colors[0], unlike the
 					 * upstream patch this was adapted from) fallback
-					 * only applies if the screenshot capture failed,
-					 * so typing/wrong-password feedback still works
-					 * in that case. */
+					 * only applies as the actual window background if
+					 * the screenshot capture failed. When it didn't
+					 * (the normal case), writemessage's message-box
+					 * still gets colors[color] every redraw, which is
+					 * what actually shows typing/wrong-password
+					 * feedback against a static blurred backdrop. */
 					if (locks[screen]->bgmap)
 						XSetWindowBackgroundPixmap(dpy,
 						                           locks[screen]->win,
@@ -349,7 +353,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 						                     locks[screen]->win,
 						                     locks[screen]->colors[color]);
 					XClearWindow(dpy, locks[screen]->win);
-					writemessage(dpy, locks[screen]->win, screen);
+					writemessage(dpy, locks[screen]->win, screen, locks[screen]->colors[color]);
 				}
 				oldc = color;
 			}
@@ -668,7 +672,7 @@ main(int argc, char **argv) {
 		die("slock: out of memory\n");
 	for (nlocks = 0, s = 0; s < nscreens; s++) {
 		if ((locks[s] = lockscreen(dpy, &rr, s)) != NULL) {
-			writemessage(dpy, locks[s]->win, s);
+			writemessage(dpy, locks[s]->win, s, locks[s]->colors[INIT]);
 			nlocks++;
 		} else {
 			break;
