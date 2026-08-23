@@ -10,6 +10,17 @@ zsh
 zsh-syntax-highlighting
 neovim
 vim
+# Language servers for nvim/init.lua's native vim.lsp config -- not
+# generic dev-workstation tooling, these back a real, wired-up feature
+# of SPACBR's own editor config. clang (clangd) was previously excluded
+# below as exactly that kind of generic tooling; that reasoning no
+# longer applies now that clangd is a hard dependency of a real SPACBR
+# feature, not a maybe-someone-wants-it addition. Matches this repo's
+# own languages: C (dwm/dmenu/st/slock/dwmblocks source), Lua (this
+# nvim config), sh (install/*.sh, .local/bin/*).
+clang
+lua-language-server
+bash-language-server
 htop
 fontconfig
 freetype2
@@ -49,8 +60,10 @@ pacman-contrib
 # GOPATH/GOMODCACHE — this is the one language toolchain with actual
 # evidence of use in this repo. Everything else in your previous
 # list's dev-toolchain tail (node/npm/pnpm/deno/rust/python extras/
-# clang/cmake/meson/ninja/valgrind/gdb) was left out on purpose: it's
-# a general-purpose dev workstation's package set, not SPACBR's
-# desktop-system scope. Keep those in your own separate list if you
-# want them — don't fold them into this manifest.
+# cmake/meson/ninja/valgrind/gdb) is still left out on purpose: it's a
+# general-purpose dev workstation's package set, not SPACBR's desktop-
+# system scope. Keep those in your own separate list if you want them
+# — don't fold them into this manifest. (clang moved up next to
+# neovim/vim: it's no longer in this "left out" category now that
+# clangd backs a real nvim LSP feature.)
 go

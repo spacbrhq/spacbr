@@ -86,6 +86,43 @@ augroup markdown_settings
     autocmd FileType markdown setlocal scrolloff=4
 augroup END
 
+" FILETYPE INDENT OVERRIDES
+" C: dwm/dmenu/st/slock/dwmblocks source under .local/src is real tabs
+" at a 4-column display width (verified against dwm.c), not the global
+" 4-space default above -- this is the actual editor for that source.
+" install/*.sh and .local/bin/* (verified against configs.sh) already
+" use 4-space indent matching the global default, so sh needs no
+" override here.
+augroup filetype_indent
+    autocmd!
+    autocmd FileType c setlocal tabstop=4 shiftwidth=4 noexpandtab
+    autocmd FileType json,yaml setlocal tabstop=2 shiftwidth=2 expandtab
+augroup END
+
+" TERMINAL MODE (Vim 8+ :terminal)
+tnoremap <Esc> <C-\><C-n>
+tnoremap <C-h> <C-\><C-n><C-w>h
+tnoremap <C-j> <C-\><C-n><C-w>j
+tnoremap <C-k> <C-\><C-n><C-w>k
+tnoremap <C-l> <C-\><C-n><C-w>l
+
+" QUICKFIX
+" Auto-open after a command populates the quickfix list (:grep, :make),
+" auto-close if it's the last window left.
+augroup quickfix_behavior
+    autocmd!
+    autocmd QuickFixCmdPost [^l]* cwindow
+    autocmd QuickFixCmdPost l*    lwindow
+augroup END
+nnoremap <leader>cq :call <SID>ToggleQuickfix()<CR>
+function! s:ToggleQuickfix()
+    if empty(filter(getwininfo(), 'v:val.quickfix'))
+        copen
+    else
+        cclose
+    endif
+endfunction
+
 " COLORS
 set termguicolors
 syntax on
