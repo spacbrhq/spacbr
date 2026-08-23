@@ -12,6 +12,7 @@ xorg-xrdb
 xorg-xmodmap
 xorg-xset
 xorg-xsetroot
+xorg-xinput
 libx11
 libxft
 libxinerama

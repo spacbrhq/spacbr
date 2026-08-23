@@ -19,9 +19,16 @@
 # /usr/share/themes/Arc-Dark actually exists on disk regardless of
 # which path installed it.
 #
-# This file has no entries as a result. Add one here only for a
-# plain, unmodified AUR package that doesn't need packages/aur-overrides
-# treatment.
+# Add an entry here only for a plain, unmodified AUR package that
+# doesn't need packages/aur-overrides treatment.
+
+localsend
+# localsend (source build), not localsend-bin: -bin was out-of-date as
+# of 2026-08-21 when checked; the source package wasn't. Previously
+# excluded from this file entirely (see below) as outside SPACBR's
+# capability list -- explicitly requested since, so that reasoning no
+# longer applies here specifically (the general "don't add apps
+# speculatively" principle still does everywhere else).
 
 # --- Considered from your previous AUR list and deliberately left out ---
 #
@@ -40,10 +47,12 @@
 # brave-origin-nightly-bin, helium-browser-bin, zen-browser-bin
 #                  — three more browsers; Firefox already owns
 #                     "Browser" (§7). One owner per responsibility.
-# session-desktop-bin, localsend-bin
-#                  — messaging/file-transfer apps outside SPACBR's
-#                     defined capability list (§44), same reasoning
-#                     that already dropped the gajim keybinding.
+# session-desktop-bin
+#                  — a messaging app outside SPACBR's defined
+#                     capability list (§44), same reasoning that
+#                     already dropped the gajim keybinding.
+#                     (localsend was here too -- see the actual entry
+#                     above for why that one changed.)
 # sublime-text-4   — competes with Neovim/Vim, the only editor owners
 #                     CLAUDE.md §7 names.
 # audacious-gtk3, audacious-plugins-gtk3

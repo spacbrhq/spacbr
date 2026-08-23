@@ -1,0 +1,54 @@
+# eightharsh's alacritty.toml -- denshichrome palette, matching st.
+#
+# st stays the primary terminal ($TERMINAL, MODKEY+T, everything else
+# in this repo) -- this exists as an available alternative, not a
+# second owner of "Terminal" (CLAUDE.md's one-owner-per-responsibility
+# rule). Not wired into xinitrc/dwm defaults anywhere.
+
+[general]
+live_config_reload = true
+
+[font]
+size = 11.5
+
+[font.normal]
+family = "Hack"
+
+[colors.primary]
+background = "#2f343f"
+foreground = "#e1e3e7"
+
+[colors.cursor]
+text = "#2f343f"
+cursor = "#e1e3e7"
+
+[colors.selection]
+text = "#2f343f"
+background = "#e1e3e7"
+
+[colors.normal]
+black   = "#2f343f"
+red     = "#ed4737"
+green   = "#9bcf4f"
+yellow  = "#f6d13a"
+blue    = "#4084d6"
+magenta = "#dab6fc"
+cyan    = "#60e1e0"
+white   = "#e1e3e7"
+
+[colors.bright]
+black   = "#404552"
+red     = "#fda685"
+green   = "#94e88c"
+yellow  = "#fff75e"
+blue    = "#5294e2"
+magenta = "#ceb3e1"
+cyan    = "#8ddddd"
+white   = "#fafafa"
+
+[window]
+padding = { x = 8, y = 8 }
+decorations = "none"
+
+[cursor]
+style = { shape = "Block", blinking = "Off" }

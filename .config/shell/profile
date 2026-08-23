@@ -8,6 +8,11 @@
 # colored build at ~/.local/bin/dmenu every time, since /usr/bin
 # always came first in PATH.
 export PATH="${$(find ~/.local/bin -type d -printf %p:)%%:}:$PATH"
+# npm's global prefix is set to here (npm config set prefix), not the
+# default /usr -- keeps user-installed npm packages (Claude Code CLI)
+# out of system directories and out of needing sudo for a global
+# install, matching every other user tool living under ~/.local.
+export PATH="$HOME/.local/share/npm/bin:$PATH"
 unsetopt PROMPT_SP
 
 export XDG_CONFIG_HOME="$HOME/.config"
@@ -31,3 +36,26 @@ export PASSWORD_STORE_DIR="$XDG_DATA_HOME"/pass
 export GTK2_RC_FILES="$XDG_CONFIG_HOME"/gtk-2.0/gtkrc
 
 tabs -4
+
+# fzf: official zsh integration (Ctrl-R history, Ctrl-T file finder,
+# Alt-C cd), not the older separate key-bindings.zsh/completion.zsh
+# sourcing -- fzf 0.48+ (this machine runs 0.74.3) ships this as one
+# command instead.
+command -v fzf >/dev/null 2>&1 && eval "$(fzf --zsh)"
+
+# nnn: NNN_OPTS "e" opens text files in $EDITOR. The n() function is
+# nnn's own documented cd-on-quit pattern -- a plain alias can't do
+# this, since a child process can never change its parent shell's
+# working directory; nnn instead writes the last visited directory to
+# NNN_TMPFILE on quit, and this sources that file back into the
+# current shell afterward.
+export NNN_OPTS="e"
+export NNN_TMPFILE="${XDG_CONFIG_HOME:-$HOME/.config}/nnn/.lastd"
+n() {
+    if [ -n "$NNNLVL" ] && [ "${NNNLVL:-0}" -ge 1 ]; then
+        echo "nnn is already running"
+        return
+    fi
+    command nnn "$@"
+    [ -f "$NNN_TMPFILE" ] && { . "$NNN_TMPFILE"; rm -f "$NNN_TMPFILE"; }
+}

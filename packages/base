@@ -53,6 +53,11 @@ rsync
 # SSH client — near-universal for git/remote work.
 openssh
 
+# Needed only to install the Claude Code CLI (npm, not a pacman
+# package -- see install_claude_code() in packages.sh).
+nodejs
+npm
+
 # Shell quality-of-life: small, single-purpose, official, no daemons.
 # From your previous install's explicit list, not transitive noise.
 ripgrep
@@ -63,7 +68,14 @@ zoxide
 jq
 tree
 tmux
+nnn
 fastfetch
+
+# Local network file transfer and cross-device sync -- real,
+# expressed needs, not speculative. Neither is desktop-specific (both
+# work headless), so base rather than packages/desktop.
+tailscale
+syncthing
 
 # Mirror-list maintenance for pacman itself.
 reflector

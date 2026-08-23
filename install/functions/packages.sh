@@ -99,4 +99,23 @@ install_all_packages() {
             warn "paru not available — skipping packages/aur ($(_pkg_list "$SPACBR_HOME/packages/aur" | wc -l) package(s), see the file for what's skipped)"
         fi
     fi
+
+    install_claude_code
+}
+
+# install_claude_code -- the Claude Code CLI isn't a pacman package
+# (npm, from the official @anthropic-ai/claude-code registry entry).
+# Installed into a user-owned npm prefix, not npm's own default of
+# /usr -- that would need sudo for a global install and would put a
+# user tool in a system directory, unlike everything else under
+# ~/.local. Non-fatal: a supplementary dev tool, not anything the
+# desktop itself depends on to function.
+install_claude_code() {
+    command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping Claude Code CLI"; return 0; }
+    npm config set prefix "$HOME/.local/share/npm"
+    if npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code >/dev/null 2>&1; then
+        ok "Claude Code CLI installed/updated"
+    else
+        warn "Claude Code CLI install failed — continuing"
+    fi
 }

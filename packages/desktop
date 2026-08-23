@@ -100,3 +100,8 @@ clipmenu
 # ships all the binaries, including pinentry-gnome3 itself, so the
 # gpg-agent.conf path still works unchanged with just this one package.
 pinentry
+# alacritty -- st stays the primary terminal (§7's one-owner rule:
+# $TERMINAL, MODKEY+T, everywhere else in this repo). This is an
+# available alternative (.config/alacritty/alacritty.toml, themed to
+# match), not a second owner -- not wired into xinitrc/dwm defaults.
+alacritty

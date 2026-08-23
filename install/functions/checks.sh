@@ -133,6 +133,16 @@ run_all_checks() {
     info "Fonts"
     run_check "Hack font available" "fc-list | grep -qi hack" "pacman -S ttf-hack"
 
+    info "Extras"
+    run_check "tmux"      "command -v tmux" "pacman -S tmux"
+    run_check "fzf"       "command -v fzf" "pacman -S fzf"
+    run_check "nnn"       "command -v nnn" "pacman -S nnn"
+    run_check "alacritty" "command -v alacritty" "pacman -S alacritty"
+    run_check "tailscale" "command -v tailscale" "pacman -S tailscale"
+    run_check "syncthing" "command -v syncthing" "pacman -S syncthing"
+    run_check "localsend" "command -v localsend" "paru -S localsend"
+    run_check "Claude Code CLI" "command -v claude" "npm config set prefix \$HOME/.local/share/npm && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code"
+
     return $DOCTOR_FAILED
 }
 
