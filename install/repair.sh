@@ -32,18 +32,28 @@ require_platform
 info "Diagnosing"
 run_all_checks || true
 
+# deploy_dotfiles is safe and idempotent (only touches missing or
+# differing files, backs up modified ones) -- run it whenever a real
+# source is given, regardless of whether any check above failed.
+# Verified for real: none of the checks individually verify that
+# scripts like ~/.local/bin/wallpaper exist, so deleting one left
+# DOCTOR_FAILED at 0 and repair reported "Nothing to repair" while
+# actually doing nothing, contradicting this script's own documented
+# ability to restore missing .local/bin content.
+if [ "$SOURCE_DIR" != "$SPACBR_SELF" ]; then
+    deploy_dotfiles "$SOURCE_DIR"
+elif [ "$DOCTOR_FAILED" -ne 0 ]; then
+    warn "No known-good source given — can fix packages/binaries/services,"
+    warn "but not dotfile content. For that: spacbr repair /path/to/spacbr"
+fi
+
 if [ "$DOCTOR_FAILED" -eq 0 ]; then
-    ok "Nothing to repair"
+    ok "Nothing else to repair"
     exit 0
 fi
 
 warn "Failures found above — attempting repair"
-if [ "$SOURCE_DIR" = "$SPACBR_SELF" ]; then
-    warn "No known-good source given — can fix packages/binaries/services,"
-    warn "but not dotfile content. For that: spacbr repair /path/to/spacbr"
-fi
 install_all_packages
-deploy_dotfiles "$SOURCE_DIR"
 build_and_install_suckless
 enable_system_services
 
