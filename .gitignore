@@ -31,3 +31,6 @@ CLAUDE.md
 # Design/mockup reference material — local inspiration only, not part
 # of the actual system
 resources-unused/
+
+# Claude Code's own local runtime state, not part of the project
+.claude/
