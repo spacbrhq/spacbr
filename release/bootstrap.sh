@@ -58,4 +58,19 @@ srcdir=$(find "$tmpdir" -mindepth 1 -maxdepth 1 -type d -name 'spacbr-*')
 [ -d "$srcdir" ] || die "extracted archive has an unexpected layout"
 
 say "handing off to the versioned installer..."
-exec sh "$srcdir/install/install.sh"
+# Verified for real: when this script runs as `curl -fsSL ... | sh`,
+# stdin is the pipe from curl, already at EOF by the time we get here.
+# install.sh's confirm() does a plain `read` for its "Continue? [y/N]"
+# prompt, which would silently get an empty reply and abort every
+# single time -- the documented one-line install would never actually
+# work interactively. Reconnect stdin to the real controlling terminal
+# first; if there isn't one (a genuinely non-interactive invocation,
+# e.g. piped through another script), fall back to --yes rather than
+# hang on a read that can never succeed.
+if ( exec 0</dev/tty ) 2>/dev/null; then
+    exec 0</dev/tty
+    exec sh "$srcdir/install/install.sh"
+else
+    say "no interactive terminal available — installing non-interactively"
+    exec sh "$srcdir/install/install.sh" --yes
+fi

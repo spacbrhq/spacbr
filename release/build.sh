@@ -45,6 +45,24 @@ pkg_json() {
     '
 }
 
+aur_overrides_json() {
+    # Names of packages/aur-overrides/<name>/ dirs -- built from a
+    # vendored local PKGBUILD (install_aur_overrides), not pulled from
+    # the AUR directly. Found for real: packages/aur's own list went
+    # to [] once arc-gtk-theme moved here, silently dropping a real,
+    # required AUR-sourced package from the manifest's package set
+    # (§58 requires describing "AUR package set" -- an empty list here
+    # while one is actually installed is exactly the omission that
+    # requirement exists to prevent).
+    dir="packages/aur-overrides"
+    [ -d "$dir" ] || { printf '[]'; return; }
+    find "$dir" -mindepth 1 -maxdepth 1 -type d | sort | awk -F/ '
+        BEGIN { printf "[" }
+        { printf "%s\"%s\"", (NR>1 ? ", " : ""), $NF }
+        END { printf "]" }
+    '
+}
+
 suckless_version() {
     grep -m1 '^VERSION' ".local/src/$1/config.mk" 2>/dev/null | sed -E 's/^VERSION[[:space:]]*=[[:space:]]*//'
 }
@@ -74,7 +92,8 @@ cat > "$OUT/manifest.json" <<EOF
     "x11": $(pkg_json x11),
     "desktop": $(pkg_json desktop),
     "hardware": $(pkg_json hardware),
-    "aur": $(pkg_json aur)
+    "aur": $(pkg_json aur),
+    "aur_overrides": $(aur_overrides_json)
   },
   "suckless": {
     "dwm": { "version": "$(suckless_version dwm)", "patches": $(suckless_patches_json dwm) },
