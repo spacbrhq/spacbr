@@ -1,0 +1,90 @@
+# Architecture
+
+The full, authoritative specification is [`CLAUDE.md`](../CLAUDE.md).
+This is a shorter map of the same territory — read it first, then go
+to CLAUDE.md for the reasoning behind any specific rule.
+
+## What SPACBR is
+
+An integration layer on stock Arch Linux, X11, and dwm — not a
+distribution, not a desktop environment, not a Wayland compositor.
+Removing SPACBR should leave a working, ordinary Arch install behind.
+
+```
+SPACBR
+  ├── Configuration   (.config/, .local/)
+  ├── Suckless        (.local/src/: dwm, dmenu, st, slock, dwmblocks)
+  ├── Scripts         (.local/bin/: the dmenu-driven contextual tools)
+  ├── Packages        (packages/: curated pacman manifests)
+  ├── Installer       (install/: install, update, repair, uninstall, doctor)
+  └── CLI             (.local/bin/spacbr)
+       │
+       ▼
+   Arch Linux → X11 → dwm → hardware
+```
+
+## One owner per responsibility
+
+Every piece of functionality has exactly one tool responsible for it —
+see CLAUDE.md §7 for the full table. The practical effect: if you're
+about to add a second tool that does something an existing owner
+already does (a second terminal, a second lock screen, a second
+compositor), that's the signal to stop and either use the existing
+owner or replace it — never run both. This has already come up once:
+Alacritty duplicating `st`, and `xscreensaver` duplicating `slock`,
+were both removed for exactly this reason.
+
+## Interaction model
+
+```
+keyboard shortcut → dmenu → action
+```
+
+Three layers, in order of preference:
+
+1. **Keyboard** — direct dwm keybindings for things used constantly
+   (window management, launching apps, volume/brightness).
+2. **dmenu** — a contextual menu for anything with more than one
+   choice to make (which wifi network, which bluetooth device, which
+   power action). See `.local/bin/{audio,bluetooth,display,wallpaper,power}`.
+3. **Terminal** — for anything that's genuinely a terminal task
+   (`nmtui`, editing a file, running a build).
+
+The permanent UI (the dwmblocks bar) stays minimal on purpose — it
+shows state, not controls. Controls live behind the keyboard/dmenu
+layers so the desktop stays visually quiet.
+
+## Deployment model
+
+The installer uses **managed copies, not symlinks**. `install/install.sh`
+copies `.config`/`.local` into the real `$HOME`, and copies `install/`,
+`packages/`, `docs/`, and friends into `$XDG_DATA_HOME/spacbr`. Once
+installed, the original git clone can be deleted — nothing on the
+running system points back at it. Every file SPACBR deploys is
+recorded in a manifest (`$XDG_STATE_HOME/spacbr/manifest`), which is
+what makes `spacbr uninstall` safe: it only ever removes paths that
+manifest lists, never packages, never anything it didn't put there
+itself.
+
+See [`../install/`](../install/) and its inline comments for exactly
+how install/update/repair/uninstall work today, including the honest
+gap: there's no versioned release channel yet (CLAUDE.md §57-59), so
+update/repair can't fetch anything newer on their own — see the top of
+`install/update.sh`.
+
+## Where things live
+
+| Path | What |
+|---|---|
+| `.config/` | XDG configuration for everything except the Suckless tools (those keep their config in their own source tree, matching upstream convention) |
+| `.local/bin/` | User scripts — the dmenu-driven contextual interfaces, plus the `spacbr` CLI |
+| `.local/src/` | Suckless components built from source, with patches under each tool's `patches/` |
+| `.local/share/` | Backgrounds, gnupg config — user data SPACBR ships defaults for |
+| `packages/` | Curated pacman manifests: `base`, `x11`, `desktop`, `hardware`, `aur` |
+| `install/` | The installer and its shared `functions/` |
+| `docs/` | This directory |
+
+`system/` (systemd/X11 integration beyond what's already in
+`.config/xinitrc` and the packages' own default units) is currently
+empty — nothing has needed custom unit files or Xorg drop-ins yet. It
+stays in the layout for when something does.

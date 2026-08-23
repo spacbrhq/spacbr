@@ -1,9 +1,15 @@
 # SPACBR — AUR packages
 #
-# Intentionally empty. Every package SPACBR currently depends on is in
-# the official Arch repositories (see packages/base, packages/x11,
-# packages/desktop, packages/hardware). Per §41-43 of CLAUDE.md: only
-# add an entry here when a specific, justified need can't be met
-# officially, and note that justification next to it. If this file
-# ever gains an entry, the installer needs exactly one AUR helper
-# (paru) to build it — don't add a second.
+# Per §41-43 of CLAUDE.md: only add an entry when a specific, justified
+# need can't be met officially, and note that justification next to
+# it. The installer needs exactly one AUR helper (paru) to build these
+# — don't add a second.
+#
+# arc-gtk-theme — the Arc-Dark GTK theme every gtk-2.0/3.0/4.0 config
+# and xinitrc's GTK_THEME already assume. Not in the official repos
+# (confirmed via archlinux.org/packages). UNVERIFIED against the AUR
+# itself — AUR's anti-bot check blocked automated lookup of the exact
+# package name/maintenance status. Confirm with `paru -Si arc-gtk-theme`
+# before relying on this line; the installer will simply fail loudly
+# here if the name is wrong, rather than silently doing nothing.
+arc-gtk-theme

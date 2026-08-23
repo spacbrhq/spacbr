@@ -31,6 +31,11 @@ slop
 pass
 pass-otp
 gnupg
+# GTK theming: Arc-Dark (theme) + Papirus-Dark (icons) are what
+# gtk-2.0/3.0/4.0 and xinitrc's GTK_THEME already assume.
+# papirus-icon-theme is official (extra); the Arc-Dark GTK theme
+# itself is AUR-only — see packages/aur.
+papirus-icon-theme
 # pinentry-gnome3 is what gpg-agent.conf currently points at; it pulls
 # in GNOME dependencies for a minimal system. pinentry-curses is a
 # lighter drop-in if you want to switch (update

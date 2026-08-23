@@ -10,7 +10,10 @@ Linux: Arch remains Arch underneath, and SPACBR can be removed without
 breaking it.
 
 Full architecture and design rules live in [`CLAUDE.md`](CLAUDE.md) —
-read that first if you're changing anything here.
+read that first if you're changing anything here. Shorter, task-focused
+docs live in [`docs/`](docs/): [architecture](docs/architecture.md),
+[keybindings](docs/keybindings.md), [troubleshooting](docs/troubleshooting.md),
+[development](docs/development.md).
 
 ## Philosophy
 
