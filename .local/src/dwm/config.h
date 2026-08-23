@@ -109,8 +109,14 @@ static const Key keys[] = {
     { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
     { 0,             XF86XK_AudioMute,         spawn,          SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
 	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
-    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("brightnessctl set 5%+") },
-    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("brightnessctl set 5%-") },
+    /* -c backlight: verified for real on hardware with no screen
+     * backlight -- brightnessctl's default device-autoselect fell
+     * through to an unrelated keyboard "kana" indicator LED instead of
+     * failing cleanly. Scoping to the backlight class is correct
+     * regardless of hardware, since it's the only class these keys
+     * should ever be allowed to touch. */
+    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("brightnessctl -c backlight set 5%+") },
+    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("brightnessctl -c backlight set 5%-") },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
