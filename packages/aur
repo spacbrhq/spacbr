@@ -5,20 +5,21 @@
 # it. The installer needs exactly one AUR helper (paru) to build these
 # — don't add a second.
 #
-# arc-gtk-theme — the Arc-Dark GTK theme every gtk-2.0/3.0/4.0 config
-# and xinitrc's GTK_THEME already assume. Not in the official repos
-# (confirmed via archlinux.org/packages). Package name and existence
-# now confirmed live via the AUR RPC API (curl from a real machine —
-# the AUR web UI's anti-bot check blocks this from elsewhere), but:
-# last actually updated 2025-03-31, flagged out-of-date by another
-# user on 2025-11-30, still unaddressed by the maintainer as of this
-# writing — a real maintenance-health concern per §42's "avoid
-# abandoned packages", not just a theoretical one. Might still build
-# and work fine (an out-of-date flag doesn't always mean broken), but
-# hasn't been verified either way. Your call whether that's an
-# acceptable risk for something this central to the visual identity,
-# or worth finding/building an alternative for.
-arc-gtk-theme
+# arc-gtk-theme was dropped (previously the only entry here). Verified
+# for real on a machine with no AUR helper: gtk-2.0/3.0/4.0 configs and
+# xinitrc's GTK_THEME all assumed Arc-Dark, it silently failed to load
+# since it was never installed, and every GTK app (PCManFM, Zathura,
+# GTK dialogs) fell back to plain light GTK -- completely defeating the
+# unified dark visual identity §34 requires. It was also AUR-only, last
+# updated 2025-03-31, and flagged out-of-date since 2025-11-30 with no
+# maintainer response -- a real §42 "avoid abandoned packages" risk on
+# top of the AUR-helper fragility. Replaced with GTK's own bundled
+# Adwaita dark variant (gtk-theme-name=Adwaita + prefer-dark-theme=1 +
+# GTK_THEME="Adwaita:dark" in xinitrc) -- ships with the gtk3/gtk4
+# packages themselves, so it can never be silently missing, needs no
+# AUR helper, and is maintained upstream by GTK itself. This file has
+# no entries as a result; keep it that way unless a specific need
+# genuinely can't be met officially (§41).
 
 # --- Considered from your previous AUR list and deliberately left out ---
 #
@@ -31,9 +32,8 @@ arc-gtk-theme
 #                     may exist, check before adding.
 # glow-git         — same -git issue as dust-git.
 # ddgr-git         — same -git issue as dust-git.
-# arc-icon-theme   — competes with the already-chosen Papirus-Dark
-#                     icon set; Arc-Dark (the GTK *theme*) is kept,
-#                     its matching icon set is not.
+# arc-icon-theme   — competed with the already-chosen Papirus-Dark
+#                     icon set; moot now that Arc-Dark itself is gone.
 # brave-origin-nightly-bin, helium-browser-bin, zen-browser-bin
 #                  — three more browsers; Firefox already owns
 #                     "Browser" (§7). One owner per responsibility.
