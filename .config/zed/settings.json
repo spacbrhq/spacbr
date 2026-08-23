@@ -5,6 +5,7 @@
   // replace it, so vim_mode stays off here on purpose (a GUI editor
   // running modal keybindings would defeat the reason it exists
   // alongside nvim rather than instead of it).
+  "cli_default_open_behavior": "existing_window",
   "theme": "Denshichrome",
   "vim_mode": false,
   "buffer_font_family": "Hack",
