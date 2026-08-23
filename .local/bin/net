@@ -7,13 +7,17 @@ esac
 cache="/tmp/netstatus_cache_${USER}"
 lock="/tmp/netstatus_lock_${USER}.lock"
 
-# Detect ethernet interface
-eth_iface="$(ip -o link show | awk -F': ' '$2 ~ /^e/{print $2; exit}')"
+# Whichever interface actually carries the default route -- ethernet,
+# WiFi, or anything else NetworkManager brings up. Matching interface
+# names by prefix (previously /^e/ for "ethernet") silently misses
+# WiFi interfaces (wlan0, wlp2s0, ...), which never start with e, so
+# a WiFi-only machine would show "no eth" forever regardless of
+# actual connectivity.
+iface="$(ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
 
-# Ethernet
-if [ -n "$eth_iface" ]; then
-    read -r eth_state < "/sys/class/net/$eth_iface/operstate" 2>/dev/null
-    if [ "$eth_state" = 'up' ]; then
+if [ -n "$iface" ]; then
+    read -r ifstate < "/sys/class/net/$iface/operstate" 2>/dev/null
+    if [ "$ifstate" = 'up' ]; then
         stale=$(( $(date +%s) - $(stat -c %Y "$cache" 2>/dev/null || echo 0) ))
         if [ ! -f "$cache" ] || [ "$stale" -ge 30 ]; then
             if mkdir "$lock" 2>/dev/null; then
@@ -35,12 +39,12 @@ if [ -n "$eth_iface" ]; then
             fi
         fi
         read -r netstatus < "$cache" 2>/dev/null
-        [ "$netstatus" = 'online' ] && ethericon="online" || ethericon="offline"
+        [ "$netstatus" = 'online' ] && staticon="online" || staticon="offline"
     else
-        ethericon="disconnected"
+        staticon="disconnected"
     fi
 else
-    ethericon="no eth"
+    staticon="no network"
 fi
 
-printf "%s\n" "$ethericon"
+printf "%s\n" "$staticon"
