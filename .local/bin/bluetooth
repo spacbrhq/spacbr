@@ -5,6 +5,15 @@ notify() {
     command -v notify-send >/dev/null 2>&1 && notify-send "Bluetooth" "$1"
 }
 
+# Found for real on BT-less hardware: with no controller, systemd's own
+# ConditionPathIsDirectory=/sys/class/bluetooth keeps bluetoothd from ever
+# starting, so bluetoothctl has no org.bluez D-Bus service to talk to and
+# hangs indefinitely instead of failing -- same check the doctor uses.
+if [ ! -d /sys/class/bluetooth ]; then
+    notify "No Bluetooth adapter found"
+    exit 1
+fi
+
 pick_device() {
     list=$(bluetoothctl devices)
     name=$(printf '%s\n' "$list" | sed -E 's/^Device [0-9A-F:]+ //' | dmenu -p "$1")
