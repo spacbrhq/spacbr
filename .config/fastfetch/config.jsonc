@@ -7,6 +7,15 @@
 // which clashes with the accent blue everywhere else (logo, dwm,
 // dmenu, st). separator uses the muted border color (#404552) instead
 // of a bright one, so it recedes behind the actual values.
+//
+// Grouped into three blocks (identity/environment, hardware, network+
+// audio) separated by blank lines instead of one long undifferentiated
+// list -- more information without it reading as more cluttered.
+// Media/Player modules deliberately left out: verified for real (no
+// org.mpris.* name on the session bus at all) that mpd doesn't expose
+// MPRIS, which is what these modules read from -- they'd never show
+// anything with this setup, so including them would be a module that
+// silently never works, not a real feature.
 {
     "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
     "logo": {
@@ -36,8 +45,15 @@
         "shell",
         "wm",
         "terminal",
+        "break",
+        "disk",
         "cpu",
+        "gpu",
         "memory",
+        "swap",
+        "break",
+        "localip",
+        "sound",
         "break",
         "colors"
     ]
