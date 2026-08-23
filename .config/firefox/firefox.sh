@@ -36,9 +36,15 @@ for addon in $addonlist; do
 	addonurl="$(curl --connect-timeout 5 "https://addons.mozilla.org/en-US/firefox/addon/${addon}/" |
 		grep -o 'https://addons.mozilla.org/firefox/downloads/file/[^"]*')"
 	file="${addonurl##*/}"
-	curl -LOs "$addonurl" > "$addontmp/$file"
-	id="$(unzip -p "$file" manifest.json | grep "\"id\"")"
+	# -O saves to a name derived from the URL in the *current*
+	# directory; that's incompatible with also redirecting stdout to
+	# a specific path. Verified for real: the old `-LOs ... > path`
+	# combination left an empty file at the intended path while the
+	# actual ~4-5MB download landed in whatever directory the script
+	# happened to be run from. -o names the real output path directly.
+	curl -Ls -o "$addontmp/$file" "$addonurl"
+	id="$(unzip -p "$addontmp/$file" manifest.json | grep "\"id\"")"
 	id="${id%\"*}"
 	id="${id##*\"}"
-	mv "$file" "$pdir/extensions/$id.xpi"
+	mv "$addontmp/$file" "$pdir/extensions/$id.xpi"
 done

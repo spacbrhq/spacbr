@@ -1,5 +1,11 @@
 *.font: Hack:size=11.5
 
+/* dmenu deliberately has no dmenu.* keys here even though dmenu.c's
+ * readxresources() reads them: its own config.h already carries these
+ * exact colors/font as compiled-in defaults (kept in sync with dwm's
+ * dmenucmd on purpose), so this stays the one place the palette lives
+ * for it, instead of two places that could drift apart. */
+
 /* !! denshichrome: */
 *.background: #2f343f
 *.foreground: #e1e3e7

@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# dmenu's own config.h already carries these exact colors/font as
-# compiled-in defaults (kept in sync with dwm's dmenucmd on purpose) —
-# no override needed here, and one less place for the theme to drift.
 alias \
 	ls="ls -hN --color=auto --group-directories-first" \
 	grep="grep --color=auto" \
