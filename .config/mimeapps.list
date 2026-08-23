@@ -1,0 +1,8 @@
+[Default Applications]
+application/pdf=org.pwmt.zathura-pdf-mupdf.desktop;
+inode/directory=pcmanfm.desktop;
+text/html=firefox.desktop;
+x-scheme-handler/http=firefox.desktop;
+x-scheme-handler/https=firefox.desktop;
+^audio/.*=mpv.desktop;
+^video/.*=mpv.desktop;

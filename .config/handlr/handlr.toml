@@ -1,0 +1,10 @@
+# handlr's default selector is rofi, which isn't part of SPACBR at
+# all (dmenu is the one launcher/picker -- CLAUDE.md's "keyboard ->
+# dmenu -> action" model). Verified for real: handlr only falls back
+# to this when a mimetype has more than one registered handler and it
+# needs to ask, but leaving the default in place means that path would
+# try to run a program that was never installed.
+enable_selector = true
+selector = "dmenu -i -p 'Open with: '"
+term_exec_args = '-e'
+expand_wildcards = false
