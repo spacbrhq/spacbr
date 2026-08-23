@@ -818,35 +818,49 @@ void
 readxresources(void) {
 	XrmInitialize();
 
-	char* xrm;
-	if ((xrm = XResourceManagerString(drw->dpy))) {
-		char *type;
-		XrmDatabase xdb = XrmGetStringDatabase(xrm);
-		XrmValue xval;
+	char *xrm;
+	char *type;
+	XrmDatabase xdb = NULL;
+	XrmValue xval;
 
-		if (XrmGetResource(xdb, "dmenu.font", "*", &type, &xval))
-			fonts[0] = strdup(xval.addr);
-		else
-			fonts[0] = strdup(fonts[0]);
-		if (XrmGetResource(xdb, "dmenu.background", "*", &type, &xval))
-			colors[SchemeNorm][ColBg] = strdup(xval.addr);
-		else
-			colors[SchemeNorm][ColBg] = strdup(colors[SchemeNorm][ColBg]);
-		if (XrmGetResource(xdb, "dmenu.foreground", "*", &type, &xval))
-			colors[SchemeNorm][ColFg] = strdup(xval.addr);
-		else
-			colors[SchemeNorm][ColFg] = strdup(colors[SchemeNorm][ColFg]);
-		if (XrmGetResource(xdb, "dmenu.selbackground", "*", &type, &xval))
-			colors[SchemeSel][ColBg] = strdup(xval.addr);
-		else
-			colors[SchemeSel][ColBg] = strdup(colors[SchemeSel][ColBg]);
-		if (XrmGetResource(xdb, "dmenu.selforeground", "*", &type, &xval))
-			colors[SchemeSel][ColFg] = strdup(xval.addr);
-		else
-			colors[SchemeSel][ColFg] = strdup(colors[SchemeSel][ColFg]);
+	/* Real crash found by actually running this: main()/setup() both
+	 * unconditionally free(fonts[0]) and free(colors[SchemeNorm/Sel][*])
+	 * later, assuming this function always strdup()s them first. The
+	 * original code only did that inside this outer `if` -- when
+	 * XResourceManagerString() returns NULL (no `xrdb` has ever run
+	 * against this X server, e.g. dmenu invoked standalone/early),
+	 * every one of those five values stayed as the *static string
+	 * literal* from config.h, and free() on that is undefined
+	 * behavior -- glibc caught it as "free(): invalid pointer" and
+	 * aborted the process on every single invocation. Restructured so
+	 * the strdup() fallback always runs regardless of whether an
+	 * xrdb database exists, matching what the free() calls assume. */
+	if ((xrm = XResourceManagerString(drw->dpy)))
+		xdb = XrmGetStringDatabase(xrm);
 
+	if (xdb && XrmGetResource(xdb, "dmenu.font", "*", &type, &xval))
+		fonts[0] = strdup(xval.addr);
+	else
+		fonts[0] = strdup(fonts[0]);
+	if (xdb && XrmGetResource(xdb, "dmenu.background", "*", &type, &xval))
+		colors[SchemeNorm][ColBg] = strdup(xval.addr);
+	else
+		colors[SchemeNorm][ColBg] = strdup(colors[SchemeNorm][ColBg]);
+	if (xdb && XrmGetResource(xdb, "dmenu.foreground", "*", &type, &xval))
+		colors[SchemeNorm][ColFg] = strdup(xval.addr);
+	else
+		colors[SchemeNorm][ColFg] = strdup(colors[SchemeNorm][ColFg]);
+	if (xdb && XrmGetResource(xdb, "dmenu.selbackground", "*", &type, &xval))
+		colors[SchemeSel][ColBg] = strdup(xval.addr);
+	else
+		colors[SchemeSel][ColBg] = strdup(colors[SchemeSel][ColBg]);
+	if (xdb && XrmGetResource(xdb, "dmenu.selforeground", "*", &type, &xval))
+		colors[SchemeSel][ColFg] = strdup(xval.addr);
+	else
+		colors[SchemeSel][ColFg] = strdup(colors[SchemeSel][ColFg]);
+
+	if (xdb)
 		XrmDestroyDatabase(xdb);
-	}
 }
 
 int
