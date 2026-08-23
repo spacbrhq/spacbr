@@ -23,6 +23,18 @@ export QT_QPA_PLATFORMTHEME=gtk
 # Fix misbehaving Java apps
 export _JAVA_AWT_WM_NONREPARENTING=1
 
+# Import DISPLAY/XAUTHORITY into systemd's user manager and D-Bus's
+# activation environment. Without this, any D-Bus-activated service
+# (dunst, in particular -- it ships a static systemd user unit that
+# only starts on first notification, not at session start) fails
+# outright: verified for real, "Cannot open X11 display" /
+# "Couldn't initialize X11 output. Aborting" on every start attempt,
+# because a bare `startx` session (no display-manager/systemd-logind
+# graphical-session registration) never gives systemd --user or dbus
+# these two variables any other way. A display-manager-based login
+# normally handles this via PAM; this is the equivalent for startx.
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY
+
 # Start programs
 dwmblocks &
 pipewire &
