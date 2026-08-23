@@ -39,29 +39,6 @@ alone installs to `/usr/local` instead of `~/.local/bin` — a
 user-writable, sometimes `nosuid`-mounted home directory can't safely
 host a setuid-root binary. Don't try to move it there.
 
-## Lock screen isn't blurred, or the screen doesn't dim before locking
-
-Locking goes through `.local/bin/lock` (blur wrapper around `slock`)
-and idle-triggered locking goes through `.local/bin/screensaver`
-(the dim stage) — see `docs/architecture.md`'s "Locking and idle"
-section for the full sequence. If either is missing:
-
-- Check `MODKEY+Shift+L` and the power menu both point at
-  `~/.local/bin/lock`, not raw `slock` — `dwm/config.h`'s `LOCKSCREEN`
-  macro. If dwm was built before this changed, rebuild it.
-- The blur needs `import` and `magick` (both from `imagemagick`,
-  already a dependency) — it fails silently to a plain-color lock
-  screen if either is missing, rather than erroring, so check
-  `command -v import magick` if the blur never appears.
-- The dim needs `brightnessctl` and an actual backlight device —
-  desktops with no laptop panel have nothing to dim, and the script
-  exits quietly in that case. This is expected, not a bug: the lock
-  itself still happens on schedule regardless.
-- The brief moment of visible desktop before the blur/lock appears
-  (screenshot + blur takes a beat) is a known, accepted tradeoff of
-  doing this in a wrapper script instead of patching `slock` itself —
-  not a bug to chase.
-
 ## No sound / audio device missing
 
 - `spacbr doctor` checks PipeWire/WirePlumber are *installed*, not
