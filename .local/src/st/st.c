@@ -2016,6 +2016,13 @@ strhandle(void)
 				tfulldirt();
 			}
 			return;
+		case 3008: /* systemd pam_systemd session-privilege marker (start=/end=) --
+			    * purely informational (other terminals color a border with
+			    * it); no reply expected, so just don't treat it as an
+			    * error. Seen on every sudo/su from a real tty since
+			    * systemd 256, loudest in mirrors/dns which show sudo's
+			    * raw output in a terminal window. */
+			return;
 		}
 		break;
 	case 'k': /* old title set compatibility */
