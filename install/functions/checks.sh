@@ -83,6 +83,16 @@ print_info() {
     printf '%s\n' "dwm:        $(command -v dwm || echo 'not found')"
     printf '%s\n' "Terminal:   $(command -v st || echo 'not found')"
     printf '%s\n' "Shell:      $SHELL"
-    printf '%s\n' "NetworkManager: $(systemctl is-active NetworkManager 2>/dev/null || echo 'unknown')"
-    printf '%s\n' "bluetooth:  $(systemctl is-active bluetooth 2>/dev/null || echo 'unknown')"
+    # systemctl is-active prints its status text to stdout even when it
+    # exits non-zero (inactive/failed), so `$(cmd || echo fallback)`
+    # doesn't replace that output on failure -- it appends the fallback
+    # after it. Verified for real: an inactive bluetooth.service printed
+    # "bluetooth:  inactive" followed by a stray "unknown" line.
+    # `|| true` guards the assignment itself: info.sh runs under set -eu,
+    # and is-active's non-zero exit on "inactive" would otherwise abort
+    # the whole script right here.
+    nm_status=$(systemctl is-active NetworkManager 2>/dev/null) || true
+    bt_status=$(systemctl is-active bluetooth 2>/dev/null) || true
+    printf '%s\n' "NetworkManager: ${nm_status:-unknown}"
+    printf '%s\n' "bluetooth:  ${bt_status:-unknown}"
 }
