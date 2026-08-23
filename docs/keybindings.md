@@ -13,6 +13,7 @@ and that one ever disagree, the config wins.
 | `MODKEY+w` | Browser (Firefox) |
 | `MODKEY+e` | File manager (pcmanfm) |
 | `MODKEY+o` | Password menu (passmenu) |
+| `MODKEY+c` | Clipboard history (clipmenu) |
 | `Print` | Screenshot (region select) |
 
 ## System (dmenu-driven)

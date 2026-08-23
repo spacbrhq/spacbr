@@ -16,6 +16,7 @@
 #define BLUETOOTHCTL "~/.local/bin/bluetooth"
 #define WALLPAPERCTL "~/.local/bin/wallpaper"
 #define POWERMENU "~/.local/bin/power"
+#define CLIPMENU "clipmenu"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -90,6 +91,7 @@ static const Key keys[] = {
     { MODKEY,                       XK_w,      spawn,          SHCMD(BROWSER) },
     { MODKEY,                       XK_e,      spawn,          SHCMD(EXPLORER) },
     { MODKEY,                       XK_o,      spawn,          SHCMD(PASSMENU) },
+    { MODKEY,                       XK_c,      spawn,          SHCMD(CLIPMENU) },
     { 0,                            XK_Print,  spawn,          SHCMD(SCREENSHOT) },
 	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAYCTL) },
 	{ MODKEY|ShiftMask,             XK_l,      spawn,          SHCMD(LOCKSCREEN) },

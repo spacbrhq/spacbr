@@ -56,12 +56,20 @@ unzip
 zip
 7zip
 # polkit — NetworkManager and udisks2 (pcmanfm's automount) both use
-# it for privileged actions. NOTE: no polkit authentication agent is
-# wired into xinitrc yet, so GUI auth prompts won't appear without
-# one — that's a follow-up, not done here.
+# it for privileged actions. polkit-gnome is the actual agent (official,
+# extra, despite being labeled "legacy" — it's still the standard
+# choice for minimal WMs without a full desktop environment); both
+# are now started from xinitrc.
 polkit
+polkit-gnome
 speedtest-cli
 handlr-regex
+# clipmenu — dmenu-driven clipboard history. Turned out to be an
+# official package (extra), not AUR like your previous list's
+# "clipmenu-git" assumed. §28 of CLAUDE.md names exactly this as
+# acceptable ("clipboard history through dmenu only if useful").
+# clipmenud is started from xinitrc; MODKEY+c opens the picker.
+clipmenu
 # pinentry-gnome3 is what gpg-agent.conf currently points at; it pulls
 # in GNOME dependencies for a minimal system. pinentry-curses is a
 # lighter drop-in if you want to switch (update

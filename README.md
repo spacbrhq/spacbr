@@ -70,6 +70,7 @@ docs/           additional documentation
 | `MODKEY+w` | Browser |
 | `MODKEY+e` | File manager |
 | `MODKEY+o` | Password menu |
+| `MODKEY+c` | Clipboard history |
 | `MODKEY+Shift+L` / `XF86 ScreenSaver` | Lock screen |
 | `MODKEY+Shift+P` / `XF86 PowerOff` | Power menu (lock/logout/suspend/reboot/shutdown) |
 | `MODKEY+Shift+A` | Audio device selection |

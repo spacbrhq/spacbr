@@ -29,6 +29,14 @@ pipewire &
 pipewire-pulse &
 wireplumber &
 picom --config ~/.config/picom/picom.conf &
+clipmenud &
+
+# Polkit authentication agent — without one, GUI privilege prompts
+# from NetworkManager/udisks2 (pcmanfm's automount) never appear.
+# polkit-gnome is "legacy" upstream but still the standard choice for
+# minimal WMs; only start it if it's actually installed.
+[ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ] && \
+	/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 
 # Wallpaper: restore last-set (via ~/.local/bin/wallpaper), fall back to a default
 statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"

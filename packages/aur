@@ -14,21 +14,11 @@
 # here if the name is wrong, rather than silently doing nothing.
 arc-gtk-theme
 
-# clipmenu — dmenu-driven clipboard history daemon. §28 of CLAUDE.md
-# names exactly this as acceptable ("clipboard history through dmenu
-# only if useful") as long as it stays lightweight, which clipmenu
-# does (small poller, not a heavyweight service). Your previous list
-# had "clipmenu-git" — using the stable "clipmenu" name instead per
-# §42's "avoid unnecessary -git packages" rule. Also UNVERIFIED
-# against the AUR itself for the same anti-bot-check reason as
-# arc-gtk-theme above.
-# NOTE: adding the package alone does nothing yet — it still needs
-# clipmenud started from xinitrc and a dwm keybinding to actually
-# browse history. Not wired up here; this is packaging only.
-clipmenu
-
 # --- Considered from your previous AUR list and deliberately left out ---
 #
+# clipmenu-git     — turned out clipmenu is an OFFICIAL package now
+#                     (extra, last updated 2024-07-12) — see
+#                     packages/desktop instead of here.
 # yay-bin          — a second AUR helper. §43: at most one, and paru
 #                     is already the one this installer uses.
 # dust-git         — -git package (§42); a stable "dust" alternative

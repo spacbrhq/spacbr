@@ -46,6 +46,10 @@ run_all_checks() {
     run_check "brightnessctl"       "command -v brightnessctl" "pacman -S brightnessctl"
     run_check "xrandr"              "command -v xrandr" "pacman -S xorg-xrandr"
 
+    info "Session extras"
+    run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"
+    run_check "polkit agent"        "[ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]" "pacman -S polkit-gnome"
+
     info "XDG layout"
     run_check "~/.config exists"    "[ -d \"\$XDG_CONFIG_HOME\" ]" "mkdir -p ~/.config"
     run_check "~/.local/bin exists" "[ -d \"\$HOME/.local/bin\" ]" "mkdir -p ~/.local/bin"
