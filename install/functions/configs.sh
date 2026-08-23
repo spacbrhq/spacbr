@@ -21,6 +21,37 @@ _manifest_add() {
     grep -qxF "$1" "$SPACBR_MANIFEST" 2>/dev/null || printf '%s\n' "$1" >> "$SPACBR_MANIFEST"
 }
 
+# Paths that get deployed/updated normally but are never manifested
+# for spacbr uninstall to later delete. Deliberately separate from
+# _should_skip(): these files must still be copied on install/update,
+# just never tracked for deletion.
+#   */.local/src/*        -- the user's own live, rebuildable,
+#                             potentially hand-edited suckless source
+#                             (config.h, patches, ...), not disposable
+#                             config. Verified for real: uninstall
+#                             deleting every manifested path wiped
+#                             dwm.c/config.h/Makefile etc. while
+#                             leaving orphaned .o files and the built
+#                             binary behind -- and since slock's
+#                             Makefile was deleted before uninstall's
+#                             own `make uninstall` step ran, slock's
+#                             setuid binary was silently left behind
+#                             too (that specific failure is also fixed
+#                             separately in uninstall.sh).
+#   */.local/share/backgrounds/* -- wallpapers. Verified for real:
+#                             uninstall deleted all of them despite its
+#                             own documented "personal data... left
+#                             alone" promise. Once deployed, a
+#                             wallpaper is indistinguishable from one
+#                             the user added themselves.
+_should_not_manifest() {
+    case "$1" in
+        */.local/src/*) return 0 ;;
+        */.local/share/backgrounds/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # deploy_tree SRC_DIR DEST_DIR — copies every file under SRC_DIR into
 # the matching path under DEST_DIR. Differing existing files are
 # backed up first; identical files are left untouched.
@@ -50,7 +81,7 @@ deploy_tree() {
         fi
         mkdir -p "$(dirname "$target")"
         cp -p "$file" "$target"
-        _manifest_add "$target"
+        _should_not_manifest "$target" || _manifest_add "$target"
     done
 }
 

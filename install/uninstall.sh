@@ -21,11 +21,21 @@ while IFS= read -r path; do
 done < "$SPACBR_MANIFEST"
 ok "removed manifested files"
 
+# Found for real: `2>/dev/null || true` here silently swallowed a
+# real failure -- slock's Makefile had been deleted by the manifest
+# loop above (fixed separately: .local/src is no longer manifested),
+# so `make uninstall` had nothing to work with, failed, and slock's
+# setuid binary was left behind while this script still reported
+# success. warn instead of swallowing, so a real failure is visible.
 for name in dwm dmenu st blocks; do
     dir="$HOME/.local/src/$name"
-    [ -d "$dir" ] && ( cd "$dir" && make uninstall ) 2>/dev/null || true
+    if [ -d "$dir" ]; then
+        ( cd "$dir" && make uninstall ) || warn "failed to uninstall $name — check $dir/Makefile"
+    fi
 done
-[ -d "$HOME/.local/src/slock" ] && ( cd "$HOME/.local/src/slock" && sudo make uninstall ) 2>/dev/null || true
+if [ -d "$HOME/.local/src/slock" ]; then
+    ( cd "$HOME/.local/src/slock" && sudo make uninstall ) || warn "failed to uninstall slock — check $HOME/.local/src/slock/Makefile"
+fi
 ok "uninstalled Suckless binaries"
 
 rm -rf "$SPACBR_SELF"
