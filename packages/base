@@ -58,6 +58,13 @@ openssh
 nodejs
 npm
 
+# git-delta -- syntax-highlighted diff pager, wired in as core.pager
+# in .config/git/config. restic -- off-site backup; snapper protects
+# against a bad update on the same disk, not disk failure or theft,
+# which nothing else here covers.
+git-delta
+restic
+
 # Shell quality-of-life: small, single-purpose, official, no daemons.
 # From your previous install's explicit list, not transitive noise.
 ripgrep

@@ -141,6 +141,8 @@ run_all_checks() {
     run_check "tailscale" "command -v tailscale" "pacman -S tailscale"
     run_check "syncthing" "command -v syncthing" "pacman -S syncthing"
     run_check "localsend" "command -v localsend" "paru -S localsend"
+    run_check "git-delta" "command -v delta" "pacman -S git-delta"
+    run_check "restic"    "command -v restic" "pacman -S restic"
     run_check "Claude Code CLI" "command -v claude" "npm config set prefix \$HOME/.local/share/npm && npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code"
 
     return $DOCTOR_FAILED
