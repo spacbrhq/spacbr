@@ -47,6 +47,7 @@ info "Installed: $PREV_VERSION -> Source: $NEW_VERSION"
 
 install_all_packages
 deploy_dotfiles "$SOURCE_DIR"
+reload_user_units
 deploy_self "$SOURCE_DIR"
 build_and_install_suckless
 deploy_nftables "$SOURCE_DIR"

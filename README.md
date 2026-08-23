@@ -44,6 +44,7 @@ keyboard shortcut → dmenu → action
 | Brightness | `ddcutil` (DDC/CI — this machine has no backlight device; use `brightnessctl -c backlight` instead on a laptop) |
 | Display | `xrandr` |
 | Media | `mpv` + `playerctl` |
+| Music library | `mpd` + `rmpc` (persistent queue/library, separate need from mpv's play-this-file model) |
 | Screen recording | `ffmpeg` (x11grab + pulse) — `.local/bin/record` |
 | Documents | `Zathura` |
 | Images | `nsxiv` |

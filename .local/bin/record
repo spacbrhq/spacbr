@@ -19,11 +19,16 @@ notify() {
     command -v notify-send >/dev/null 2>&1 && notify-send "Record" "$1"
 }
 
-# Toggle off: already recording, so this invocation means "stop".
+# Already recording: show the stop option in the menu itself, rather
+# than silently stopping on a bare re-invocation -- Escape cancels
+# without touching the running recording.
 if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-    kill -INT "$(cat "$PIDFILE")"
-    rm -f "$PIDFILE"
-    notify "Recording stopped and saved to $OUTDIR"
+    choice=$(printf '%s\n' "Stop recording" | dmenu -p "record")
+    if [ "$choice" = "Stop recording" ]; then
+        kill -INT "$(cat "$PIDFILE")"
+        rm -f "$PIDFILE"
+        notify "Recording stopped and saved to $OUTDIR"
+    fi
     exit 0
 fi
 

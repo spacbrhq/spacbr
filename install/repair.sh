@@ -43,6 +43,7 @@ run_all_checks || true
 # ability to restore missing .local/bin content.
 if [ "$SOURCE_DIR" != "$SPACBR_SELF" ]; then
     deploy_dotfiles "$SOURCE_DIR"
+    reload_user_units
 elif [ "$DOCTOR_FAILED" -ne 0 ]; then
     warn "No known-good source given — can fix packages/binaries/services,"
     warn "but not dotfile content. For that: spacbr repair /path/to/spacbr"
@@ -61,6 +62,7 @@ enable_system_services
 deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"
 setup_snapper
+setup_mpd
 
 info "Re-checking"
 run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"

@@ -113,6 +113,15 @@ deploy_dotfiles() {
     ok "dotfiles deployed"
 }
 
+# reload_user_units -- picks up any new/changed systemd --user unit or
+# drop-in override (e.g. dunst.service.d/override.conf) just deployed
+# under ~/.config/systemd/user by deploy_dotfiles above. Harmless/
+# idempotent to call even when nothing changed.
+reload_user_units() {
+    [ -d "$HOME/.config/systemd/user" ] || return 0
+    systemctl --user daemon-reload && ok "systemd --user units reloaded"
+}
+
 # deploy_self [SOURCE_DIR] — copies SPACBR's own support files
 # (installer, package manifests, docs) into $XDG_DATA_HOME/spacbr so
 # the `spacbr` CLI and update/repair/doctor keep working after the

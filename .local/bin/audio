@@ -28,7 +28,25 @@ pick_and_set() {
     name=$(printf '%s\n' "$entries" | awk -F'\t' '{print $2}' | dmenu -p "$2")
     [ -z "$name" ] && return 1
     id=$(printf '%s\n' "$entries" | awk -F'\t' -v n="$name" '$2 == n {print $1; exit}')
-    [ -n "$id" ] && wpctl set-default "$id" && notify "$2 switched"
+    [ -z "$id" ] && return 1
+    wpctl set-default "$id" || return 1
+    # wpctl set-default only routes *future* streams to the new
+    # device -- anything already playing/recording stays on whatever
+    # it originally connected to. Verified for real this was the
+    # actual explanation for "switched output but still can't hear
+    # anything from it": an already-open stream (e.g. a browser tab
+    # already playing) doesn't move on its own. pactl move-sink-input/
+    # move-source-output is what actually redirects live audio.
+    if [ "$section" = "Sinks:" ]; then
+        pactl list short sink-inputs 2>/dev/null | cut -f1 | while read -r sid; do
+            pactl move-sink-input "$sid" "$id" 2>/dev/null
+        done
+    else
+        pactl list short source-outputs 2>/dev/null | cut -f1 | while read -r sid; do
+            pactl move-source-output "$sid" "$id" 2>/dev/null
+        done
+    fi
+    notify "$2 switched"
 }
 
 # Toggles between speaker and headphones. Covers both common hardware
@@ -90,9 +108,9 @@ toggle_speaker_headphones() {
 }
 
 case "$(printf '%s\n' "Volume up" "Volume down" "Mute toggle" "Output device" "Input device" "Toggle speaker/headphones" | dmenu -p "audio")" in
-    "Volume up")                   wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ ;;
-    "Volume down")                 wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
-    "Mute toggle")                 wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+    "Volume up")                   "$(dirname "$0")/volume" up ;;
+    "Volume down")                 "$(dirname "$0")/volume" down ;;
+    "Mute toggle")                 "$(dirname "$0")/volume" mute ;;
     "Output device")              pick_and_set "Sinks:" "Output" ;;
     "Input device")                pick_and_set "Sources:" "Input" ;;
     "Toggle speaker/headphones")   toggle_speaker_headphones ;;

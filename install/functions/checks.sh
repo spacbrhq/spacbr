@@ -65,6 +65,12 @@ run_all_checks() {
     # showed "bluetooth service active" as a false-positive failure
     # before this check accounted for hardware absence.
     run_check "bluetooth service active" "[ ! -d /sys/class/bluetooth ] || systemctl is-active --quiet bluetooth" "sudo systemctl enable --now bluetooth"
+    run_check "mpd installed"       "command -v mpd" "pacman -S mpd rmpc"
+    # mpd.socket, not mpd.service's own active state: socket-activated,
+    # so mpd.service is correctly "inactive" until something (rmpc)
+    # actually connects -- same reasoning as the nftables oneshot check
+    # above.
+    run_check "mpd.socket enabled"  "systemctl --user is-enabled --quiet mpd.socket" "systemctl --user enable --now mpd.socket"
 
     info "Snapshots"
     # snapper only makes sense on btrfs -- on any other filesystem,

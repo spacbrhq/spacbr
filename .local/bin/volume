@@ -1,0 +1,40 @@
+#!/bin/sh
+# Wraps wpctl volume/mute changes with notification feedback. Shared
+# by dwm's hardware volume keys and the audio dmenu menu's Volume up/
+# down/mute entries so both give the same feedback instead of
+# duplicating this logic -- verified for real that wpctl alone changes
+# the level correctly, but with zero feedback (no OSD, no
+# notification) it read as "volume keys don't work" even though they
+# did.
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && \
+        notify-send -t 1500 -h string:x-canonical-private-synchronous:spacbr-volume "Volume" "$1"
+}
+
+pct() {
+    wpctl get-volume "$1" | awk '{printf "%d%%", $2*100}'
+}
+
+case "${1:-}" in
+    up)
+        wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+        wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "$(pct @DEFAULT_AUDIO_SINK@)"
+        ;;
+    down)
+        wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+        wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "$(pct @DEFAULT_AUDIO_SINK@)"
+        ;;
+    mute)
+        wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+        wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "Unmuted ($(pct @DEFAULT_AUDIO_SINK@))"
+        ;;
+    mic-mute)
+        wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+        wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED && notify "Microphone muted" || notify "Microphone unmuted"
+        ;;
+    *)
+        echo "usage: volume up|down|mute|mic-mute" >&2
+        exit 1
+        ;;
+esac

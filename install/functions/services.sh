@@ -1,8 +1,13 @@
 # Enable the systemd services SPACBR depends on. Sourced, not executed
 # directly. Requires common.sh.
 #
-# Only actual system services go here — audio and
-# the graphical session itself are started from xinitrc, not systemd.
+# Only actual system (root-level) services go here. PipeWire/
+# WirePlumber/dunst are systemd --user services, already enabled by
+# their own package presets -- xinitrc deliberately does NOT start
+# them (see "Audio startup" in docs/architecture.md: doing so as raw
+# processes actively conflicted with those units and broke the
+# PulseAudio-compat layer). The graphical session itself (dwm,
+# dwmblocks, picom, clipmenud) still comes from xinitrc, not systemd.
 
 enable_system_services() {
     info "Enabling system services"
@@ -60,4 +65,18 @@ setup_snapper() {
     fi
     sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
     ok "snapper timeline/cleanup timers enabled"
+}
+
+# setup_mpd -- enables the user-level mpd.socket (socket-activated,
+# starts mpd.service on first connection). Not the system-wide
+# mpd.service/mpd.socket the package also ships -- that runs as a
+# dedicated "mpd" system user, which would need explicit permission
+# setup to read ~/Music for no benefit on a single-user desktop.
+# ~/Music, and mpd.conf's own state directories, are created here
+# since mpd itself doesn't create missing parent directories.
+setup_mpd() {
+    command -v mpd >/dev/null 2>&1 || return 0
+    mkdir -p "$HOME/Music" "$HOME/.local/share/mpd/playlists" "$HOME/.local/state/mpd"
+    systemctl --user enable --now mpd.socket
+    ok "mpd.socket enabled (mpd.service starts on first connection, e.g. from rmpc)"
 }

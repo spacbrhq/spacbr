@@ -21,6 +21,15 @@ udisks2
 zathura
 zathura-pdf-mupdf
 mpv
+# mpd + rmpc — a real, separate need from mpv/playerctl: a persistent
+# music library/queue (survives closing the client, controllable from
+# multiple terminals) rather than "play this one file/stream". Runs as
+# the user-level mpd.socket/mpd.service (see .config/mpd/mpd.conf and
+# setup_mpd() in services.sh) -- not the system-wide mpd user the
+# package also ships, which would need permission setup to read
+# ~/Music for no benefit on a single-user desktop.
+mpd
+rmpc
 # nsxiv — Images had no owner (§7 names Documents/Media/Browser but
 # nothing for image/*), and handlr-regex was correctly routing
 # audio/video/pdf but had nowhere to send images. Suckless-lineage

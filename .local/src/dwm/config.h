@@ -20,6 +20,7 @@
 #define DNSCTL "~/.local/bin/dns"
 #define MIRRORCTL "~/.local/bin/mirrors"
 #define RECORDCTL "~/.local/bin/record"
+#define VOLUMECTL "~/.local/bin/volume"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -112,10 +113,14 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_m,      spawn,          SHCMD(MIRRORCTL) },
 	{ MODKEY|ShiftMask,             XK_c,      spawn,          SHCMD("screenshot color") },
 	{ 0, 			 XF86XK_Bluetooth,		   spawn,	       SHCMD(BLUETOOTHCTL) },
-    { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
-    { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
-    { 0,             XF86XK_AudioMute,         spawn,          SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
-	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
+    /* volume script wraps wpctl with a notification -- verified for
+     * real that wpctl alone changed the level correctly but gave zero
+     * feedback (no OSD, no notification), which read as "the keys
+     * don't work" even though they did. */
+    { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD(VOLUMECTL " down") },
+    { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD(VOLUMECTL " up") },
+    { 0,             XF86XK_AudioMute,         spawn,          SHCMD(VOLUMECTL " mute") },
+	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD(VOLUMECTL " mic-mute") },
     { 0,             XF86XK_AudioPlay,        spawn,          SHCMD("playerctl play-pause") },
     { 0,             XF86XK_AudioNext,        spawn,          SHCMD("playerctl next") },
     { 0,             XF86XK_AudioPrev,        spawn,          SHCMD("playerctl previous") },
