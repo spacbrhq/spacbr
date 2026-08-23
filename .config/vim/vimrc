@@ -119,23 +119,23 @@ highlight SpellRare    guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
 highlight SpellLocal   guifg=NONE    guibg=NONE    gui=NONE   cterm=NONE
 
 " --- UI Elements ---
-highlight Visual       guifg=#1e2030 guibg=#ffffff
-highlight VisualNOS    guifg=#1e2030 guibg=#ffffff
-highlight Search       guifg=#1e2030 guibg=#f6d13a
-highlight IncSearch    guifg=#1e2030 guibg=#60e1e0
+highlight Visual       guifg=#2f343f guibg=#ffffff
+highlight VisualNOS    guifg=#2f343f guibg=#ffffff
+highlight Search       guifg=#2f343f guibg=#f6d13a
+highlight IncSearch    guifg=#2f343f guibg=#60e1e0
 highlight MatchParen   guifg=#f6d13a guibg=NONE    gui=bold
-highlight StatusLine   guifg=#e1e3e7 guibg=#2d3043 gui=NONE
-highlight StatusLineNC guifg=#404552 guibg=#1e2030 gui=NONE
+highlight StatusLine   guifg=#e1e3e7 guibg=#404552 gui=NONE
+highlight StatusLineNC guifg=#404552 guibg=#2f343f gui=NONE
 highlight VertSplit    guifg=#404552 guibg=NONE
-highlight Pmenu        guifg=#e1e3e7 guibg=#2d3043
-highlight PmenuSel     guifg=#1e2030 guibg=#dab6fc
+highlight Pmenu        guifg=#e1e3e7 guibg=#404552
+highlight PmenuSel     guifg=#2f343f guibg=#dab6fc
 highlight PmenuSbar    guifg=NONE    guibg=#404552
 highlight PmenuThumb   guifg=NONE    guibg=#dab6fc
-highlight WildMenu     guifg=#1e2030 guibg=#f6d13a
-highlight ColorColumn  guifg=NONE    guibg=#2d3043
+highlight WildMenu     guifg=#2f343f guibg=#f6d13a
+highlight ColorColumn  guifg=NONE    guibg=#404552
 highlight EndOfBuffer  guifg=#404552 guibg=NONE
 highlight NonText      guifg=#404552 guibg=NONE
-highlight Folded       guifg=#60e1e0 guibg=#2d3043
+highlight Folded       guifg=#60e1e0 guibg=#404552
 highlight Title        guifg=#dab6fc guibg=NONE    gui=bold
 highlight Todo         guifg=#f6d13a guibg=NONE    gui=bold
 highlight Directory    guifg=#4084d6 guibg=NONE
