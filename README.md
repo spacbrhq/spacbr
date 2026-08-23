@@ -51,6 +51,7 @@ keyboard shortcut → dmenu → action
 | Browser | `Firefox` |
 | File manager | `PCManFM` |
 | Password manager | `pass` |
+| Version control | `git` (`.config/git/config`) |
 | Default apps | `handlr-regex` |
 | Editor | `Neovim` / `Vim` (`Zed` for GUI/mouse-driven work — a documented exception, not a second owner) |
 
