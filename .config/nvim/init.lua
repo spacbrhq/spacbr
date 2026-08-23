@@ -178,12 +178,20 @@ autocmd("FileType", {
     end,
 })
 
--- Remove trailing whitespace on save
+-- Remove trailing whitespace on save. Skips non-modifiable buffers --
+-- verified for real: without this guard, a forced write of a
+-- non-modifiable buffer (e.g. `:w!` on a readonly file, or any
+-- plugin/special buffer marked nomodifiable that still fires
+-- BufWritePre) throws "E21: Cannot make changes, 'modifiable' is off"
+-- from inside this callback, since the substitute command itself
+-- respects 'modifiable' even though the `e` flag only suppresses
+-- "no match" errors, not this one.
 augroup("trim_whitespace", { clear = true })
 autocmd("BufWritePre", {
     group   = "trim_whitespace",
     pattern = "*",
     callback = function()
+        if not vim.bo.modifiable then return end
         local pos = vim.api.nvim_win_get_cursor(0)
         vim.cmd([[%s/\s\+$//e]])
         vim.api.nvim_win_set_cursor(0, pos)
