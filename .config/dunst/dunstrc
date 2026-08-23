@@ -2,9 +2,9 @@
 monitor = 0
 follow = keyboard
 width = (0, 512)
-height = 350
+height = (0, 350)
 frame_width = 0
-offset = 10x29
+offset = (10, 29)
 padding = 15
 horizontal_padding = 15
 transparency = 25
