@@ -54,7 +54,8 @@ responsibility model and the reasoning behind it.
 .local/src/     Suckless components, built from source (dwm, dmenu, st,
                 slock, dwmblocks) with their patches under patches/
 packages/       curated pacman package manifests (base, x11, desktop, hardware, aur)
-install/        the installer (install/update/repair/uninstall)
+install/        the installer (install/update/repair/uninstall) — deployed to end users
+release/        maintainer-only: build/publish versioned releases, the web bootstrap script
 system/         systemd/X11 integration
 docs/           additional documentation
 ```
@@ -98,16 +99,22 @@ command than remember a chord.
 
 ## Installing
 
-Not yet published. Once released:
+Once a release is actually published (see `release/README.md` — none
+has been cut yet):
 
 ```sh
-curl -fsSL https://<domain>/install | sh
+curl -fsSL https://spacbr.com/install | sh
 ```
 
-Until then, install from a clone:
+That fetches `release/bootstrap.sh`, which resolves a specific,
+checksum-verified release and hands off to its `install/install.sh` —
+see `release/README.md` for exactly how spacbr.com's four paths map
+to GitHub.
+
+Until a release exists, install from a clone:
 
 ```sh
-git clone <this-repo> ~/spacbr
+git clone https://github.com/eightharsh/spacbr ~/spacbr
 cd ~/spacbr
 ./install/install.sh
 ```
@@ -119,12 +126,16 @@ CLAUDE.md §53-72 for why it's structured that way.
 
 Early. In place: the visual system, Suckless patches, dmenu contextual
 scripts, package manifests, the installer (install/update/repair/
-uninstall/doctor), and the `spacbr` CLI. Not yet built: the versioned
-release channel and web bootstrap (§54-59), so `spacbr update`/`repair`
-without an explicit source directory can't fetch anything newer than
-what's already deployed — see the note at the top of `install/update.sh`.
-None of this has been run against a real Arch machine yet. See
-`VERSION` for the current release.
+uninstall/doctor), the `spacbr` CLI, and the release tooling
+(`release/build.sh`/`publish.sh`/`bootstrap.sh` — build-tested against
+this repo's own HEAD, output verified). Not yet done: no release has
+actually been tagged/published, no GitHub remote is configured, and
+spacbr.com's actual DNS/hosting isn't wired up — see `release/README.md`
+for the exact remaining steps. Until a release exists, `spacbr update`/
+`repair` without an explicit source directory can't fetch anything
+newer than what's already deployed — see the note at the top of
+`install/update.sh`. None of this has been run against a real Arch
+machine yet. See `VERSION` for the current release.
 
 ## License
 

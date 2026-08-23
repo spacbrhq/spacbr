@@ -17,7 +17,8 @@ SPACBR
   ├── Scripts         (.local/bin/: the dmenu-driven contextual tools)
   ├── Packages        (packages/: curated pacman manifests)
   ├── Installer       (install/: install, update, repair, uninstall, doctor)
-  └── CLI             (.local/bin/spacbr)
+  ├── CLI             (.local/bin/spacbr)
+  └── Release         (release/: build, publish, web bootstrap — maintainer-only)
        │
        ▼
    Arch Linux → X11 → dwm → hardware
@@ -67,10 +68,31 @@ manifest lists, never packages, never anything it didn't put there
 itself.
 
 See [`../install/`](../install/) and its inline comments for exactly
-how install/update/repair/uninstall work today, including the honest
-gap: there's no versioned release channel yet (CLAUDE.md §57-59), so
-update/repair can't fetch anything newer on their own — see the top of
-`install/update.sh`.
+how install/update/repair/uninstall work today.
+
+## Release channel
+
+`release/` (maintainer-only — never deployed to end users, deliberately
+not in `deploy_self`'s copy list) builds and publishes versioned
+releases: `release/build.sh` uses `git archive` to produce a tarball
+exactly matching what's tagged, a sha256 checksum, and a manifest.json
+(CLAUDE.md §58 — package sets, Suckless versions/patches,
+compatibility). `release/publish.sh` tags, pushes, and creates a
+GitHub Release with those three files attached — the one script here
+that touches shared/public state, run manually, never automatically.
+
+`spacbr.com/install` redirects to `release/bootstrap.sh` (served raw
+from GitHub) — a small, auditable script (CLAUDE.md §54) that detects
+the platform, resolves a release, downloads and checksum-verifies it,
+then hands off to that release's own `install/install.sh`. See
+`release/README.md` for the exact domain-to-GitHub path mapping and
+what's still unwired (no release has been tagged yet, no GitHub
+remote is configured, spacbr.com's DNS/hosting itself is outside this
+repo).
+
+Until a real release exists, `spacbr update`/`repair` without an
+explicit source directory can't fetch anything newer than what's
+already deployed — see the top of `install/update.sh`.
 
 ## Where things live
 
@@ -81,7 +103,8 @@ update/repair can't fetch anything newer on their own — see the top of
 | `.local/src/` | Suckless components built from source, with patches under each tool's `patches/` |
 | `.local/share/` | Backgrounds, gnupg config — user data SPACBR ships defaults for |
 | `packages/` | Curated pacman manifests: `base`, `x11`, `desktop`, `hardware`, `aur` |
-| `install/` | The installer and its shared `functions/` |
+| `install/` | The installer and its shared `functions/` — deployed to end users |
+| `release/` | Maintainer-only: build/publish releases, the web bootstrap script — never deployed |
 | `docs/` | This directory |
 
 `system/` (systemd/X11 integration beyond what's already in
