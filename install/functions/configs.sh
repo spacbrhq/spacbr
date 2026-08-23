@@ -6,7 +6,10 @@
 
 _should_skip() {
     case "$1" in
-        *.o|*.orig|*.gch|*/.DS_Store) return 0 ;;
+        # */._* is the macOS AppleDouble sidecar pattern -- found for real
+        # deployed straight into $XDG_DATA_HOME/spacbr/install after
+        # scp'ing a source tree from a Mac.
+        *.o|*.orig|*.gch|*/.DS_Store|*/._*) return 0 ;;
         */.local/src/dwm/dwm|*/.local/src/dmenu/dmenu|*/.local/src/st/st) return 0 ;;
         */.local/src/slock/slock|*/.local/src/blocks/dwmblocks) return 0 ;;
         *) return 1 ;;
@@ -98,6 +101,9 @@ deploy_self() {
         [ -e "$src/$item" ] || continue
         rm -rf "${SPACBR_SELF:?}/$item"
         cp -r "$src/$item" "$SPACBR_SELF/"
+        # cp -r doesn't go through _should_skip -- strip macOS AppleDouble
+        # sidecars here too, same reasoning as deploy_tree.
+        find "$SPACBR_SELF/$item" -name '._*' -delete 2>/dev/null || true
     done
     ok "SPACBR support files deployed"
 }
