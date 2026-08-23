@@ -9,11 +9,10 @@ Wayland compositor. It's an integration layer on top of stock Arch
 Linux: Arch remains Arch underneath, and SPACBR can be removed without
 breaking it.
 
-Full architecture and design rules live in [`CLAUDE.md`](CLAUDE.md) —
-read that first if you're changing anything here. Shorter, task-focused
-docs live in [`docs/`](docs/): [architecture](docs/architecture.md),
+Full documentation lives in [`docs/`](docs/): [architecture](docs/architecture.md),
 [keybindings](docs/keybindings.md), [troubleshooting](docs/troubleshooting.md),
-[development](docs/development.md).
+[development](docs/development.md) — read `architecture.md` first if
+you're changing anything here.
 
 ## Philosophy
 
@@ -43,8 +42,9 @@ keyboard shortcut → dmenu → action
 | Brightness | `brightnessctl` |
 | Display | `xrandr` |
 
-Each of these has exactly one owner — see CLAUDE.md §7 for the full
-responsibility model and the reasoning behind it.
+Each of these has exactly one owner, by design — see
+[docs/architecture.md](docs/architecture.md#one-owner-per-responsibility)
+for the reasoning behind it.
 
 ## Repository layout
 
@@ -120,7 +120,8 @@ cd ~/spacbr
 ```
 
 See [`install/`](install/) for what the installer actually does, and
-CLAUDE.md §53-72 for why it's structured that way.
+[docs/architecture.md](docs/architecture.md#deployment-model) for why
+it's structured that way.
 
 ## Status
 

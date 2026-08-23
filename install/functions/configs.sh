@@ -81,7 +81,7 @@ deploy_self() {
     fi
     info "Deploying SPACBR support files to $SPACBR_SELF"
     mkdir -p "$SPACBR_SELF"
-    for item in install packages system docs VERSION README.md LICENSE CLAUDE.md; do
+    for item in install packages system docs VERSION README.md LICENSE; do
         [ -e "$src/$item" ] || continue
         rm -rf "${SPACBR_SELF:?}/$item"
         cp -r "$src/$item" "$SPACBR_SELF/"

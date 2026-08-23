@@ -34,8 +34,7 @@ exception: its actually-compiled file is `blocks.h`, not
 
 Every patch under a tool's `patches/` directory should be something
 you can explain: what it changes, why, what it costs to maintain.
-Don't add a patch because it's popular — CLAUDE.md §13 covers this in
-detail. When adding one, apply it against a clean checkout of that
+Don't add a patch because it's popular. When adding one, apply it against a clean checkout of that
 tool's upstream source, verify it still applies cleanly, and note in
 the commit message what problem it solves.
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Diagnoses and repairs common problems (CLAUDE.md §66) by idempotently
+# Diagnoses and repairs common problems by idempotently
 # re-applying the same steps install/update use: reinstalling only
 # missing packages, rebuilding Suckless binaries from the already-
 # deployed source under ~/.local/src, and re-enabling services.

@@ -12,10 +12,12 @@
 # .config/.local (see deploy_self), so dotfiles won't be re-synced
 # unless you point this at an actual updated source.
 #
-# NOTE: this does not yet fetch a new versioned release (CLAUDE.md
-# §57-58/§65) — there is no published release channel yet. Wiring in
-# real release fetching is future work (§85 phases 28-29), not a
-# shortcut taken here.
+# NOTE: this does not fetch a new release itself — it takes a source
+# directory you already have (a git clone you've pulled, or the
+# output of extracting a release/build.sh tarball). Wiring this up to
+# automatically resolve+download+verify the latest GitHub release the
+# way release/bootstrap.sh does is future work, not a shortcut taken
+# here.
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

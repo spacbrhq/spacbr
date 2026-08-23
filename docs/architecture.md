@@ -1,8 +1,7 @@
 # Architecture
 
-The full, authoritative specification is [`CLAUDE.md`](../CLAUDE.md).
-This is a shorter map of the same territory — read it first, then go
-to CLAUDE.md for the reasoning behind any specific rule.
+This is the authoritative map of SPACBR's design — read it first if
+you're changing anything in this repo.
 
 ## What SPACBR is
 
@@ -27,7 +26,7 @@ SPACBR
 ## One owner per responsibility
 
 Every piece of functionality has exactly one tool responsible for it —
-see CLAUDE.md §7 for the full table. The practical effect: if you're
+see the table in the README. The practical effect: if you're
 about to add a second tool that does something an existing owner
 already does (a second terminal, a second lock screen, a second
 compositor), that's the signal to stop and either use the existing
@@ -76,13 +75,13 @@ how install/update/repair/uninstall work today.
 not in `deploy_self`'s copy list) builds and publishes versioned
 releases: `release/build.sh` uses `git archive` to produce a tarball
 exactly matching what's tagged, a sha256 checksum, and a manifest.json
-(CLAUDE.md §58 — package sets, Suckless versions/patches,
-compatibility). `release/publish.sh` tags, pushes, and creates a
+(package sets, Suckless versions/patches, compatibility).
+`release/publish.sh` tags, pushes, and creates a
 GitHub Release with those three files attached — the one script here
 that touches shared/public state, run manually, never automatically.
 
 `spacbr.com/install` redirects to `release/bootstrap.sh` (served raw
-from GitHub) — a small, auditable script (CLAUDE.md §54) that detects
+from GitHub) — a small, auditable script that detects
 the platform, resolves a release, downloads and checksum-verifies it,
 then hands off to that release's own `install/install.sh`. See
 `release/README.md` for the exact domain-to-GitHub path mapping and

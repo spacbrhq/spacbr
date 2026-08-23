@@ -17,7 +17,7 @@ run_check() {
 run_all_checks() {
     DOCTOR_FAILED=0
     info "Platform"
-    run_check "Arch Linux"          "detect_arch_linux" "SPACBR only supports Arch Linux (CLAUDE.md §2)"
+    run_check "Arch Linux"          "detect_arch_linux" "SPACBR only supports Arch Linux"
     run_check "x86_64"              "detect_x86_64" "SPACBR only supports x86_64"
     run_check "Xorg present"        "command -v Xorg || command -v X" "pacman -S xorg-server"
 

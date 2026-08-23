@@ -14,7 +14,7 @@ own, enabled by `install/functions/services.sh` or activated from
   startup logic that already lives in `.config/xinitrc`. Empty today:
   no hardware-specific Xorg tuning has been needed yet.
 
-Per CLAUDE.md §20/§93: don't add a file here speculatively. If a real
+Don't add a file here speculatively. If a real
 need shows up (a specific device needing an Xorg quirk, a service
 SPACBR needs to own rather than just enable), it goes here with a
 comment explaining what problem it solves — the same bar every other

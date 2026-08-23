@@ -3,7 +3,7 @@
 # tarball (via `git archive`, so it's exactly what's committed — no
 # stray local files, no need to hand-maintain an exclude list),
 # a sha256 checksum sidecar, and a manifest.json describing what's in
-# it (CLAUDE.md §58).
+# it.
 #
 # Usage: release/build.sh [git-ref]
 #   git-ref defaults to HEAD. For a real release, tag first:

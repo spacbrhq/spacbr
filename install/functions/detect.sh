@@ -11,7 +11,7 @@ detect_x86_64() {
 }
 
 require_platform() {
-    detect_arch_linux || die "SPACBR targets Arch Linux only (see CLAUDE.md §2). /etc/arch-release or /etc/os-release ID=arch not found."
+    detect_arch_linux || die "SPACBR targets Arch Linux only. /etc/arch-release or /etc/os-release ID=arch not found."
     detect_x86_64 || die "SPACBR targets x86_64 only. Detected: $(uname -m)"
     ok "Arch Linux, x86_64"
 }

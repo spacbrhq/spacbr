@@ -4,9 +4,11 @@
 #
 # dwm/dmenu/st/dwmblocks install to $HOME/.local (PREFIX set in their
 # own config.mk/Makefile) — no root needed. slock installs to
-# /usr/local and must be setuid-root to read shadow auth, so it alone
-# needs sudo; see CLAUDE.md audit notes on why it can't move to
-# ~/.local/bin like the others.
+# /usr/local and must be setuid-root to read shadow auth (it needs
+# elevated privilege to verify a password against the shadow file),
+# which is why it alone needs sudo and can't move to ~/.local/bin like
+# the others — a user-writable, often nosuid-mounted home directory
+# can't safely host a setuid-root binary.
 
 build_suckless_component() {
     dir="$HOME/.local/src/$1"

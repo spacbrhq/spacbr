@@ -4,7 +4,7 @@
 # This is the ONLY code that runs directly from:
 #   curl -fsSL https://spacbr.com/install | sh
 #
-# Per CLAUDE.md §54, it is deliberately tiny and auditable: it does
+# It is deliberately tiny and auditable: it does
 # not configure the system itself. It detects the platform, resolves
 # a specific versioned release, downloads it, verifies its checksum,
 # and hands off to that release's own install/install.sh — which is
@@ -25,7 +25,7 @@ command -v curl >/dev/null 2>&1 || die "curl is required"
 command -v tar  >/dev/null 2>&1 || die "tar is required"
 command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required"
 
-[ -f /etc/arch-release ] || die "this installer targets Arch Linux only (CLAUDE.md §2)"
+[ -f /etc/arch-release ] || die "this installer targets Arch Linux only"
 [ "$(uname -m)" = "x86_64" ] || die "this installer targets x86_64 only"
 
 if [ "$VERSION" = "latest" ]; then

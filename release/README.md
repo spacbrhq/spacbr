@@ -21,10 +21,9 @@ accidentally shipping local build artifacts or uncommitted files.
 `release/publish.sh` is the one script in this repo that touches
 shared/public state (pushes a tag, creates a public release). It's
 never run automatically — run it yourself when a release is actually
-ready, per CLAUDE.md's guidance on confirming before actions visible
-to others.
+ready.
 
-## Wiring spacbr.com (§55)
+## Wiring spacbr.com
 
 The domain needs to serve four paths. None of them require hosting
 real files at spacbr.com itself except `/install` — everything else
@@ -57,7 +56,7 @@ whatever repo/project actually backs spacbr.com.
 
 `release/bootstrap.sh` lives on `main` and is expected to change
 independently of tagged releases — its only job is to fetch a
-specific, checksummed release and hand off to it (CLAUDE.md §54). The
+specific, checksummed release and hand off to it. The
 thing that must stay strictly versioned is what it fetches (the
 tarball + manifest), not the fetcher itself. This is the same pattern
 most curl-pipe-installers use.
@@ -65,11 +64,10 @@ most curl-pipe-installers use.
 ## What's not done yet
 
 - No release has actually been cut — `git tag` has never been run in
-  this repo.
-- No GitHub remote is configured (`git remote -v` is empty).
+  this repo (the repo itself is pushed to
+  [github.com/spacbrhq/spacbr](https://github.com/spacbrhq/spacbr)).
 - The actual spacbr.com hosting/DNS/redirects setup lives outside this
   repo and hasn't been done.
-- GPG-signing release artifacts (§59's "signed metadata/artifacts
-  where practical") isn't implemented — sha256 checksum verification
-  is the current integrity mechanism. Worth adding once there's a
-  signing key you're prepared to manage long-term.
+- GPG-signing release artifacts isn't implemented — sha256 checksum
+  verification is the current integrity mechanism. Worth adding once
+  there's a signing key you're prepared to manage long-term.
