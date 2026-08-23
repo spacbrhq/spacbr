@@ -114,7 +114,7 @@ to GitHub.
 Until a release exists, install from a clone:
 
 ```sh
-git clone https://github.com/eightharsh/spacbr ~/spacbr
+git clone https://github.com/spacbrhq/spacbr ~/spacbr
 cd ~/spacbr
 ./install/install.sh
 ```

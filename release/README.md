@@ -32,19 +32,19 @@ is a redirect to GitHub:
 
 | Path | Behavior |
 |---|---|
-| `/install` | Redirect (302) to `https://raw.githubusercontent.com/eightharsh/spacbr/main/release/bootstrap.sh` — `curl -fsSL` follows redirects, so this works with the standard one-liner. |
-| `/source` | Redirect to `https://github.com/eightharsh/spacbr` |
-| `/releases` | Redirect to `https://github.com/eightharsh/spacbr/releases` |
-| `/docs` | Redirect to `https://github.com/eightharsh/spacbr/tree/main/docs` |
+| `/install` | Redirect (302) to `https://raw.githubusercontent.com/spacbrhq/spacbr/main/release/bootstrap.sh` — `curl -fsSL` follows redirects, so this works with the standard one-liner. |
+| `/source` | Redirect to `https://github.com/spacbrhq/spacbr` |
+| `/releases` | Redirect to `https://github.com/spacbrhq/spacbr/releases` |
+| `/docs` | Redirect to `https://github.com/spacbrhq/spacbr/tree/main/docs` |
 
 Any static host that supports a redirects file works. For Cloudflare
 Pages or Netlify, a `_redirects` file at the site root:
 
 ```
-/install    https://raw.githubusercontent.com/eightharsh/spacbr/main/release/bootstrap.sh   302
-/source     https://github.com/eightharsh/spacbr                                             302
-/releases   https://github.com/eightharsh/spacbr/releases                                    302
-/docs       https://github.com/eightharsh/spacbr/tree/main/docs                              302
+/install    https://raw.githubusercontent.com/spacbrhq/spacbr/main/release/bootstrap.sh   302
+/source     https://github.com/spacbrhq/spacbr                                             302
+/releases   https://github.com/spacbrhq/spacbr/releases                                    302
+/docs       https://github.com/spacbrhq/spacbr/tree/main/docs                              302
 ```
 
 Plain GitHub Pages doesn't support server-side redirects natively —

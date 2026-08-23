@@ -14,7 +14,7 @@
 #   SPACBR_VERSION=v0.1.0 curl -fsSL https://spacbr.com/install | sh
 set -eu
 
-REPO="eightharsh/spacbr"   # GitHub owner/repo — update if this changes
+REPO="spacbrhq/spacbr"   # GitHub owner/repo — update if this changes
 API="https://api.github.com/repos/$REPO"
 VERSION="${SPACBR_VERSION:-latest}"
 
