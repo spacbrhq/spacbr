@@ -51,6 +51,28 @@ host a setuid-root binary. Don't try to move it there.
   unusual `wpctl status` layout could mean the parser misses an entry
   (see `.local/bin/audio`'s `list_section` function).
 
+## "Toggle speaker/headphones" says it can't find both
+
+Most jack-sensing hardware already auto-switches on plug/unplug via
+WirePlumber itself, with no action needed — the toggle in
+`spacbr audio` is a manual override for when that isn't enough or
+isn't happening. It tries two hardware shapes in order:
+
+1. One sink with separate "Speakers"/"Headphones" **ports** (typical
+   onboard/laptop codecs) — switched via `pactl set-sink-port`.
+2. Two genuinely separate **sinks** (e.g. a USB headset shows up as
+   its own device) — switched via `pactl set-default-sink`.
+
+If your hardware exposes neither (an unusual port/sink naming scheme,
+or a headphone jack that isn't exposed as a port/sink at all), the
+toggle will correctly report it can't find both and do nothing. Check
+`pactl list sinks` yourself to see how your hardware actually names
+things, and adjust `.local/bin/audio`'s `speaker_port`/`headphone_port`
+matching (currently `speaker`/`headphone`/`headset`, case-insensitive)
+if needed. This logic is verified against realistic sample `pactl`
+output, not against real hardware — the exact port/sink names on your
+machine may differ from what's assumed here.
+
 ## Network block in the bar stuck on "offline" or blank
 
 - `.local/bin/net` caches its probe result in

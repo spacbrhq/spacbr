@@ -31,8 +31,61 @@ pick_and_set() {
     [ -n "$id" ] && wpctl set-default "$id" && notify "$2 switched"
 }
 
-case "$(printf '%s\n' "Output device" "Input device" | dmenu -p "audio")" in
-    "Output device") pick_and_set "Sinks:" "Output" ;;
-    "Input device")  pick_and_set "Sources:" "Input" ;;
+# Toggles between speaker and headphones. Covers both common hardware
+# shapes via pactl (from pipewire-pulse): (1) one sink with separate
+# "Speakers"/"Headphones" ports (typical onboard/laptop codecs), or
+# (2) genuinely separate sinks (e.g. a USB headset). Most jack-sensing
+# hardware already auto-switches on plug/unplug via WirePlumber itself
+# — this is the manual override/toggle for when that isn't enough.
+toggle_speaker_headphones() {
+    command -v pactl >/dev/null 2>&1 || { notify "pactl not found (needs pipewire-pulse)"; return 1; }
+    default_sink=$(pactl get-default-sink 2>/dev/null)
+    [ -z "$default_sink" ] && { notify "No default sink found"; return 1; }
+
+    ports=$(pactl list sinks 2>/dev/null | awk -v target="Name: $default_sink" '
+        /^Sink #/ { insink=0; inports=0 }
+        $0 == "\t" target { insink=1 }
+        insink && /^\tPorts:/ { inports=1; next }
+        insink && inports && /^\t\t/ { line=$0; sub(/^\t\t/,"",line); print line }
+        insink && inports && !/^\t\t/ { inports=0 }
+    ')
+    active_port=$(pactl list sinks 2>/dev/null | awk -v target="Name: $default_sink" '
+        /^Sink #/ { insink=0 }
+        $0 == "\t" target { insink=1 }
+        insink && /^\tActive Port: / { sub(/^\tActive Port: /,""); print; exit }
+    ')
+    speaker_port=$(printf '%s\n' "$ports" | awk -F': ' 'tolower($0) ~ /speaker/ {print $1; exit}')
+    headphone_port=$(printf '%s\n' "$ports" | awk -F': ' 'tolower($0) ~ /headphone|headset/ {print $1; exit}')
+
+    if [ -n "$speaker_port" ] && [ -n "$headphone_port" ]; then
+        if [ "$active_port" = "$speaker_port" ]; then
+            pactl set-sink-port "$default_sink" "$headphone_port" && notify "Switched to headphones"
+        else
+            pactl set-sink-port "$default_sink" "$speaker_port" && notify "Switched to speakers"
+        fi
+        return 0
+    fi
+
+    # Fall back to separate-sink hardware (e.g. a USB headset)
+    sinks=$(pactl list short sinks 2>/dev/null)
+    speaker_sink=$(printf '%s\n' "$sinks" | awk -F'\t' 'tolower($2) !~ /headphone|headset/ {print $2; exit}')
+    headphone_sink=$(printf '%s\n' "$sinks" | awk -F'\t' 'tolower($2) ~ /headphone|headset/ {print $2; exit}')
+    if [ -n "$speaker_sink" ] && [ -n "$headphone_sink" ]; then
+        if [ "$default_sink" = "$speaker_sink" ]; then
+            pactl set-default-sink "$headphone_sink" && notify "Switched to headphones"
+        else
+            pactl set-default-sink "$speaker_sink" && notify "Switched to speakers"
+        fi
+        return 0
+    fi
+
+    notify "Couldn't find both a speaker and a headphone output"
+    return 1
+}
+
+case "$(printf '%s\n' "Output device" "Input device" "Toggle speaker/headphones" | dmenu -p "audio")" in
+    "Output device")              pick_and_set "Sinks:" "Output" ;;
+    "Input device")                pick_and_set "Sources:" "Input" ;;
+    "Toggle speaker/headphones")   toggle_speaker_headphones ;;
     *) exit 0 ;;
 esac
