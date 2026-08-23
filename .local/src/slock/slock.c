@@ -536,8 +536,8 @@ main(int argc, char **argv) {
 	gid_t dgid;
 	const char *hash;
 	Display *dpy;
-	int s, nlocks, nscreens;
-	CARD16 standby, suspend, off;
+	int s, nlocks, nscreens, dpms_ok = 0;
+	CARD16 standby = 0, suspend = 0, off = 0;
 
 	ARGBEGIN {
 	case 'v':
@@ -650,17 +650,27 @@ main(int argc, char **argv) {
 	if (nlocks != nscreens)
 		return 1;
 
-	/* DPMS magic to disable the monitor */
+	/* DPMS magic to disable the monitor -- treated as optional. The
+	 * screen is already locked and grabbed above (lockscreen()); DPMS
+	 * only controls whether the monitor auto-blanks while locked.
+	 * Verified for real on an X server with no DPMS extension at all
+	 * (Xvfb): die()'ing here closes the display connection, and the X
+	 * server releases every grab and destroys the lock windows as part
+	 * of normal client-death cleanup -- silently unlocking the screen
+	 * seconds after it appeared to lock. A monitor power-saving nicety
+	 * must never be able to defeat the actual lock. */
 	if (!DPMSCapable(dpy))
-		die("slock: DPMSCapable failed\n");
-	if (!DPMSEnable(dpy))
-		die("slock: DPMSEnable failed\n");
-	if (!DPMSGetTimeouts(dpy, &standby, &suspend, &off))
-		die("slock: DPMSGetTimeouts failed\n");
-	if (!standby || !suspend || !off)
-		die("slock: at least one DPMS variable is zero\n");
-	if (!DPMSSetTimeouts(dpy, monitortime, monitortime, monitortime))
-		die("slock: DPMSSetTimeouts failed\n");
+		fprintf(stderr, "slock: DPMSCapable failed, monitor will not auto-blank\n");
+	else if (!DPMSEnable(dpy))
+		fprintf(stderr, "slock: DPMSEnable failed, monitor will not auto-blank\n");
+	else if (!DPMSGetTimeouts(dpy, &standby, &suspend, &off))
+		fprintf(stderr, "slock: DPMSGetTimeouts failed, monitor will not auto-blank\n");
+	else if (!standby || !suspend || !off)
+		fprintf(stderr, "slock: at least one DPMS variable is zero, monitor will not auto-blank\n");
+	else if (!DPMSSetTimeouts(dpy, monitortime, monitortime, monitortime))
+		fprintf(stderr, "slock: DPMSSetTimeouts failed, monitor will not auto-blank\n");
+	else
+		dpms_ok = 1;
 
 	XSync(dpy, 0);
 
@@ -682,7 +692,8 @@ main(int argc, char **argv) {
 	readpw(dpy, &rr, locks, nscreens, hash);
 
 	/* reset DPMS values to inital ones */
-	DPMSSetTimeouts(dpy, standby, suspend, off);
+	if (dpms_ok)
+		DPMSSetTimeouts(dpy, standby, suspend, off);
 	XSync(dpy, 0);
 
 	return 0;
