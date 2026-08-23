@@ -47,6 +47,6 @@ hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/sh
 # driven, no polling daemon) and also catches logind-triggered suspend
 # (e.g. lid close), not just the power menu's explicit lock-before-suspend.
 xset s 300 300
-xss-lock -- ~/.local/bin/lock &
+xss-lock -- slock &
 
 exec dbus-launch dwm

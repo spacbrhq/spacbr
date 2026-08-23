@@ -58,21 +58,37 @@ layers so the desktop stays visually quiet.
 
 `slock` is the only lock mechanism (§7/§18) — every lock trigger
 (`MODKEY+Shift+L`, `XF86 ScreenSaver`, the power menu's Lock/Suspend,
-and `xss-lock`'s idle timeout) goes through `.local/bin/lock`, a thin
-wrapper, rather than the raw binary.
+and `xss-lock`'s idle timeout) spawns the raw binary directly; there's
+no wrapper.
 
-`.local/bin/lock` wraps `slock` rather than patching it: the real
-Imlib2 blur patch (`tools.suckless.org/slock/patches/blur-pixelated-screen/`)
-targets slock 1.4 and fails 5+ hunks against this repo's 1.5 (already
-carrying the xresources patch) — hand-merging unverifiable C against
-X11/Imlib2 was judged too risky, the same call made earlier about the
-dmenu-xresources patch. The wrapper screenshots the desktop, blurs it
-with `imagemagick` (already a dependency), sets it as the root
-background, calls `slock`, then restores the real wallpaper on
-unlock — same visual result, zero new C code or dependencies, at the
-cost of a brief (sub-second) window where the real desktop is still
-visible before the blur/lock appears, since the capture happens before
-`slock` grabs the screen rather than after.
+`slock` blurs the actual desktop as its lock background, via a
+hand-adapted Imlib2 patch (see `.local/src/slock/config.h`'s `BLUR`
+block and `slock.c`). The real upstream patch
+(`tools.suckless.org/slock/patches/blur-pixelated-screen/`) targets
+slock 1.4 and fails 5+ hunks against this repo's 1.5 (already carrying
+the xresources patch), so it was reimplemented by hand into the
+current source rather than force-applied — and along the way, three
+real bugs in the upstream patch itself were caught and fixed rather
+than carried forward:
+
+1. Its fallback background color (when screenshot capture fails) used
+   `colors[0]` (always the INIT tint) instead of `colors[color]`,
+   silently losing the typing/wrong-password color feedback even in
+   the no-blur fallback case.
+2. `lock->bgmap` was never initialized on a struct allocated with
+   `malloc` (not `calloc`) outside the success path, so a failed
+   screenshot capture would leave every `if (lock->bgmap)` check
+   reading uninitialized memory as if it were a valid Pixmap.
+3. `imlib_free_image()` was called inside `lockscreen()`, which runs
+   once per X11 screen — freeing the shared image after the first
+   screen would leave any second screen (a genuine multi-head setup,
+   not RandR/Xinerama multi-monitor) operating on freed memory.
+
+One real, inherent tradeoff of this patch design that's *not* a bug:
+once the blurred background is set, the lock window shows that same
+static image regardless of auth state — the INIT/INPUT/FAILED color
+feedback only ever applies as a fallback when screenshot capture
+fails, not layered on top of the blur.
 
 ## Visual system
 

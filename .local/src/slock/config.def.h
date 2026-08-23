@@ -34,3 +34,10 @@ static const char * text_color = "#ffffff";
 
 /* text size (must be a valid size) */
 static const char * font_name = "monospace:size=16";
+
+/* Blur the desktop as the lock background via Imlib2 instead of a
+ * solid color -- see config.h and slock.c for the full explanation. */
+#define BLUR
+static const int blurRadius = 5;
+//#define PIXELATION
+static const int pixelSize = 5;

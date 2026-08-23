@@ -25,6 +25,7 @@
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
+#include <Imlib2.h>
 
 #include "arg.h"
 #include "util.h"
@@ -45,6 +46,7 @@ struct lock {
 	int screen;
 	Window root, win;
 	Pixmap pmap;
+	Pixmap bgmap;
 	unsigned long colors[NUMCOLS];
 };
 
@@ -68,6 +70,9 @@ typedef struct {
 } ResourcePref;
 
 #include "config.h"
+
+/* holds the blurred/pixelated screenshot used as the lock background */
+static Imlib_Image image;
 
 static void
 die(const char *errstr, ...)
@@ -306,9 +311,22 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 			color = len ? INPUT : ((failure || failonclear) ? FAILED : INIT);
 			if (running && oldc != color) {
 				for (screen = 0; screen < nscreens; screen++) {
-					XSetWindowBackground(dpy,
-					                     locks[screen]->win,
-					                     locks[screen]->colors[color]);
+					/* Once a blurred background is set, it stays as
+					 * the static background regardless of auth state
+					 * -- that's inherent to this patch, not a bug.
+					 * The colors[color] (not colors[0], unlike the
+					 * upstream patch this was adapted from) fallback
+					 * only applies if the screenshot capture failed,
+					 * so typing/wrong-password feedback still works
+					 * in that case. */
+					if (locks[screen]->bgmap)
+						XSetWindowBackgroundPixmap(dpy,
+						                           locks[screen]->win,
+						                           locks[screen]->bgmap);
+					else
+						XSetWindowBackground(dpy,
+						                     locks[screen]->win,
+						                     locks[screen]->colors[color]);
 					XClearWindow(dpy, locks[screen]->win);
 					writemessage(dpy, locks[screen]->win, screen);
 				}
@@ -352,6 +370,38 @@ lockscreen(Display *dpy, struct xrandr *rr, int screen)
 	lock->screen = screen;
 	lock->root = RootWindow(dpy, lock->screen);
 
+	/* lock is malloc'd, not calloc'd -- bgmap must be explicitly
+	 * initialized to None (0), or every `if (lock->bgmap)` check below
+	 * and in readpw() would read uninitialized garbage as if it were
+	 * a valid Pixmap whenever image capture fails. This is a real bug
+	 * present in the upstream patch this was adapted from; fixed here. */
+	lock->bgmap = None;
+
+	/* render the (already blurred/pixelated, see main()) screenshot
+	 * into a pixmap sized for this screen, used as the lock window's
+	 * background below instead of a solid color.
+	 *
+	 * Deliberately NOT calling imlib_free_image() here, unlike the
+	 * upstream patch this was adapted from: lockscreen() runs once
+	 * per X11 screen (nscreens in main()), so freeing image after the
+	 * first screen would leave every subsequent call operating on
+	 * freed memory on any genuine multi-head setup. slock's process
+	 * lifetime is short and exits on unlock, so leaving this one
+	 * screenshot-sized image allocated for that duration is a
+	 * non-issue. */
+	if (image) {
+		lock->bgmap = XCreatePixmap(dpy, lock->root,
+		                           DisplayWidth(dpy, lock->screen),
+		                           DisplayHeight(dpy, lock->screen),
+		                           DefaultDepth(dpy, lock->screen));
+		imlib_context_set_image(image);
+		imlib_context_set_display(dpy);
+		imlib_context_set_visual(DefaultVisual(dpy, lock->screen));
+		imlib_context_set_colormap(DefaultColormap(dpy, lock->screen));
+		imlib_context_set_drawable(lock->bgmap);
+		imlib_render_image_on_drawable(0, 0);
+	}
+
 	for (i = 0; i < NUMCOLS; i++) {
 		XAllocNamedColor(dpy, DefaultColormap(dpy, lock->screen),
 		                 colorname[i], &color, &dummy);
@@ -368,6 +418,8 @@ lockscreen(Display *dpy, struct xrandr *rr, int screen)
 	                          CopyFromParent,
 	                          DefaultVisual(dpy, lock->screen),
 	                          CWOverrideRedirect | CWBackPixel, &wa);
+	if (lock->bgmap)
+		XSetWindowBackgroundPixmap(dpy, lock->win, lock->bgmap);
 	lock->pmap = XCreateBitmapFromData(dpy, lock->win, curs, 8, 8);
 	invisible = XCreatePixmapCursor(dpy, lock->pmap, lock->pmap,
 	                                &color, &color, 0, 0);
@@ -531,6 +583,51 @@ main(int argc, char **argv) {
 		die("slock: setuid: %s\n", strerror(errno));
 
 	config_init(dpy);
+
+	/* Screenshot the desktop and blur/pixelate it for use as the lock
+	 * background (see config.h's BLUR/PIXELATION/blurRadius/pixelSize).
+	 * image stays NULL (and every lock falls back to a solid color,
+	 * see lockscreen()/readpw()) if this capture fails for any reason. */
+	{
+		Screen *scr = ScreenOfDisplay(dpy, DefaultScreen(dpy));
+		image = imlib_create_image(scr->width, scr->height);
+		if (image) {
+			imlib_context_set_image(image);
+			imlib_context_set_display(dpy);
+			imlib_context_set_visual(DefaultVisual(dpy, 0));
+			imlib_context_set_drawable(RootWindow(dpy, XScreenNumberOfScreen(scr)));
+			imlib_copy_drawable_to_image(0, 0, 0, scr->width, scr->height, 0, 0, 1);
+
+#ifdef BLUR
+			imlib_image_blur(blurRadius);
+#endif
+#ifdef PIXELATION
+			{
+				int width = scr->width, height = scr->height;
+				int x, y, i, j;
+				for (y = 0; y < height; y += pixelSize) {
+					for (x = 0; x < width; x += pixelSize) {
+						long red = 0, green = 0, blue = 0, n = 0;
+						Imlib_Color pixel;
+						for (j = 0; j < pixelSize && y + j < height; j++) {
+							for (i = 0; i < pixelSize && x + i < width; i++) {
+								imlib_image_query_pixel(x + i, y + j, &pixel);
+								red += pixel.red;
+								green += pixel.green;
+								blue += pixel.blue;
+								n++;
+							}
+						}
+						if (n > 0) {
+							imlib_context_set_color((int)(red / n), (int)(green / n), (int)(blue / n), 255);
+							imlib_image_fill_rectangle(x, y, pixelSize, pixelSize);
+						}
+					}
+				}
+			}
+#endif
+		}
+	}
 
 	/* check for Xrandr support */
 	rr.active = XRRQueryExtension(dpy, &rr.evbase, &rr.errbase);

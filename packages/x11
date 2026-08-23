@@ -20,3 +20,7 @@ picom
 dunst
 hsetroot
 xss-lock
+# imlib2 was already a transitive dependency of hsetroot; slock now
+# needs its headers directly too, to build its blurred-lock-screen
+# background (see .local/src/slock/slock.c and config.h's BLUR option).
+imlib2

@@ -41,21 +41,26 @@ host a setuid-root binary. Don't try to move it there.
 
 ## Lock screen isn't blurred
 
-Locking goes through `.local/bin/lock` (a blur wrapper around `slock`)
-— see `docs/architecture.md`'s "Locking" section. If it's missing:
+The blur is built into `slock` itself (hand-adapted Imlib2 patch, see
+`docs/architecture.md`'s "Locking" section) — there's no wrapper
+script to check.
 
-- Check `MODKEY+Shift+L`, `XF86 ScreenSaver`, the power menu, and
-  `xinitrc`'s `xss-lock` line all point at `~/.local/bin/lock`, not
-  raw `slock` — `dwm/config.h`'s `LOCKSCREEN` macro. If dwm was built
-  before this changed, rebuild it.
-- The blur needs `import` and `magick` (both from `imagemagick`,
-  already a dependency) — it fails silently to a plain-color lock
-  screen if either is missing, rather than erroring, so check
-  `command -v import magick` if the blur never appears.
-- A brief moment of visible desktop before the blur/lock appears
-  (screenshot + blur takes a beat) is a known, accepted tradeoff of
-  doing this in a wrapper script instead of patching `slock` itself —
-  not a bug to chase.
+- `slock` needs `imlib2` (`packages/x11`) at build time for
+  `Imlib2.h` — if it was built before this was added, `make clean &&
+  make && sudo make install` in `.local/src/slock` (needs `sudo` —
+  see the setuid note above).
+- Screenshot capture happening but the image looking wrong (garbled,
+  black, or a stale frame) usually means Imlib2 is reading the root
+  window before the previous frame (e.g. the desktop right after
+  waking) has actually painted — this is inherent to grabbing the
+  root window's current contents, not something the lock logic
+  controls.
+- If capture fails outright (e.g. `imlib_create_image` returns NULL),
+  `slock` falls back to the plain solid-color background exactly as
+  before this feature existed — silently, by design, not an error you
+  need to chase.
+- To disable the blur without removing it, comment out `#define BLUR`
+  in `.local/src/slock/config.h` and rebuild.
 
 ## No sound / audio device missing
 
