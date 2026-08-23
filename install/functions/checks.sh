@@ -61,7 +61,13 @@ run_all_checks() {
     # spawned from dwm (no controlling terminal, and polkit's
     # allow_active default doesn't reliably recognize a plain-startx
     # X11 session as "active"). See system/polkit/10-spacbr-power.rules.
-    run_check "power menu polkit rule" "[ -f /etc/polkit-1/rules.d/10-spacbr-power.rules ]" "spacbr repair (or spacbr install) to deploy system/polkit/10-spacbr-power.rules"
+    # sudo -n, not a plain [ -f ]: /etc/polkit-1/rules.d is root:polkitd
+    # 750 -- verified for real that a plain [ -f ] as the normal user
+    # can't even traverse that directory and reports false regardless
+    # of whether the file is actually there. -n so this never blocks
+    # doctor on a sudo password prompt if there's no cached
+    # credential -- it just reports the check as unable to confirm.
+    run_check "power menu polkit rule" "sudo -n test -f /etc/polkit-1/rules.d/10-spacbr-power.rules" "spacbr repair (or spacbr install) to deploy system/polkit/10-spacbr-power.rules -- or re-run 'spacbr doctor' just after using sudo for something else, if this only fails because sudo needs a fresh prompt"
     run_check "login shell is zsh"  "[ \"\$(getent passwd \"\$USER\" | cut -d: -f7)\" = \"\$(command -v zsh)\" ]" "sudo usermod -s \$(command -v zsh) \$USER — without this, .zshrc's tty1 auto-startx never runs"
 
     info "Visual system consistency"
