@@ -101,6 +101,60 @@ if needed. This logic is verified against realistic sample `pactl`
 output, not against real hardware — the exact port/sink names on your
 machine may differ from what's assumed here.
 
+## A USB headset/earbuds' volume buttons do nothing
+
+If the device shows up fine in `wpctl status` and you can select it as
+an output in `spacbr audio`, but its hardware volume buttons don't
+change anything, check first whether the buttons generate real key
+events at all: `xinput list` should show the device as a `slave
+keyboard`, and `xinput test-xi2 --root <id>` should print
+`RawKeyPress`/`RawKeyRelease` events (detail 122/123 are
+`XF86AudioLowerVolume`/`RaiseVolume` on a standard `evdev` keymap —
+confirm with `xmodmap -pke | grep -E '122|123'`) when you press them.
+
+If those events are present but nothing happens, the likely cause is
+that `dwm` has been running since before the device was plugged in.
+`dwm`'s `grabkeys()` only re-runs on an X `MappingNotify` event
+(`mappingnotify()` in `dwm.c`), and a *new keyboard-class device*
+appearing doesn't itself send one -- the shared X keymap is static
+(from the `evdev` XKB ruleset) and doesn't change just because another
+device now also emits keycodes 122/123. So `dwm`'s original grab table
+from startup should already cover those keycodes in principle, but in
+practice a long-running `dwm` process can end up with a stale grab
+that a synthetic key press (`xdotool key XF86AudioRaiseVolume`) still
+satisfies while a real device's press doesn't -- verified for real
+this is fixable *without* logging out (this system's `xinitrc` does a
+plain `exec dbus-launch dwm`, no restart loop, so `Mod+Shift+Q` ends
+the whole X session, not just `dwm`) by forcing a harmless
+`MappingNotify`:
+
+```
+setxkbmap -rules evdev -model pc105+inet -layout us -option terminate:ctrl_alt_bksp
+```
+
+(use whatever `setxkbmap -query` reports as your actual current
+layout/options -- reapplying the same layout is a no-op for the
+keymap itself but still fires the notify event dwm listens for). If
+that doesn't help, an actual `dwm` restart (accepting the logout) will
+always reset its grab table cleanly.
+
+## Volume changes but no notification appears
+
+`.local/bin/volume` (shared by dwm's hardware volume keys and
+`spacbr audio`'s Volume up/down/mute entries) calls `notify-send` with
+a hint meant to replace the previous popup in place instead of
+stacking a new one each press. Verified for real that the commonly
+copy-pasted hint for this, `x-canonical-private-synchronous` (a
+notify-osd/Canonical convention, not a dunst one), was silently
+accepted by dunst 1.13.2 -- `dunstctl count` reported it as "currently
+displayed" -- but never actually rendered anything on screen, while an
+otherwise-identical `notify-send` call with no hints at all displayed
+fine. Fixed by switching to `x-dunst-stack-tag`, dunst's own native
+hint for the same behavior. If notifications silently stop rendering
+again after changing anything in `.local/bin/volume`, suspect the hint
+first and confirm with a bare `notify-send` (no `-h`) before assuming
+dunst itself, D-Bus, or the X session is broken.
+
 ## Network block in the bar stuck on "offline" or blank
 
 - `.local/bin/net` caches its probe result in
