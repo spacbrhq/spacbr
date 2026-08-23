@@ -1,25 +1,23 @@
 -- eightharsh's init.lua
 --
--- Rewritten from scratch after the previous config (lazy.nvim +
--- treesitter + hand-rolled highlight groups relying on the terminal's
--- own background via bg = "NONE") produced a persistent, hard-to-pin-
--- down startup problem: `nvim` would open to an apparently empty
--- screen with no visible content at all. Extensive remote testing
--- (headless, real pty via tmux, isolated Xvfb) never conclusively
--- reproduced the exact symptom, so rather than keep chasing it, this
--- drops every moving part that could plausibly cause a startup hang
--- or a wrong/invisible color: no plugins (no network-dependent
--- bootstrap), and a real built-in colorscheme instead of custom
--- highight groups that depend on the terminal correctly supplying a
--- background color. If something in here needs fixing again later,
--- it needs to fail with a lot fewer moving parts to look through.
+-- Rewritten from scratch after a persistent "nvim shows nothing"
+-- report that turned out to be unrelated to this file at all: the
+-- real causes were a locked screen being mistaken for a broken one
+-- (see .local/src/slock), and dunst failing to start after reboot
+-- (see .config/xinitrc). No plugins here (no network-dependent
+-- bootstrap) to keep this simple to reason about if anything ever
+-- does need debugging again. The old config's content -- including
+-- treesitter and a hand-rolled statusline -- is preserved in git
+-- history if worth bringing back deliberately later.
 --
--- The old config's content is preserved in git history if anything
--- from it (treesitter, the hand-rolled statusline, etc.) is worth
--- bringing back deliberately later.
+-- Colors match .config/vim/vimrc's denshichrome palette exactly (same
+-- guibg=NONE approach -- proven fine there, so the theory that this
+-- pattern itself caused the "shows nothing" report doesn't hold up).
 
 -- CORE
 vim.opt.number         = true
+vim.opt.relativenumber = true
+vim.opt.cursorline     = true
 vim.opt.hidden         = true
 vim.opt.clipboard      = "unnamedplus"
 vim.opt.mouse          = "a"
@@ -40,9 +38,82 @@ vim.opt.splitright     = true
 vim.opt.splitbelow     = true
 vim.opt.termguicolors  = true
 
--- COLORSCHEME -- built into Neovim itself, no plugin, no custom
--- highlight overrides that depend on the terminal's own background.
-vim.cmd.colorscheme("habamax")
+-- COLORS -- denshichrome, same palette/approach as .config/vim/vimrc.
+vim.cmd("syntax on")
+vim.cmd("highlight clear")
+
+local hi = function(group, opts)
+    vim.api.nvim_set_hl(0, group, opts)
+end
+
+-- Base
+hi("Normal",       { fg = "#e1e3e7", bg = "NONE" })
+hi("LineNr",       { fg = "#404552", bg = "NONE" })
+hi("CursorLineNr", { fg = "#ffffff", bg = "NONE", bold = true })
+hi("CursorLine",   { fg = "NONE",    bg = "NONE" })
+hi("SignColumn",   { fg = "#404552", bg = "NONE" })
+
+-- Syntax
+hi("Comment",    { fg = "#60e1e0", bg = "NONE" })
+hi("String",     { fg = "#9bcf4f", bg = "NONE" })
+hi("Keyword",    { fg = "#dab6fc", bg = "NONE" })
+hi("Function",   { fg = "#4084d6", bg = "NONE" })
+hi("Type",       { fg = "#f6d13a", bg = "NONE" })
+hi("Constant",   { fg = "#fda685", bg = "NONE" })
+hi("Number",     { fg = "#fda685", bg = "NONE" })
+hi("Statement",  { fg = "#dab6fc", bg = "NONE" })
+hi("PreProc",    { fg = "#60e1e0", bg = "NONE" })
+hi("Special",    { fg = "#9bcf4f", bg = "NONE" })
+hi("Identifier", { fg = "#e1e3e7", bg = "NONE" })
+hi("Error",      { fg = "#ed4737", bg = "NONE" })
+
+-- Spell (disabled visually)
+hi("SpellBad",   {})
+hi("SpellCap",   {})
+hi("SpellRare",  {})
+hi("SpellLocal", {})
+
+-- UI elements
+hi("Visual",       { fg = "#2f343f", bg = "#ffffff" })
+hi("VisualNOS",    { fg = "#2f343f", bg = "#ffffff" })
+hi("Search",       { fg = "#2f343f", bg = "#f6d13a" })
+hi("IncSearch",    { fg = "#2f343f", bg = "#60e1e0" })
+hi("MatchParen",   { fg = "#f6d13a", bg = "NONE",    bold = true })
+hi("StatusLine",   { fg = "#e1e3e7", bg = "#404552" })
+hi("StatusLineNC", { fg = "#404552", bg = "#2f343f" })
+hi("VertSplit",    { fg = "#404552", bg = "NONE" })
+hi("WinSeparator", { fg = "#404552", bg = "NONE" })
+hi("Pmenu",        { fg = "#e1e3e7", bg = "#404552" })
+hi("PmenuSel",     { fg = "#2f343f", bg = "#dab6fc" })
+hi("PmenuSbar",    { bg = "#404552" })
+hi("PmenuThumb",   { bg = "#dab6fc" })
+hi("WildMenu",     { fg = "#2f343f", bg = "#f6d13a" })
+hi("ColorColumn",  { bg = "#404552" })
+hi("EndOfBuffer",  { fg = "#404552", bg = "NONE" })
+hi("NonText",      { fg = "#404552", bg = "NONE" })
+hi("Folded",       { fg = "#60e1e0", bg = "#404552" })
+hi("Title",        { fg = "#dab6fc", bg = "NONE",    bold = true })
+hi("Todo",         { fg = "#f6d13a", bg = "NONE",    bold = true })
+hi("Directory",    { fg = "#4084d6", bg = "NONE" })
+
+-- Markdown
+hi("markdownH1",            { fg = "#dab6fc", bold = true })
+hi("markdownH2",            { fg = "#dab6fc", bold = true })
+hi("markdownH3",            { fg = "#dab6fc", bold = true })
+hi("markdownH4",            { fg = "#dab6fc", bold = true })
+hi("markdownH1Delimiter",   { fg = "#dab6fc", bold = true })
+hi("markdownH2Delimiter",   { fg = "#dab6fc", bold = true })
+hi("markdownH3Delimiter",   { fg = "#dab6fc", bold = true })
+hi("markdownBold",          { fg = "#f6d13a", bold = true })
+hi("markdownItalic",        { fg = "#60e1e0", italic = true })
+hi("markdownCode",          { fg = "#9bcf4f", bg = "NONE" })
+hi("markdownCodeBlock",     { fg = "#9bcf4f", bg = "NONE" })
+hi("markdownCodeDelimiter", { fg = "#404552", bg = "NONE" })
+hi("markdownLinkText",      { fg = "#4084d6", bg = "NONE" })
+hi("markdownUrl",           { fg = "#404552", bg = "NONE" })
+hi("markdownListMarker",    { fg = "#60e1e0", bg = "NONE" })
+hi("markdownRule",          { fg = "#404552", bg = "NONE" })
+hi("markdownBlockquote",    { fg = "#60e1e0", bg = "NONE", italic = true })
 
 -- LSP -- native vim.lsp, no plugin needed (Neovim 0.11+). filetypes
 -- must be explicit: without it, all three attach to every buffer
