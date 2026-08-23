@@ -174,6 +174,27 @@ writemessage(Display *dpy, Window win, int screen)
 	height = s_height*3/7 - (k*20)/3;
 	width  = (s_width - ext_msg.width)/2;
 
+	/* Solid highlight box behind the message, drawn before the text
+	 * itself. Verified for real this was needed: against the heavy
+	 * blur+darken this config applies to the captured background (see
+	 * config.h's dimAlpha), plain text floating on top reads as "the
+	 * screen is broken/black" rather than "this is a lock prompt" --
+	 * a solid, on-palette box makes it unmistakably a UI element. */
+	{
+		XColor boxcolor, boxdummy;
+		GC boxgc;
+		int box_pad_x = 24, box_pad_y = 16;
+		int box_x = width - box_pad_x;
+		int box_y = height - fontinfo->ascent - box_pad_y;
+		int box_w = ext_msg.width + 2*box_pad_x;
+		int box_h = fontinfo->ascent + fontinfo->descent + 20*k + 2*box_pad_y;
+		XAllocNamedColor(dpy, DefaultColormap(dpy, screen), "#4084d6", &boxcolor, &boxdummy);
+		boxgc = XCreateGC(dpy, win, 0, NULL);
+		XSetForeground(dpy, boxgc, boxcolor.pixel);
+		XFillRectangle(dpy, win, boxgc, box_x, box_y, box_w, box_h);
+		XFreeGC(dpy, boxgc);
+	}
+
 	/* Look for '\n' and print the text between them. */
 	for (i = j = k = 0; i <= len; i++) {
 		/* i == len is the special case for the last line */
