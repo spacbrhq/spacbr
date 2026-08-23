@@ -28,6 +28,10 @@ mpv
 # dwm/dmenu/st/slock without needing to join them as a built-from-
 # source component (no compelling reason to patch it).
 nsxiv
+# zed — a deliberate, documented exception to Neovim/Vim owning
+# "Editor" (CLAUDE.md §7): specifically for GUI/mouse-driven work,
+# nvim stays the terminal/keyboard-driven editor. Official (extra).
+zed
 yt-dlp
 firefox
 xclip

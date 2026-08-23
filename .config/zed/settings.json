@@ -1,0 +1,43 @@
+{
+  // Zed is a deliberate GUI exception to Neovim/Vim owning "Editor"
+  // (CLAUDE.md §7) -- for mouse/GUI-driven work specifically. nvim
+  // stays the terminal/keyboard-driven editor; this isn't meant to
+  // replace it, so vim_mode stays off here on purpose (a GUI editor
+  // running modal keybindings would defeat the reason it exists
+  // alongside nvim rather than instead of it).
+  "theme": "Denshichrome",
+  "vim_mode": false,
+  "buffer_font_family": "Hack",
+  "buffer_font_size": 14,
+  "ui_font_family": "Hack",
+  "ui_font_size": 14,
+  "tab_size": 4,
+  "hard_tabs": false,
+  // Never auto-reformat on save: dwm/dmenu/st/slock/dwmblocks source
+  // under .local/src has an established hand-formatting style (real
+  // tabs, verified against dwm.c) that a language-server formatter
+  // could silently rewrite. Format explicitly when you actually want
+  // to, not as a side effect of saving.
+  "format_on_save": "off",
+  "restore_on_startup": "none",
+  "cursor_blink": false,
+  "scrollbar": {
+    "show": "auto"
+  },
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false
+  },
+  "languages": {
+    "C": {
+      "tab_size": 4,
+      "hard_tabs": true
+    },
+    "JSON": {
+      "tab_size": 2
+    },
+    "YAML": {
+      "tab_size": 2
+    }
+  }
+}
