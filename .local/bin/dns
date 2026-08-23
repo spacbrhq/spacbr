@@ -1,0 +1,51 @@
+#!/bin/sh
+# dmenu-driven DNS server picker, applied via nmcli on the connection
+# carrying the default route -- NetworkManager already owns networking
+# (see net/CLAUDE.md), so this changes DNS the same way nmtui would,
+# just without the extra menus.
+#
+# Runs the actual nmcli calls through $TERMINAL + sudo, not directly:
+# modifying a system-wide connection profile is
+# org.freedesktop.NetworkManager.settings.modify.system, which polkit
+# requires auth_admin_keep for unconditionally (unlike the login1
+# power actions -- this one really does need a password every time,
+# since it can silently redirect traffic for every user on the
+# machine, not just the current session). Verified for real: calling
+# nmcli directly as the normal user fails with "Insufficient
+# privileges", and even pkexec doesn't reliably reach a graphical
+# prompt for a process not already attached to the graphical session's
+# own polkit agent. sudo through a real terminal sidesteps all of that
+# with an ordinary password prompt on a real tty -- same pattern
+# mirrors and net's nmtui binding already use for privileged actions.
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "DNS" "$1"
+}
+
+iface="$(ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
+[ -z "$iface" ] && { notify "No active network connection"; exit 1; }
+
+conn="$(nmcli -t -f NAME,DEVICE connection show --active | awk -F: -v d="$iface" '$2==d {print $1; exit}')"
+[ -z "$conn" ] && { notify "No active connection on $iface"; exit 1; }
+
+apply() {
+    "$TERMINAL" -e sh -c "sudo nmcli connection modify '$conn' ipv4.ignore-auto-dns yes ipv4.dns '$1' ipv6.ignore-auto-dns yes ipv6.dns '$2' && sudo nmcli connection up '$conn' && echo 'DNS set to $3 on $conn.' || echo 'Failed.'; printf '\nPress Enter to close.'; read _"
+}
+
+reset_auto() {
+    "$TERMINAL" -e sh -c "sudo nmcli connection modify '$conn' ipv4.ignore-auto-dns no ipv4.dns '' ipv6.ignore-auto-dns no ipv6.dns '' && sudo nmcli connection up '$conn' && echo 'Back to automatic (DHCP) DNS on $conn.' || echo 'Failed.'; printf '\nPress Enter to close.'; read _"
+}
+
+choice=$(printf '%s\n' "Automatic (DHCP)" "Cloudflare" "Google" "Quad9" "Custom..." | dmenu -p "dns")
+
+case "$choice" in
+    "Automatic (DHCP)") reset_auto ;;
+    "Cloudflare")       apply "1.1.1.1 1.0.0.1" "2606:4700:4700::1111 2606:4700:4700::1001" "Cloudflare" ;;
+    "Google")            apply "8.8.8.8 8.8.4.4" "2001:4860:4860::8888 2001:4860:4860::8844" "Google" ;;
+    "Quad9")              apply "9.9.9.9 149.112.112.112" "2620:fe::fe 2620:fe::9" "Quad9" ;;
+    "Custom...")
+        custom=$(printf '' | dmenu -p "DNS servers (space-separated)")
+        [ -n "$custom" ] && apply "$custom" "" "custom ($custom)"
+        ;;
+    *) exit 0 ;;
+esac

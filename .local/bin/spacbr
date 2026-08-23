@@ -21,11 +21,13 @@ spacbr — SPACBR management CLI
   spacbr version      print the installed SPACBR version
 
   spacbr network      open nmtui (scan/connect/disconnect/saved networks)
-  spacbr audio        select output/input device
+  spacbr dns          DNS server picker (DHCP/Cloudflare/Google/Quad9/custom)
+  spacbr audio        select output/input device, volume up/down/mute
   spacbr bluetooth     scan/connect/disconnect/trust/remove devices
   spacbr display      xrandr layout menu
   spacbr wallpaper     set/next/previous/random wallpaper
   spacbr screenshot    full/window/region/color screenshot
+  spacbr mirrors       refresh pacman mirrorlist via reflector
   spacbr power         lock/logout/suspend/reboot/shutdown menu
 EOF
 }
@@ -39,11 +41,13 @@ case "${1:-}" in
     version)    cat "$SPACBR_SELF/VERSION" 2>/dev/null || echo "not installed" ;;
     info)       shift; exec "$SPACBR_SELF/install/info.sh" "$@" ;;
     network)    exec "${TERMINAL:-st}" -e nmtui ;;
+    dns)        shift; exec "$HOME/.local/bin/dns" "$@" ;;
     audio)      shift; exec "$HOME/.local/bin/audio" "$@" ;;
     bluetooth)  shift; exec "$HOME/.local/bin/bluetooth" "$@" ;;
     display)    shift; exec "$HOME/.local/bin/display" "$@" ;;
     wallpaper)  shift; exec "$HOME/.local/bin/wallpaper" "$@" ;;
     screenshot) shift; exec "$HOME/.local/bin/screenshot" "$@" ;;
+    mirrors)    shift; exec "$HOME/.local/bin/mirrors" "$@" ;;
     power)      shift; exec "$HOME/.local/bin/power" "$@" ;;
     -h|--help|help|"") usage ;;
     *)

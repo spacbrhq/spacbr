@@ -17,6 +17,8 @@
 #define WALLPAPERCTL "~/.local/bin/wallpaper"
 #define POWERMENU "~/.local/bin/power"
 #define CLIPMENU "clipmenu"
+#define DNSCTL "~/.local/bin/dns"
+#define MIRRORCTL "~/.local/bin/mirrors"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */

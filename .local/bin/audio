@@ -89,7 +89,10 @@ toggle_speaker_headphones() {
     return 1
 }
 
-case "$(printf '%s\n' "Output device" "Input device" "Toggle speaker/headphones" | dmenu -p "audio")" in
+case "$(printf '%s\n' "Volume up" "Volume down" "Mute toggle" "Output device" "Input device" "Toggle speaker/headphones" | dmenu -p "audio")" in
+    "Volume up")                   wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ ;;
+    "Volume down")                 wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+    "Mute toggle")                 wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
     "Output device")              pick_and_set "Sinks:" "Output" ;;
     "Input device")                pick_and_set "Sources:" "Input" ;;
     "Toggle speaker/headphones")   toggle_speaker_headphones ;;

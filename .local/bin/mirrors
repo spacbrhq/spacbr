@@ -1,0 +1,34 @@
+#!/bin/sh
+# dmenu-driven pacman mirrorlist refresh via reflector (packages/base).
+# Runs in $TERMINAL rather than silently in the background: it needs a
+# real sudo password prompt (no polkit action exists for writing
+# /etc/pacman.d/mirrorlist, unlike the login1 actions the power menu
+# uses -- see system/polkit/10-spacbr-power.rules), and reflector's own
+# progress/errors are worth seeing rather than swallowing. Same pattern
+# net's left-click uses for nmtui.
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Mirrors" "$1"
+}
+
+command -v reflector >/dev/null 2>&1 || { notify "reflector not installed"; exit 1; }
+
+run() {
+    "$TERMINAL" -e sh -c "echo '$1' && sudo reflector $2 --protocol https --save /etc/pacman.d/mirrorlist && echo 'Done -- mirrorlist updated.' || echo 'Failed.'; printf '\nPress Enter to close.'; read _"
+}
+
+choice=$(printf '%s\n' "Fastest (worldwide)" "Choose country..." | dmenu -p "mirrors")
+
+case "$choice" in
+    "Fastest (worldwide)")
+        run "Fetching the fastest HTTPS mirrors worldwide..." "--latest 20 --sort rate"
+        ;;
+    "Choose country...")
+        picked=$(reflector --list-countries 2>/dev/null | awk 'NR>2 {code=$(NF-1); NF-=2; printf "%s (%s)\n", $0, code}' | dmenu -p "country")
+        [ -z "$picked" ] && exit 0
+        code=$(printf '%s' "$picked" | sed -n 's/.*(\(.*\))$/\1/p')
+        [ -z "$code" ] && exit 0
+        run "Fetching the fastest HTTPS mirrors in $picked..." "--country $code --latest 20 --sort rate"
+        ;;
+    *) exit 0 ;;
+esac
