@@ -7,3 +7,5 @@
 # One package per line; installed via: pacman -S --needed - < packages/hardware
 
 brightnessctl
+cpupower
+lm_sensors

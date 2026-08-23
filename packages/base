@@ -14,3 +14,43 @@ htop
 fontconfig
 freetype2
 ttf-hack
+# Hack has no emoji/wide-Unicode glyphs — Noto fills that gap for
+# browsers/documents without pulling in the much larger CJK set.
+noto-fonts
+noto-fonts-emoji
+
+# Fetch/sync/transfer — curl is already assumed by
+# .config/firefox/firefox.sh; wget and rsync are the other two
+# fundamentals of the same kind.
+curl
+wget
+rsync
+
+# SSH client — near-universal for git/remote work.
+openssh
+
+# Shell quality-of-life: small, single-purpose, official, no daemons.
+# From your previous install's explicit list, not transitive noise.
+ripgrep
+fd
+bat
+fzf
+zoxide
+jq
+tree
+tmux
+fastfetch
+
+# Mirror-list maintenance for pacman itself.
+reflector
+pacman-contrib
+
+# go: kept because ~/.config/shell/profile already exports
+# GOPATH/GOMODCACHE — this is the one language toolchain with actual
+# evidence of use in this repo. Everything else in your previous
+# list's dev-toolchain tail (node/npm/pnpm/deno/rust/python extras/
+# clang/cmake/meson/ninja/valgrind/gdb) was left out on purpose: it's
+# a general-purpose dev workstation's package set, not SPACBR's
+# desktop-system scope. Keep those in your own separate list if you
+# want them — don't fold them into this manifest.
+go

@@ -13,3 +13,43 @@
 # before relying on this line; the installer will simply fail loudly
 # here if the name is wrong, rather than silently doing nothing.
 arc-gtk-theme
+
+# clipmenu — dmenu-driven clipboard history daemon. §28 of CLAUDE.md
+# names exactly this as acceptable ("clipboard history through dmenu
+# only if useful") as long as it stays lightweight, which clipmenu
+# does (small poller, not a heavyweight service). Your previous list
+# had "clipmenu-git" — using the stable "clipmenu" name instead per
+# §42's "avoid unnecessary -git packages" rule. Also UNVERIFIED
+# against the AUR itself for the same anti-bot-check reason as
+# arc-gtk-theme above.
+# NOTE: adding the package alone does nothing yet — it still needs
+# clipmenud started from xinitrc and a dwm keybinding to actually
+# browse history. Not wired up here; this is packaging only.
+clipmenu
+
+# --- Considered from your previous AUR list and deliberately left out ---
+#
+# yay-bin          — a second AUR helper. §43: at most one, and paru
+#                     is already the one this installer uses.
+# dust-git         — -git package (§42); a stable "dust" alternative
+#                     may exist, check before adding.
+# glow-git         — same -git issue as dust-git.
+# ddgr-git         — same -git issue as dust-git.
+# arc-icon-theme   — competes with the already-chosen Papirus-Dark
+#                     icon set; Arc-Dark (the GTK *theme*) is kept,
+#                     its matching icon set is not.
+# brave-origin-nightly-bin, helium-browser-bin, zen-browser-bin
+#                  — three more browsers; Firefox already owns
+#                     "Browser" (§7). One owner per responsibility.
+# session-desktop-bin, localsend-bin
+#                  — messaging/file-transfer apps outside SPACBR's
+#                     defined capability list (§44), same reasoning
+#                     that already dropped the gajim keybinding.
+# sublime-text-4   — competes with Neovim/Vim, the only editor owners
+#                     CLAUDE.md §7 names.
+# audacious-gtk3, audacious-plugins-gtk3
+#                  — a dedicated music player; mpv already owns Media.
+# topgrade-bin     — a general system-updater convenience wrapper,
+#                     not a SPACBR responsibility; plain `pacman -Syu`
+#                     plus `spacbr update` already cover this repo's
+#                     actual needs.

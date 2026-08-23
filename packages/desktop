@@ -31,11 +31,37 @@ slop
 pass
 pass-otp
 gnupg
-# GTK theming: Arc-Dark (theme) + Papirus-Dark (icons) are what
-# gtk-2.0/3.0/4.0 and xinitrc's GTK_THEME already assume.
+qrencode
+# GTK theming: Arc-Dark (theme) + Papirus-Dark (icons) + Adwaita
+# (cursors) are what gtk-2.0/3.0/4.0 and xinitrc's GTK_THEME already
+# assume — all three package names below are real gaps the original
+# manifest missed, not new additions from the pkg dump.
 # papirus-icon-theme is official (extra); the Arc-Dark GTK theme
 # itself is AUR-only — see packages/aur.
 papirus-icon-theme
+hicolor-icon-theme
+adwaita-cursors
+# gtk2 runtime — this repo tracks .config/gtk-2.0/gtkrc; without the
+# gtk2 package itself that config has nothing to apply to.
+gtk2
+# ffmpeg — .config/shell/aliasrc already aliases it
+# ("ffmpeg -hide_banner"); ffmpegthumbnailer backs pcmanfm's icon-view
+# thumbnails (view_mode=icon in pcmanfm.conf).
+ffmpeg
+ffmpegthumbnailer
+# Archive management — pcmanfm's right-click extract needs a handler;
+# nothing filled this gap before.
+file-roller
+unzip
+zip
+7zip
+# polkit — NetworkManager and udisks2 (pcmanfm's automount) both use
+# it for privileged actions. NOTE: no polkit authentication agent is
+# wired into xinitrc yet, so GUI auth prompts won't appear without
+# one — that's a follow-up, not done here.
+polkit
+speedtest-cli
+handlr-regex
 # pinentry-gnome3 is what gpg-agent.conf currently points at; it pulls
 # in GNOME dependencies for a minimal system. pinentry-curses is a
 # lighter drop-in if you want to switch (update
