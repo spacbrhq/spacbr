@@ -39,7 +39,7 @@ keyboard shortcut → dmenu → action
 | Networking | NetworkManager (`nmcli`/`nmtui`) |
 | Audio | PipeWire + WirePlumber (`wpctl`) |
 | Bluetooth | BlueZ (`bluetoothctl`) |
-| Brightness | `brightnessctl` |
+| Brightness | `ddcutil` (DDC/CI — this machine has no backlight device; use `brightnessctl -c backlight` instead on a laptop) |
 | Display | `xrandr` |
 | Media | `mpv` + `playerctl` |
 | Documents | `Zathura` |

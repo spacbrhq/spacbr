@@ -28,3 +28,28 @@ deploy_polkit_rules() {
         ok "polkit rules already up to date"
     fi
 }
+
+# deploy_modules_load [SOURCE_DIR] -- copies system/modules-load.d/*.conf
+# to /etc/modules-load.d/ and loads any new one immediately via
+# modprobe, so a fresh install doesn't need a reboot before ddcutil (or
+# whatever else needs the module) works. Idempotent like
+# deploy_polkit_rules: skips a file that already matches.
+deploy_modules_load() {
+    local src="${1:-$SPACBR_HOME}/system/modules-load.d"
+    local dest="/etc/modules-load.d"
+    local file name mod
+    [ -d "$src" ] || return 0
+    for file in "$src"/*.conf; do
+        [ -f "$file" ] || continue
+        name="$(basename "$file")"
+        if [ -f "$dest/$name" ] && cmp -s "$file" "$dest/$name"; then
+            continue
+        fi
+        sudo install -D -m 644 "$file" "$dest/$name"
+        while read -r mod; do
+            case "$mod" in ''|'#'*) continue ;; esac
+            sudo modprobe "$mod" 2>/dev/null
+        done < "$file"
+        ok "loaded kernel module(s) from $name"
+    done
+}

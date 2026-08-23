@@ -58,6 +58,7 @@ install_all_packages
 build_and_install_suckless
 enable_system_services
 deploy_polkit_rules "$SOURCE_DIR"
+deploy_modules_load "$SOURCE_DIR"
 
 info "Re-checking"
 run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"

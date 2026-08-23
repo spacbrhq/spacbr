@@ -22,22 +22,29 @@ and that one ever disagree, the config wins.
 |---|---|
 | `MODKEY+Shift+L` or `XF86 ScreenSaver` | Lock screen (blurred background — built into `slock` itself) |
 | `MODKEY+Shift+P` or `XF86 PowerOff` | Power menu — lock/logout/suspend/reboot/shutdown |
-| `MODKEY+Shift+A` | Audio output/input device selection |
+| `MODKEY+Shift+A` | Audio menu — volume up/down/mute, output/input device |
 | `MODKEY+Shift+W` | Wallpaper picker |
+| `MODKEY+Shift+N` | DNS server picker (DHCP/Cloudflare/Google/Quad9/custom) |
+| `MODKEY+Shift+M` | Pacman mirrorlist refresh (reflector, worldwide or by country) |
+| `MODKEY+Shift+C` | Color picker (region select, hex value to clipboard + notification) |
 | `XF86 Display` | Display layout menu (xrandr: auto/extend/mirror/external/internal) |
 | `XF86 Bluetooth` | Bluetooth menu (power/scan/connect/disconnect/remove) |
 
 Volume, mic mute, brightness, and media transport use the standard
 hardware keys (`XF86 AudioRaiseVolume`/`LowerVolume`/`Mute`/`MicMute`,
 `XF86 MonBrightnessUp`/`Down`, `XF86 AudioPlay`/`AudioNext`/`AudioPrev`)
-and don't go through dmenu — they're direct `wpctl`/`brightnessctl`/
-`playerctl` calls. Brightness is scoped to `brightnessctl -c backlight`
-specifically, not the default (which auto-picks the first device in
-*any* class and can land on an unrelated LED instead of the screen).
+and don't go through dmenu — they're direct `wpctl`/`ddcutil`/
+`playerctl` calls. Brightness uses `ddcutil setvcp 10` (DDC/CI over the
+monitor cable), not `brightnessctl`: this machine has no `backlight`-
+class device at all (a desktop with an external monitor, not a laptop
+panel), verified for real via `brightnessctl -l`. A machine with an
+actual laptop panel should use `brightnessctl -c backlight` instead —
+not the class-less default, which can land on an unrelated LED.
 
 Every one of the scripts behind these bindings is also reachable as a
 plain command: `spacbr audio`, `spacbr bluetooth`, `spacbr display`,
-`spacbr wallpaper`, `spacbr power`, `spacbr screenshot`, `spacbr network`.
+`spacbr wallpaper`, `spacbr power`, `spacbr screenshot`, `spacbr network`,
+`spacbr dns`, `spacbr mirrors`.
 
 ## Window management
 

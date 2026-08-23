@@ -51,6 +51,14 @@ run_all_checks() {
     info "Hardware utilities"
     run_check "brightnessctl"       "command -v brightnessctl" "pacman -S brightnessctl"
     run_check "xrandr"              "command -v xrandr" "pacman -S xorg-xrandr"
+    # ddcutil/i2c-dev: only meaningful on hardware with no real
+    # backlight (see .local/src/dwm/config.h's brightness keybindings
+    # and packages/hardware's comment) -- a machine with a laptop
+    # panel legitimately has no i2c-dev module loaded and that's fine,
+    # so this isn't gated on "no backlight" detection, just reported
+    # informationally like the bluetooth-hardware-absent check above.
+    run_check "ddcutil"             "command -v ddcutil" "pacman -S ddcutil (only needed for external-monitor brightness via DDC/CI)"
+    run_check "i2c-dev loaded"      "lsmod | grep -q i2c_dev" "spacbr repair (deploys system/modules-load.d), or: sudo modprobe i2c-dev"
 
     info "Session extras"
     run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"

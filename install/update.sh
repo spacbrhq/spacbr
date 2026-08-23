@@ -50,6 +50,7 @@ deploy_dotfiles "$SOURCE_DIR"
 deploy_self "$SOURCE_DIR"
 build_and_install_suckless
 deploy_polkit_rules "$SOURCE_DIR"
+deploy_modules_load "$SOURCE_DIR"
 
 info "Validating"
 run_all_checks || warn "some checks failed — run 'spacbr doctor' for details"

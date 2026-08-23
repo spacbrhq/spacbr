@@ -16,6 +16,14 @@ that handles `.config`/`.local`.
   snippets for input/libinput tuning), separate from the session
   startup logic that already lives in `.config/xinitrc`. Empty today:
   no hardware-specific Xorg tuning has been needed yet.
+- `modules-load.d/` — `spacbr-ddcutil.conf` loads `i2c-dev` at boot so
+  `ddcutil` can talk to the monitor over DDC/CI, deployed to
+  `/etc/modules-load.d/`. Verified for real this is actually needed:
+  this machine has zero `backlight`-class devices (a desktop with an
+  external monitor, not a laptop panel), so `brightnessctl` had
+  nothing to control -- `XF86MonBrightnessUp/Down` now call `ddcutil`
+  against the monitor's real VCP brightness feature instead, which
+  needs `i2c-dev` loaded before `/dev/i2c-*` exists at all.
 - `polkit/` — `10-spacbr-power.rules` grants wheel-group users
   passwordless reboot/suspend/poweroff, deployed to
   `/etc/polkit-1/rules.d/`. Verified for real this is actually needed,

@@ -39,6 +39,7 @@ deploy_self
 build_and_install_suckless
 enable_system_services
 deploy_polkit_rules
+deploy_modules_load
 set_default_shell
 
 info "Validating installation"

@@ -106,6 +106,9 @@ static const Key keys[] = {
 	{ 0, 			 XF86XK_PowerOff,		   spawn,	       SHCMD(POWERMENU) },
 	{ MODKEY|ShiftMask,             XK_a,      spawn,          SHCMD(AUDIOCTL) },
 	{ MODKEY|ShiftMask,             XK_w,      spawn,          SHCMD(WALLPAPERCTL) },
+	{ MODKEY|ShiftMask,             XK_n,      spawn,          SHCMD(DNSCTL) },
+	{ MODKEY|ShiftMask,             XK_m,      spawn,          SHCMD(MIRRORCTL) },
+	{ MODKEY|ShiftMask,             XK_c,      spawn,          SHCMD("screenshot color") },
 	{ 0, 			 XF86XK_Bluetooth,		   spawn,	       SHCMD(BLUETOOTHCTL) },
     { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-") },
     { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
@@ -114,14 +117,20 @@ static const Key keys[] = {
     { 0,             XF86XK_AudioPlay,        spawn,          SHCMD("playerctl play-pause") },
     { 0,             XF86XK_AudioNext,        spawn,          SHCMD("playerctl next") },
     { 0,             XF86XK_AudioPrev,        spawn,          SHCMD("playerctl previous") },
-    /* -c backlight: verified for real on hardware with no screen
-     * backlight -- brightnessctl's default device-autoselect fell
-     * through to an unrelated keyboard "kana" indicator LED instead of
-     * failing cleanly. Scoping to the backlight class is correct
-     * regardless of hardware, since it's the only class these keys
-     * should ever be allowed to touch. */
-    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("brightnessctl -c backlight set 5%+") },
-    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("brightnessctl -c backlight set 5%-") },
+    /* ddcutil, not brightnessctl: verified for real that this machine
+     * (a desktop with an external monitor, no laptop panel) has zero
+     * `backlight`-class devices at all -- brightnessctl's default
+     * device-autoselect used to fall through to an unrelated keyboard
+     * "kana" indicator LED instead of failing cleanly, and scoping it
+     * to the backlight class (the previous fix) just made it fail
+     * cleanly instead of controlling anything, since there's no
+     * backlight device to scope to. This monitor genuinely supports
+     * DDC/CI over the cable (confirmed via `ddcutil detect`), so
+     * ddcutil controls its real hardware brightness (VCP feature
+     * 0x10) instead. brightnessctl is kept in packages/hardware for
+     * any machine that *does* have a real backlight. */
+    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("ddcutil setvcp 10 + 5") },
+    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("ddcutil setvcp 10 - 5") },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
