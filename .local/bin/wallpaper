@@ -8,7 +8,11 @@ statefile="$statedir/wallpaper"
 mkdir -p "$statedir"
 
 list() {
-    find "$bgdir" -maxdepth 1 -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | sort
+    # ! -name '.*' excludes macOS AppleDouble sidecar files (._foo.jpg):
+    # found for real after scp'ing backgrounds from a Mac, they matched
+    # the extension filter and sorted before the real files, so they
+    # were the first candidates offered and would break hsetroot if picked.
+    find "$bgdir" -maxdepth 1 -type f ! -name '.*' \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | sort
 }
 
 current() {

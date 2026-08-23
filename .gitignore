@@ -1,5 +1,6 @@
 # OS artifacts
 .DS_Store
+._*
 Thumbs.db
 
 # Editor backups/swap
