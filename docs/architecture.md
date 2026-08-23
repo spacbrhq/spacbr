@@ -54,6 +54,40 @@ The permanent UI (the dwmblocks bar) stays minimal on purpose — it
 shows state, not controls. Controls live behind the keyboard/dmenu
 layers so the desktop stays visually quiet.
 
+## Locking and idle
+
+`slock` is the only lock mechanism (§7/§18) — `xscreensaver` was
+removed early on specifically because a second lock/screensaver
+mechanism is exactly what the spec forbids. Everything since builds
+*on top of* slock rather than beside it:
+
+```
+idle 4 min  → xss-lock's notifier: .local/bin/screensaver (dims via
+               brightnessctl, killed by SIGHUP if you move again)
+idle 5 min  → xss-lock's locker: .local/bin/lock (blur + slock)
+```
+
+`xss-lock` stays the single, event-driven idle daemon (`xset s 240 60`
+— 240s to the notifier, one more 60s cycle to the locker) — it just
+runs two different commands at two different points in its own cycle,
+not two competing mechanisms. If you ever want a real second idle
+tool, replace `xss-lock` outright; don't add one alongside it.
+
+`.local/bin/lock` wraps `slock` rather than patching it: the real
+Imlib2 blur patch (`tools.suckless.org/slock/patches/blur-pixelated-screen/`)
+targets slock 1.4 and fails 5+ hunks against this repo's 1.5 (already
+carrying the xresources patch) — hand-merging unverifiable C against
+X11/Imlib2 was judged too risky, the same call made earlier about the
+dmenu-xresources patch. The wrapper screenshots the desktop, blurs it
+with `imagemagick` (already a dependency), sets it as the root
+background, calls `slock`, then restores the real wallpaper on
+unlock — same visual result, zero new C code or dependencies, at the
+cost of a brief (sub-second) window where the real desktop is still
+visible before the blur/lock appears, since the capture happens before
+`slock` grabs the screen rather than after. Every direct call to
+`slock` in dwm's keybindings and `.local/bin/power` goes through this
+wrapper now, not the raw binary.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:

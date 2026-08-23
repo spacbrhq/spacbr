@@ -20,7 +20,7 @@ and that one ever disagree, the config wins.
 
 | Key | Action |
 |---|---|
-| `MODKEY+Shift+L` or `XF86 ScreenSaver` | Lock screen (slock) |
+| `MODKEY+Shift+L` or `XF86 ScreenSaver` | Lock screen (blurred, via `.local/bin/lock`) |
 | `MODKEY+Shift+P` or `XF86 PowerOff` | Power menu — lock/logout/suspend/reboot/shutdown |
 | `MODKEY+Shift+A` | Audio output/input device selection |
 | `MODKEY+Shift+W` | Wallpaper picker |

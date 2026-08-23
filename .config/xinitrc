@@ -42,11 +42,15 @@ clipmenud &
 statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
 hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/share/backgrounds/the-backwater.jpg")" &
 
-# Idle locking: blank after 5 min, lock the moment the screen blanks or the
-# session suspends. xss-lock is the one lightweight idle mechanism (event
+# Idle locking: xss-lock is the one lightweight idle mechanism (event
 # driven, no polling daemon) and also catches logind-triggered suspend
 # (e.g. lid close), not just the power menu's explicit lock-before-suspend.
-xset s 300 300
-xss-lock -- slock &
+# Two-stage via xset's timeout/cycle: at 4 min idle, xss-lock's
+# notifier (~/.local/bin/screensaver) runs as a dim warning; one more
+# minute idle (the "cycle") and the locker (~/.local/bin/lock) takes
+# over. Still one authoritative idle daemon, not a second mechanism —
+# the notifier is just what xss-lock runs partway through its own cycle.
+xset s 240 60
+xss-lock -n ~/.local/bin/screensaver -- ~/.local/bin/lock &
 
 exec dbus-launch dwm

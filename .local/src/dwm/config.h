@@ -11,7 +11,7 @@
 #define SCREENSHOT "screenshot"
 #define PASSMENU "~/.local/bin/passmenu"
 #define DISPLAYCTL "~/.local/bin/display"
-#define LOCKSCREEN "slock"
+#define LOCKSCREEN "~/.local/bin/lock"
 #define AUDIOCTL "~/.local/bin/audio"
 #define BLUETOOTHCTL "~/.local/bin/bluetooth"
 #define WALLPAPERCTL "~/.local/bin/wallpaper"
