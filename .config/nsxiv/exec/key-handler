@@ -1,0 +1,18 @@
+#!/bin/sh
+# nsxiv external key handler (nsxiv(1), EXTERNAL KEY HANDLER). Invoked
+# by Ctrl-x + the key below; the acted-on image path(s) come in on
+# stdin, one per line (or NULL-separated with $NSXIV_USING_NULL=1).
+#
+# Ctrl-x w — set the current image as the desktop wallpaper, reusing
+# SPACBR's own wallpaper script instead of duplicating that logic here.
+
+case "$1" in
+	w)
+		if [ "$NSXIV_USING_NULL" = 1 ]; then
+			IFS= read -r -d '' file
+		else
+			IFS= read -r file
+		fi
+		[ -n "$file" ] && wallpaper set "$file"
+		;;
+esac

@@ -35,3 +35,13 @@ dwm.normfgcolor: #e1e3e7
 dwm.selbordercolor: #404552
 dwm.selbgcolor: #404552
 dwm.selfgcolor: #fafafa
+
+/* nsxiv colors — supported natively via Xresources (see nsxiv(1)'s
+ * CONFIGURATION section), no source patch needed unlike the actual
+ * suckless components above. */
+Nsxiv.window.background: #2f343f
+Nsxiv.window.foreground: #e1e3e7
+Nsxiv.bar.font: Hack:size=10
+Nsxiv.bar.background: #404552
+Nsxiv.bar.foreground: #e1e3e7
+Nsxiv.mark.foreground: #4084d6

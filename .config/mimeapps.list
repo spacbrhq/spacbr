@@ -6,3 +6,23 @@ x-scheme-handler/http=firefox.desktop;
 x-scheme-handler/https=firefox.desktop;
 ^audio/.*=mpv.desktop;
 ^video/.*=mpv.desktop;
+# Exact entries, not just the ^image/.* catch-all below: verified for
+# real that regex mimeapps.list keys only win when literally nothing
+# else has a declared association for that exact mimetype (which is
+# why the audio/video rules above "just work" -- nothing else claims
+# those). zathura-pdf-mupdf.desktop also declares jpeg/png/bmp/tiff/
+# svg+xml (mupdf renders standalone images too) and firefox declares
+# gif/webp/etc, and those real per-file declarations won over the
+# regex catch-all every time, so image/jpeg resolved to zathura and
+# image/gif resolved to firefox despite this file saying nsxiv. Exact
+# keys are what mimeapps.list actually gives override priority to.
+image/jpeg=nsxiv.desktop;
+image/jpg=nsxiv.desktop;
+image/png=nsxiv.desktop;
+image/gif=nsxiv.desktop;
+image/bmp=nsxiv.desktop;
+image/tiff=nsxiv.desktop;
+image/webp=nsxiv.desktop;
+image/svg+xml=nsxiv.desktop;
+# Catch-all for anything else image/* not explicitly listed above.
+^image/.*=nsxiv.desktop;

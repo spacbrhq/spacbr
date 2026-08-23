@@ -21,6 +21,13 @@ udisks2
 zathura
 zathura-pdf-mupdf
 mpv
+# nsxiv — Images had no owner (§7 names Documents/Media/Browser but
+# nothing for image/*), and handlr-regex was correctly routing
+# audio/video/pdf but had nowhere to send images. Suckless-lineage
+# (fork of sxiv), X11-native, official (extra) — the same fit as
+# dwm/dmenu/st/slock without needing to join them as a built-from-
+# source component (no compelling reason to patch it).
+nsxiv
 yt-dlp
 firefox
 xclip
