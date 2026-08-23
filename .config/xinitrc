@@ -40,7 +40,7 @@ clipmenud &
 
 # Wallpaper: restore last-set (via ~/.local/bin/wallpaper), fall back to a default
 statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
-hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/share/backgrounds/cars.jpg")" &
+hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/share/backgrounds/the-backwater.jpg")" &
 
 # Idle locking: blank after 5 min, lock the moment the screen blanks or the
 # session suspends. xss-lock is the one lightweight idle mechanism (event
