@@ -1,0 +1,35 @@
+// SPACBR — passwordless reboot/suspend/poweroff for wheel-group users.
+//
+// Why this exists, verified for real: `.local/bin/power`'s Reboot/
+// Suspend/Shutdown actions call systemd directly (systemctl reboot/
+// suspend/poweroff). polkit's default policy for these actions
+// (allow_active=yes in org.freedesktop.login1.policy) is supposed to
+// let the active local session do this with no authentication at
+// all -- but that depends on polkit correctly recognizing the calling
+// session as "active", which is unreliable for a bare X11 session
+// started via plain `startx` from a tty (no display-manager/session-
+// manager registering it as a graphical session with logind). Without
+// this rule, pressing Reboot/Suspend/Shutdown from the dwm-spawned
+// power menu (no controlling terminal to prompt from) fails outright:
+// "Access denied as the requested operation requires interactive
+// authentication. However, interactive authentication has not been
+// enabled by the calling program." This is a known, common issue for
+// minimal window managers with no session-manager integration, not
+// specific to this one machine.
+//
+// Scoped to wheel (the group sudo/admin access already assumes on
+// Arch) rather than "any active session", so this doesn't grant
+// anything to a user who couldn't already reboot the machine via sudo
+// anyway -- it just removes the password prompt for the three power
+// actions dwm's own power menu exposes.
+polkit.addRule(function(action, subject) {
+	if ((action.id == "org.freedesktop.login1.reboot" ||
+	     action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+	     action.id == "org.freedesktop.login1.power-off" ||
+	     action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+	     action.id == "org.freedesktop.login1.suspend" ||
+	     action.id == "org.freedesktop.login1.suspend-multiple-sessions") &&
+	    subject.isInGroup("wheel")) {
+		return polkit.Result.YES;
+	}
+});

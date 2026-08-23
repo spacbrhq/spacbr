@@ -1,6 +1,15 @@
 #!/bin/sh
 # dmenu-driven power menu: lock, logout, suspend, reboot, shutdown.
 # Destructive actions require a second confirmation to avoid accidents.
+#
+# systemctl, not loginctl, for suspend/reboot/poweroff: verified for
+# real that loginctl on this system (systemd 261) has no such verbs at
+# all -- only session/user/seat management commands. `loginctl reboot`
+# failed outright ("Unknown command verb 'reboot'"), meaning these
+# three actions had never actually worked. systemctl's own
+# reboot/poweroff/suspend are the canonical commands loginctl's old
+# convenience wrappers proxied to, and they still work correctly for
+# an active local session without needing sudo.
 
 confirm() {
     [ "$(printf 'No\nYes' | dmenu -p "$1?")" = "Yes" ]
@@ -16,13 +25,13 @@ case "$choice" in
         confirm "Logout" && pkill -TERM -u "$USER" dwm
         ;;
     Suspend)
-        confirm "Suspend" && { slock & loginctl suspend; }
+        confirm "Suspend" && { slock & systemctl suspend; }
         ;;
     Reboot)
-        confirm "Reboot" && loginctl reboot
+        confirm "Reboot" && systemctl reboot
         ;;
     Shutdown)
-        confirm "Shutdown" && loginctl poweroff
+        confirm "Shutdown" && systemctl poweroff
         ;;
     *)
         exit 0

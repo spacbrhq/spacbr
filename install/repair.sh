@@ -20,6 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/install/functions/configs.sh"
 . "$ROOT/install/functions/suckless.sh"
 . "$ROOT/install/functions/services.sh"
+. "$ROOT/install/functions/system.sh"
 . "$ROOT/install/functions/checks.sh"
 
 SOURCE_DIR="${1:-$SPACBR_HOME}"
@@ -56,6 +57,7 @@ warn "Failures found above — attempting repair"
 install_all_packages
 build_and_install_suckless
 enable_system_services
+deploy_polkit_rules "$SOURCE_DIR"
 
 info "Re-checking"
 run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"

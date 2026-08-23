@@ -55,6 +55,13 @@ run_all_checks() {
     info "Session extras"
     run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"
     run_check "polkit agent"        "[ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]" "pacman -S polkit-gnome"
+    # Verified for real: without this rule, the power menu's Reboot/
+    # Suspend/Shutdown fail outright ("requires interactive
+    # authentication... not enabled by the calling program") when
+    # spawned from dwm (no controlling terminal, and polkit's
+    # allow_active default doesn't reliably recognize a plain-startx
+    # X11 session as "active"). See system/polkit/10-spacbr-power.rules.
+    run_check "power menu polkit rule" "[ -f /etc/polkit-1/rules.d/10-spacbr-power.rules ]" "spacbr repair (or spacbr install) to deploy system/polkit/10-spacbr-power.rules"
     run_check "login shell is zsh"  "[ \"\$(getent passwd \"\$USER\" | cut -d: -f7)\" = \"\$(command -v zsh)\" ]" "sudo usermod -s \$(command -v zsh) \$USER — without this, .zshrc's tty1 auto-startx never runs"
 
     info "Visual system consistency"

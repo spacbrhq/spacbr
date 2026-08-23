@@ -26,6 +26,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/install/functions/packages.sh"
 . "$ROOT/install/functions/configs.sh"
 . "$ROOT/install/functions/suckless.sh"
+. "$ROOT/install/functions/system.sh"
 . "$ROOT/install/functions/checks.sh"
 
 SOURCE_DIR="${1:-$SPACBR_HOME}"
@@ -48,6 +49,7 @@ install_all_packages
 deploy_dotfiles "$SOURCE_DIR"
 deploy_self "$SOURCE_DIR"
 build_and_install_suckless
+deploy_polkit_rules "$SOURCE_DIR"
 
 info "Validating"
 run_all_checks || warn "some checks failed — run 'spacbr doctor' for details"

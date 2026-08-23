@@ -14,6 +14,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 . "$ROOT/install/functions/configs.sh"
 . "$ROOT/install/functions/suckless.sh"
 . "$ROOT/install/functions/services.sh"
+. "$ROOT/install/functions/system.sh"
 . "$ROOT/install/functions/checks.sh"
 
 info "SPACBR installer — $SPACBR_HOME"
@@ -26,6 +27,7 @@ if [ "${1:-}" != "--yes" ]; then
     printf '  - deploy .config, .local/bin, .local/share, .local/src into %s\n' "$HOME"
     printf '  - build and install dwm, dmenu, st, dwmblocks, slock\n'
     printf '  - enable NetworkManager and bluetooth\n'
+    printf '  - install a polkit rule so wheel-group reboot/suspend/poweroff (the power menu'\''s Reboot/Suspend/Shutdown) do not require a password\n'
     printf '  - set your login shell to zsh if it is not already (needed for .zshrc'\''s tty1 auto-startx)\n'
     printf '  - back up any existing files that differ, never delete anything\n\n'
     confirm "Continue?" || die "aborted"
@@ -36,6 +38,7 @@ deploy_dotfiles
 deploy_self
 build_and_install_suckless
 enable_system_services
+deploy_polkit_rules
 set_default_shell
 
 info "Validating installation"
