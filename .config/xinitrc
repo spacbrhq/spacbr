@@ -37,11 +37,26 @@ dbus-update-activation-environment --systemd DISPLAY XAUTHORITY
 
 # Start programs
 dwmblocks &
-pipewire &
-pipewire-pulse &
-wireplumber &
 picom --config ~/.config/picom/picom.conf &
 clipmenud &
+
+# PipeWire/PulseAudio-compat/WirePlumber are deliberately NOT started
+# here. Verified for real this was an actual bug, not just redundant:
+# their packages already ship socket-activated systemd --user units
+# (enabled by default), and systemd's own per-user instance starts at
+# login -- before xinitrc ever runs -- so pipewire.socket is already
+# listening on /run/user/$UID/pipewire-0 by the time this file
+# executes. Starting `pipewire &` here a second time as a raw process
+# tries to bind that same socket path again, which fails; that failure
+# cascades (pipewire.socket -> failed, pipewire.service -> dependency
+# failed, pipewire-pulse.socket/.service -> dependency failed too) and
+# systemd rate-limits further retries (start-limit-hit). Net effect:
+# the native PipeWire protocol still mostly worked (wpctl, the raw
+# xinitrc-started pipewire process, until it's killed/restarted) but
+# the PulseAudio-compat layer (pactl, and anything using it -- ffmpeg's
+# `-f pulse` input for the record script's audio option, notably)
+# silently never came up at all. Removing these lines lets systemd's
+# own already-enabled units do this correctly instead of fighting them.
 
 # Polkit authentication agent — without one, GUI privilege prompts
 # from NetworkManager/udisks2 (pcmanfm's automount) never appear.

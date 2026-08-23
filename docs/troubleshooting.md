@@ -64,10 +64,15 @@ script to check.
 
 ## No sound / audio device missing
 
-- `spacbr doctor` checks PipeWire/WirePlumber are *installed*, not
-  that they're *running*. Audio is started from `xinitrc`
-  (`pipewire &`, `pipewire-pulse &`, `wireplumber &`), not systemd —
-  check they actually launched: `pgrep -fl pipewire`.
+- Audio is started by the systemd --user units PipeWire/WirePlumber's
+  own packages ship (socket-activated, enabled by default) — *not*
+  from `xinitrc`. Verified for real that starting them a second time
+  as raw xinitrc processes actively breaks the PulseAudio-compat layer
+  (see "Audio startup" in `docs/architecture.md`), so don't add
+  `pipewire &`/`pipewire-pulse &`/`wireplumber &` back there. Check
+  `systemctl --user status pipewire.socket pipewire-pulse.socket
+  wireplumber.service` if audio isn't working; `spacbr doctor`'s
+  "pipewire-pulse active" check covers this too.
 - `spacbr audio` lets you pick a specific output/input device once the
   daemons are up. If the device you want isn't listed, check
   `wpctl status` directly — the picker parses that output, and an

@@ -243,6 +243,28 @@ running system. Fixing that would mean migrating the filesystem layout
 — a much bigger, more invasive step than "add a safety net," and not
 something to do as a side effect of setting up snapshots.
 
+## Audio startup
+
+PipeWire, WirePlumber, and the PulseAudio-compat layer are *not*
+started from `xinitrc` — a real bug, found for real while wiring up
+screen recording (`.local/bin/record`'s audio option needs the
+PulseAudio-compat layer for `ffmpeg -f pulse`). `xinitrc` used to start
+`pipewire &`/`pipewire-pulse &`/`wireplumber &` as raw background
+processes. Their packages already ship socket-activated systemd
+--user units, enabled by default — and the user's systemd instance
+starts at login, before `xinitrc` ever runs, so `pipewire.socket` is
+already listening on `/run/user/$UID/pipewire-0` by the time those
+lines executed. Starting `pipewire &` a second time tried to bind that
+same socket path again, which failed; that failure cascaded
+(`pipewire.socket` → failed, `pipewire.service` → dependency failed,
+`pipewire-pulse.socket`/`.service` → dependency failed too) and
+systemd rate-limited further retries. Net effect: the native PipeWire
+protocol mostly still worked (`wpctl`, since the raw xinitrc-started
+process was providing it) but the PulseAudio-compat layer (`pactl`,
+and anything built on it) never came up at all — silently, since
+nothing was checking for it. Removing those three lines lets the
+already-enabled systemd units do this correctly.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:

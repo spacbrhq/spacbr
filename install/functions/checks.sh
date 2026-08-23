@@ -48,6 +48,15 @@ run_all_checks() {
     run_check "firewall ruleset loaded" "sudo -n nft list ruleset 2>/dev/null | grep -q 'hook input'" "spacbr repair (or spacbr install) to deploy system/nftables/nftables.conf -- or re-run 'spacbr doctor' just after using sudo for something else"
     run_check "PipeWire"            "command -v pipewire" "pacman -S pipewire pipewire-pulse"
     run_check "WirePlumber"         "command -v wireplumber" "pacman -S wireplumber"
+    # Verified for real: xinitrc used to start `pipewire &`/`pipewire-
+    # pulse &`/`wireplumber &` as raw processes, which fought the
+    # packages' own already-enabled systemd --user socket units for
+    # the same socket paths -- the native PipeWire protocol (wpctl)
+    # mostly still worked, but the PulseAudio-compat layer (pactl, and
+    # anything using it, like ffmpeg's -f pulse audio recording) never
+    # came up at all. xinitrc no longer starts them; this checks
+    # systemd's own units are what's actually running instead.
+    run_check "pipewire-pulse active" "systemctl --user is-active --quiet pipewire-pulse.socket" "systemctl --user enable --now pipewire.socket pipewire-pulse.socket wireplumber.service"
     run_check "BlueZ"               "command -v bluetoothctl" "pacman -S bluez bluez-utils"
     # /sys/class/bluetooth only exists if there's actual BT hardware --
     # on a desktop with none, systemd correctly leaves the (enabled)
