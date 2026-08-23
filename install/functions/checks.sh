@@ -61,6 +61,13 @@ run_all_checks() {
     run_check "dwm colors match palette"   "grep -q '#2f343f' \"\$HOME/.local/src/dwm/config.h\" 2>/dev/null" "dwm/config.h's normbgcolor etc. should match .config/xresources's dwm.* keys"
     run_check "dmenu colors match palette" "grep -q '#2f343f' \"\$HOME/.local/src/dmenu/config.h\" 2>/dev/null" "dmenu/config.h's SchemeNorm should match the same palette dwm/st/slock use"
     run_check "GTK font unified"           "! grep -rq 'Cantarell' \"\$HOME/.config/gtk-2.0\" \"\$HOME/.config/gtk-3.0\" \"\$HOME/.config/gtk-4.0\" 2>/dev/null" "gtk-font-name should be Hack in all three gtk-*.0 configs, not the GTK default"
+    # arc-gtk-theme is AUR-only (packages/aur). Verified for real: with
+    # no AUR helper present it silently fails to install, and every GTK
+    # app just falls back to plain light GTK with zero indication
+    # anything is wrong -- checking the config *says* Arc-Dark isn't
+    # enough, since that's true even when the theme was never actually
+    # installed. This checks the real theme files are on disk.
+    run_check "GTK theme installed"        "[ -d /usr/share/themes/Arc-Dark ]" "arc-gtk-theme isn't installed -- install an AUR helper (paru) and re-run 'spacbr install', or install it manually"
 
     info "XDG layout"
     run_check "~/.config exists"    "[ -d \"\$XDG_CONFIG_HOME\" ]" "mkdir -p ~/.config"

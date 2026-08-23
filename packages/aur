@@ -2,24 +2,26 @@
 #
 # Per §41-43 of CLAUDE.md: only add an entry when a specific, justified
 # need can't be met officially, and note that justification next to
-# it. The installer needs exactly one AUR helper (paru) to build these
-# — don't add a second.
+# it. The installer needs exactly one AUR helper (paru) to build
+# these — don't add a second. paru itself is bootstrapped
+# automatically (install_aur_helper in install/functions/packages.sh)
+# if it isn't already present.
 #
-# arc-gtk-theme was dropped (previously the only entry here). Verified
-# for real on a machine with no AUR helper: gtk-2.0/3.0/4.0 configs and
-# xinitrc's GTK_THEME all assumed Arc-Dark, it silently failed to load
-# since it was never installed, and every GTK app (PCManFM, Zathura,
-# GTK dialogs) fell back to plain light GTK -- completely defeating the
-# unified dark visual identity §34 requires. It was also AUR-only, last
-# updated 2025-03-31, and flagged out-of-date since 2025-11-30 with no
-# maintainer response -- a real §42 "avoid abandoned packages" risk on
-# top of the AUR-helper fragility. Replaced with GTK's own bundled
-# Adwaita dark variant (gtk-theme-name=Adwaita + prefer-dark-theme=1 +
-# GTK_THEME="Adwaita:dark" in xinitrc) -- ships with the gtk3/gtk4
-# packages themselves, so it can never be silently missing, needs no
-# AUR helper, and is maintained upstream by GTK itself. This file has
-# no entries as a result; keep it that way unless a specific need
-# genuinely can't be met officially (§41).
+# arc-gtk-theme is NOT listed here even though it's an AUR package and
+# SPACBR depends on it (every gtk-2.0/3.0/4.0 config and xinitrc's
+# GTK_THEME assume Arc-Dark). It's built instead from
+# packages/aur-overrides/arc-gtk-theme/, a SPACBR-maintained PKGBUILD
+# fork -- verified for real that the published AUR PKGBUILD fails to
+# build outright (hardcodes GNOME Shell 43 theming against a source
+# tarball that doesn't have that asset layout). See that PKGBUILD's
+# header for the full story, and the "GTK theme installed" doctor
+# check in install/functions/checks.sh, which verifies
+# /usr/share/themes/Arc-Dark actually exists on disk regardless of
+# which path installed it.
+#
+# This file has no entries as a result. Add one here only for a
+# plain, unmodified AUR package that doesn't need packages/aur-overrides
+# treatment.
 
 # --- Considered from your previous AUR list and deliberately left out ---
 #
@@ -32,8 +34,9 @@
 #                     may exist, check before adding.
 # glow-git         — same -git issue as dust-git.
 # ddgr-git         — same -git issue as dust-git.
-# arc-icon-theme   — competed with the already-chosen Papirus-Dark
-#                     icon set; moot now that Arc-Dark itself is gone.
+# arc-icon-theme   — competes with the already-chosen Papirus-Dark
+#                     icon set; Arc-Dark (the GTK *theme*) is kept,
+#                     its matching icon set is not.
 # brave-origin-nightly-bin, helium-browser-bin, zen-browser-bin
 #                  — three more browsers; Firefox already owns
 #                     "Browser" (§7). One owner per responsibility.
