@@ -14,6 +14,13 @@ zsh-syntax-highlighting
 # reasoning. Not desktop-specific, so it belongs here, not
 # packages/desktop.
 nftables
+# snapper + snap-pac — btrfs snapshot management with automatic pre/
+# post snapshots around every pacman transaction. Real gap this
+# machine had: btrfs root, zero recovery path if an update went wrong.
+# setup_snapper() (services.sh) skips creating a config if root isn't
+# btrfs, so this is harmless to install even on a non-btrfs machine.
+snapper
+snap-pac
 neovim
 vim
 # Language servers for nvim/init.lua's native vim.lsp config -- not

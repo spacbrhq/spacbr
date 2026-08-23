@@ -30,3 +30,34 @@ set_default_shell() {
         ok "login shell set to zsh (takes effect on next login)" || \
         warn "couldn't set zsh as the login shell — run 'chsh -s $zsh_path' yourself"
 }
+
+# setup_snapper -- creates the snapper "root" config (btrfs snapshot
+# management, automatic pre/post snapshots around every pacman
+# transaction via snap-pac) if root is actually btrfs and one doesn't
+# already exist, then enables the periodic timeline/cleanup timers.
+#
+# No vendored config file here, unlike deploy_polkit_rules/
+# deploy_nftables/deploy_modules_load: `snapper create-config`'s own
+# generated defaults (0.5 of the filesystem, 10 hourly/daily/monthly/
+# yearly timeline snapshots, automatic cleanup) are already sensible
+# for a personal desktop -- overriding them would be config for its
+# own sake, not solving a real problem.
+#
+# Note this machine's actual btrfs layout is a flat root subvolume
+# (top-level, no dedicated @ subvolume) -- snapshots, diffing, and
+# file recovery all work fully regardless, but a clean one-command
+# boot-time rollback isn't as guaranteed as it would be with a proper
+# @/@home layout. Not something this function tries to fix -- that's
+# a filesystem migration, a much bigger and more invasive step than
+# "add a safety net."
+setup_snapper() {
+    command -v snapper >/dev/null 2>&1 || return 0
+    [ "$(findmnt -no FSTYPE / 2>/dev/null)" = "btrfs" ] || { warn "root isn't btrfs — skipping snapper config"; return 0; }
+    if sudo snapper list-configs 2>/dev/null | grep -q '^root '; then
+        ok "snapper 'root' config already exists"
+    else
+        sudo snapper -c root create-config / && ok "snapper 'root' config created"
+    fi
+    sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer
+    ok "snapper timeline/cleanup timers enabled"
+}

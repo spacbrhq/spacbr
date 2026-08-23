@@ -60,6 +60,7 @@ deploy_nftables "$SOURCE_DIR"
 enable_system_services
 deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"
+setup_snapper
 
 info "Re-checking"
 run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"

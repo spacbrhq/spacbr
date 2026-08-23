@@ -208,3 +208,25 @@ and applying changes with a backgrounded `sleep 90 && nft flush
 ruleset` armed (cancel it once you've confirmed a fresh connection
 still works) means a mistake recovers on its own within 90 seconds
 instead of requiring physical access.
+
+## A system update broke something and I want to go back
+
+If root is btrfs, `snapper -c root list` shows every automatic
+snapshot — `snap-pac` takes a pre/post pair around every pacman
+transaction, so there's very likely one from right before whatever
+broke. `snapper -c root status <pre>..<post>` shows exactly what that
+transaction changed; `snapper -c root undochange <pre>..<post>`
+reverts just those file changes without a full rollback. For
+individual files, mount the old snapshot directly (it's a normal
+read-only subvolume under `/.snapshots/<number>/snapshot`) and copy
+what you need back out.
+
+This machine's btrfs layout doesn't have a dedicated root subvolume to
+swap out from under the running system (see "Snapshots" in
+`docs/architecture.md`), so a full one-command boot-time rollback
+isn't available the way it would be with `grub-btrfs` on a proper
+`@`/`@home` layout — `undochange` or manual file recovery from a
+snapshot are the paths that actually work here. `snapper list-configs`
+returning nothing, or `spacbr doctor`'s "snapper" checks failing, means
+either root isn't btrfs (nothing to do) or setup never ran — `spacbr
+repair` fixes the latter.

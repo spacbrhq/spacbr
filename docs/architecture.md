@@ -211,6 +211,38 @@ lock things out. If either step had failed, the SSH session would have
 recovered on its own within 90 seconds with no manual intervention
 needed.
 
+## Snapshots
+
+`snapper` + `snap-pac` own this, conditional on the root filesystem
+actually being btrfs (`setup_snapper()` in `services.sh` no-ops
+otherwise). Real gap, not speculative hardening: this machine's root
+is btrfs and had zero recovery path if a `pacman -Syu` went wrong.
+`snap-pac` creates a pre/post snapshot pair around every pacman
+transaction automatically; `snapper-timeline.timer` and
+`snapper-cleanup.timer` add periodic snapshots and keep the total
+count/space bounded, both confirmed enabled and running.
+
+No vendored config file, unlike the firewall/polkit/modules-load
+system files: `snapper create-config`'s own generated defaults (0.5 of
+the filesystem, 10 hourly/daily/monthly/yearly timeline snapshots,
+automatic cleanup) are already sensible for a personal desktop.
+Overriding them would be config for its own sake, not solving a real
+problem — `setup_snapper()` only creates the config if one doesn't
+already exist, never touches an existing one.
+
+One honest limitation, not glossed over: this machine's btrfs layout
+is a flat root subvolume (the top-level subvolume itself, no dedicated
+`@`/`@home` split). Snapshots, `snapper diff`, and mounting an old
+snapshot to recover individual files all work fully regardless —
+verified for real with a manual snapshot and a real pacman transaction
+(reinstalling `nftables`), both showing up correctly in `snapper
+list`. But a clean one-command boot-time rollback (`grub-btrfs`'s
+usual trick) isn't as guaranteed as it would be with a proper subvolume
+split, since there's no dedicated subvolume to swap out from under the
+running system. Fixing that would mean migrating the filesystem layout
+— a much bigger, more invasive step than "add a safety net," and not
+something to do as a side effect of setting up snapshots.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:

@@ -57,6 +57,16 @@ run_all_checks() {
     # before this check accounted for hardware absence.
     run_check "bluetooth service active" "[ ! -d /sys/class/bluetooth ] || systemctl is-active --quiet bluetooth" "sudo systemctl enable --now bluetooth"
 
+    info "Snapshots"
+    # snapper only makes sense on btrfs -- on any other filesystem,
+    # skipping this (like the BT-hardware-absent check above) is
+    # correct, not a problem to report.
+    if [ "$(findmnt -no FSTYPE / 2>/dev/null)" = "btrfs" ]; then
+        run_check "snapper installed"    "command -v snapper" "pacman -S snapper snap-pac"
+        run_check "snapper 'root' config" "sudo -n snapper list-configs 2>/dev/null | grep -q '^root '" "spacbr repair (or spacbr install) to run setup_snapper -- or re-run 'spacbr doctor' just after using sudo for something else"
+        run_check "snapper timers enabled" "systemctl is-enabled --quiet snapper-timeline.timer && systemctl is-enabled --quiet snapper-cleanup.timer" "sudo systemctl enable --now snapper-timeline.timer snapper-cleanup.timer"
+    fi
+
     info "Hardware utilities"
     run_check "brightnessctl"       "command -v brightnessctl" "pacman -S brightnessctl"
     run_check "xrandr"              "command -v xrandr" "pacman -S xorg-xrandr"

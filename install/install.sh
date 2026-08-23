@@ -28,6 +28,7 @@ if [ "${1:-}" != "--yes" ]; then
     printf '  - build and install dwm, dmenu, st, dwmblocks, slock\n'
     printf '  - enable NetworkManager, bluetooth, and nftables\n'
     printf '  - enable a firewall (nftables): deny all inbound except SSH and ping, unrestricted outbound -- see system/nftables/nftables.conf\n'
+    printf '  - set up snapper (if root is btrfs): automatic snapshots before/after every pacman transaction, plus periodic timeline snapshots\n'
     printf '  - install a polkit rule so wheel-group reboot/suspend/poweroff (the power menu'\''s Reboot/Suspend/Shutdown) do not require a password\n'
     printf '  - set your login shell to zsh if it is not already (needed for .zshrc'\''s tty1 auto-startx)\n'
     printf '  - back up any existing files that differ, never delete anything\n\n'
@@ -42,6 +43,7 @@ deploy_nftables
 enable_system_services
 deploy_polkit_rules
 deploy_modules_load
+setup_snapper
 set_default_shell
 
 info "Validating installation"
