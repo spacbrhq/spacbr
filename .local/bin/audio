@@ -54,8 +54,14 @@ toggle_speaker_headphones() {
         $0 == "\t" target { insink=1 }
         insink && /^\tActive Port: / { sub(/^\tActive Port: /,""); print; exit }
     ')
-    speaker_port=$(printf '%s\n' "$ports" | awk -F': ' 'tolower($0) ~ /speaker/ {print $1; exit}')
+    # Match headphones by name; treat whatever the OTHER port is as the
+    # toggle target, whatever it's actually called -- "Speakers" on some
+    # hardware, but just as often "Line Out" or something else entirely.
+    # Verified against real hardware: this machine's non-headphone port
+    # is literally named "Line Out" (analog-output-lineout), which an
+    # earlier speaker-name-matching version would have missed entirely.
     headphone_port=$(printf '%s\n' "$ports" | awk -F': ' 'tolower($0) ~ /headphone|headset/ {print $1; exit}')
+    speaker_port=$(printf '%s\n' "$ports" | awk -F': ' -v hp="$headphone_port" '$1 != hp {print $1; exit}')
 
     if [ -n "$speaker_port" ] && [ -n "$headphone_port" ]; then
         if [ "$active_port" = "$speaker_port" ]; then
