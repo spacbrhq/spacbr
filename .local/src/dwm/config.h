@@ -109,6 +109,9 @@ static const Key keys[] = {
     { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+") },
     { 0,             XF86XK_AudioMute,         spawn,          SHCMD("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle") },
 	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle") },
+    { 0,             XF86XK_AudioPlay,        spawn,          SHCMD("playerctl play-pause") },
+    { 0,             XF86XK_AudioNext,        spawn,          SHCMD("playerctl next") },
+    { 0,             XF86XK_AudioPrev,        spawn,          SHCMD("playerctl previous") },
     /* -c backlight: verified for real on hardware with no screen
      * backlight -- brightnessctl's default device-autoselect fell
      * through to an unrelated keyboard "kana" indicator LED instead of
