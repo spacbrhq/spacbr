@@ -96,15 +96,70 @@ whole script. Watch specifically for:
   fail) needs to be in an `if`/`&&`/`||` context, not called bare — an
   unguarded bare call aborts before you get to look at the result.
 
-There's no CI and no real Arch machine in this environment — every
-install script here has been syntax-checked (`sh -n`) and manually
-traced for these `set -e` interactions, but not executed end-to-end.
-Treat that as the standing caveat until someone runs it for real.
+There's no CI. There has, however, been extensive real testing on
+actual Arch hardware (not a VM — a real machine, reinstalled clean
+specifically for this) covering install, update, repair, uninstall,
+every dmenu script, the release/bootstrap flow, and more. That testing
+is what actually caught most of the real bugs fixed in this repo's
+history — syntax-checking and manual `set -e` tracing alone would have
+missed all of them:
+
+- A dmenu crash from `free()`-ing a static string literal (only
+  reproduced via a real X session, `gdb` backtrace pinpointed it).
+- `install/functions/configs.sh`'s `deploy_tree`/`deploy_dotfiles`
+  clobbering their own `src` variable across calls (only visible from
+  actual corrupted deployed paths, not from reading the code).
+- `spacbr uninstall` deleting every wallpaper and the entire suckless
+  source tree because manifested paths are deleted unconditionally
+  (only found by actually running uninstall and checking what
+  survived).
+- `slock` silently unlocking itself on any X server without full DPMS
+  support, because `die()`-ing after the lock window was already
+  mapped tore down the X connection and released the grab (only
+  reproducible on a real headless X server missing that extension).
+- `release/bootstrap.sh`'s `curl | sh` flow aborting on its own
+  confirmation prompt every single time, because stdin is already
+  consumed by the pipe by the time `install.sh` tries to read from it
+  (only reproducible by actually piping the real script through `sh`
+  with a real pseudo-terminal).
+
+None of these are the kind of thing `sh -n` or a code read reliably
+catches. Treat "I traced the logic and it looks right" as necessary,
+not sufficient, for anything touching install/update/repair/uninstall,
+a Suckless component, or the release/bootstrap chain.
 
 ## Testing without wrecking your real system
 
-There isn't a sandboxed test harness for the installer yet. Until
-there is, the safest way to iterate is a disposable Arch VM or
-container — never run `install.sh`/`update.sh`/`repair.sh` against a
+The established approach: a dedicated Arch machine (real hardware or a
+VM) you're prepared to have modified — not your daily driver. A
+disposable Xvfb-based virtual display (`Xvfb :1 -screen 0
+1280x800x24`, `xrdb -merge`, then `dwmblocks`/`dwm`) on that machine
+lets you drive real dmenu scripts and take real screenshots
+(`import -window root`) without needing physical access to a monitor.
+`xdotool` can simulate keypresses/clicks into that display for
+end-to-end verification of anything interactive.
+
+A few sharp edges specific to remote/scripted testing, not to SPACBR
+itself:
+
+- Non-interactive SSH shells don't source `.zshrc`/the profile, so
+  `~/.local/bin` isn't on `$PATH` and XDG vars aren't set — either
+  source `~/.config/shell/profile` first or use full paths.
+- A backgrounded daemon (`cmd &`) still holds an SSH session open
+  because the child inherits the parent's stdout fd — use
+  `nohup cmd >/log 2>&1 </dev/null & disown`.
+- `pgrep`/`pkill` without `-x` match substrings against the whole
+  command line, not just the process name — `pgrep -la st` matches
+  `systemd`, `kworker/R-kstrp`, and anything else with "st" anywhere
+  in it. Use `-x` (exact name) or `-af`/`-la` and read the actual
+  output before concluding a process isn't running.
+- Some GUI apps (Zed among them) ship a thin CLI wrapper as one binary
+  name and the real, long-running process under a different one (e.g.
+  `/usr/bin/zeditor` hands off to `/usr/lib/zed/zed-editor`, which
+  keeps running via its own IPC socket) — `pkill -f <wrapper-name>`
+  silently does nothing to the real process. Check `ps aux` for what's
+  actually still alive before assuming a kill worked.
+
+Never run `install.sh`/`update.sh`/`repair.sh`/`uninstall.sh` against a
 machine you're not prepared to have modified, and always read the
-confirmation prompt `install.sh` prints before answering yes.
+confirmation prompt before answering yes.

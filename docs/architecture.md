@@ -34,6 +34,24 @@ owner or replace it — never run both. This has already come up once:
 Alacritty duplicating `st`, and `xscreensaver` duplicating `slock`,
 were both removed for exactly this reason.
 
+The one deliberate exception: Zed, alongside Neovim/Vim as "Editor."
+`nvim` stays the terminal/keyboard-driven editor matching this
+project's own keyboard → dmenu → action model; Zed exists specifically
+for GUI/mouse-driven work, not as a second silent owner of the same
+responsibility. `.config/zed/settings.json` keeps `vim_mode` off on
+purpose — a GUI editor running modal keybindings would defeat the
+reason it exists alongside `nvim` rather than instead of it. The
+difference from Alacritty/xscreensaver: those two did the *same* job
+as an existing owner and were removed; Zed does a genuinely different
+job (GUI-first vs. terminal-first) that the existing owner can't. If
+you're ever tempted to add another "exception" like this, that
+distinction — different job, not a nicer version of the same job — is
+the bar it has to clear. `nvim`'s own config additionally carries
+native LSP (`clangd`/`lua_ls`/`bash-language-server`, no plugin — built
+into Neovim core) and treesitter (the config's first and only plugin
+dependency, via a single `lazy.nvim` git-clone bootstrap, specifically
+because parser version management is genuinely painful without it).
+
 ## Interaction model
 
 ```
@@ -90,6 +108,22 @@ static image regardless of auth state — the INIT/INPUT/FAILED color
 feedback only ever applies as a fallback when screenshot capture
 fails, not layered on top of the blur.
 
+A separate, more serious bug was found in vanilla upstream `slock`
+itself, unrelated to the blur patch: `main()` draws the lock screen
+and grabs keyboard/pointer input *before* its DPMS setup block runs,
+but that block treated any DPMS failure as fatal (`die()` →
+`exit(1)`). Closing the X connection on exit makes the X server
+release every grab and destroy the lock windows as part of normal
+client-death cleanup — so on any X server without full DPMS support
+(verified for real on a headless X server with no DPMS extension at
+all), the screen would appear to lock and then silently unlock itself
+moments later, with zero indication anything went wrong. DPMS only
+ever controlled monitor auto-blanking while locked, never the actual
+lock/grab, so a missing or broken DPMS extension is now a warning, not
+a fatal error — the lock proceeds regardless, verified to actually
+stay locked indefinitely under the same conditions that used to defeat
+it within moments.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:
@@ -103,37 +137,89 @@ Everything shares one palette — internally called **denshichrome**:
 | Bright white | `#fafafa` |
 | Error / urgent | `#ed4737` |
 
-`.config/xresources` is the canonical definition. Three components read
+`.config/xresources` is the canonical definition. Four components read
 it **live, at runtime**, so they can never drift out of sync with it:
 
 - `dwm` — via the applied xrdb patch (`loadxrdb()`, bound to `MODKEY+F5`
   and SIGHUP)
 - `st` — via its applied xresources patch
 - `slock` — via its `ResourcePref` table
+- `nsxiv` — natively, no patch needed (see `nsxiv(1)`'s CONFIGURATION
+  section) — its `Nsxiv.*` keys live right next to `dwm.*` in
+  `.config/xresources`
 
-Everything else — `dmenu`, GTK (`gtk-2.0`/`3.0`/`4.0`), `mpv`, `dunst`,
-Vim/Neovim, Zathura — has these same hex values **hardcoded** and must
-be kept in sync by hand. This is a real gap, not a theoretical one:
-this repo has twice shipped actual drift from it — dwm's own compiled-in
-fallback colors didn't match the palette at all (meaning `MODKEY+p`,
-the single most-used keybinding, rendered `dmenu` in the wrong colors
-until this was caught), and GTK apps rendered in `Cantarell` while
-every other component used `Hack`. `spacbr doctor`'s "Visual system
-consistency" checks now catch both regressions automatically.
+`dmenu` deliberately carries its palette/font hardcoded in its own
+`config.h` instead — see the comment at the top of
+`.config/xresources` for why (it already reads Xresources for these
+exact keys via an applied patch, but the compiled-in fallback is the
+one place the values need to live, not two). GTK (`gtk-2.0`/`3.0`/
+`4.0`), `mpv`, `dunst`, Vim/Neovim, Zathura all have these same hex
+values **hardcoded** and must be kept in sync by hand. This is a real
+gap, not a theoretical one — this repo has shipped actual drift from
+it more than once, all caught only by testing on real hardware, not by
+reading the code:
+
+- dwm's own compiled-in fallback colors didn't match the palette at
+  all (meaning `MODKEY+p`, the single most-used keybinding, rendered
+  `dmenu` in the wrong colors until this was caught).
+- GTK apps rendered in `Cantarell` while every other component used
+  `Hack`.
+- `dunstrc` used deprecated legacy `height`/`offset` syntax (dunst
+  1.12+ warns about this; `width` had already been migrated to the
+  current tuple syntax, `height`/`offset` were just missed).
+- `nvim`/`vim`'s hand-rolled colorscheme used two colors
+  (`#2d3043`, `#1e2030`) that were never part of denshichrome at all —
+  close enough to a common third-party colorscheme's tones to suggest
+  leftover drift from a template, not a deliberate choice (confirmed
+  with the user).
+
+`spacbr doctor`'s "Visual system consistency" checks catch the
+mismatches above automatically where a check makes sense; the
+deprecated-syntax and off-palette-color classes don't have a
+mechanical check (there's no "is this the real palette" test that
+wouldn't just be re-implementing the palette table), so those rely on
+actually looking.
+
+A related, more severe failure mode: the entire GTK dark theme can
+vanish, not just drift. `arc-gtk-theme` (AUR) is the GTK theme every
+`gtk-2.0`/`3.0`/`4.0` config and `xinitrc`'s `GTK_THEME` assume, and
+its *published* AUR PKGBUILD doesn't build at all (it hardcodes GNOME
+Shell 43 theming against a source tarball whose asset layout doesn't
+match — verified via a real, reproducible `paru -S` failure). Fixed by
+vendoring a patched PKGBUILD (`packages/aur-overrides/arc-gtk-theme/`)
+that skips the broken, SPACBR-irrelevant GNOME Shell/Cinnamon build
+steps; see "Deployment model" below for how `aur-overrides/` works in
+general. The doctor's "GTK theme installed"
+check verifies `/usr/share/themes/Arc-Dark` actually exists on disk,
+independent of which path installed it, so a future regression here
+shows up as an actionable failure instead of a silent fallback to
+plain light GTK.
+
+Zed (see "One owner per responsibility" above for its editor-ownership
+status) doesn't hardcode palette values inline at all — it has its own
+full theme file,
+`.config/zed/themes/denshichrome.json`, since Zed's theme format is a
+JSON document Zed reads directly rather than a handful of `highlight`/
+`hi()` calls. Same palette, different mechanism; keep both in sync by
+hand the same way as everything else in the "hardcoded" group above.
 
 There's an unused, already-present patch
 (`.local/src/dmenu/patches/dmenu-xresources-4.9.diff`) that would move
-`dmenu` into the live-synced group like `dwm`/`st`/`slock`, eliminating
-this class of drift for it permanently. It doesn't apply cleanly
+`dmenu` fully into the live-synced group. It doesn't apply cleanly
 against the current `dmenu.c` (already modified by the fuzzy-match
-patch — 3 of 6 hunks fail) and hand-resolving a C patch with no way to
-compile-test the result on this machine was judged too risky to do
-blind. Worth revisiting once there's a real build environment to
-verify against.
+patch — 3 of 6 hunks fail), and hand-resolving a C patch was
+deliberately not done blind. A real build/test environment now exists
+(this repo has been built, run, and debugged live on real Arch
+hardware repeatedly — see `docs/development.md`), so "no way to
+compile-test" is no longer the blocker; this is simply not yet
+prioritized, and dmenu's own hardcoded values already match the
+palette exactly (verified, and checked by `spacbr doctor`).
 
 When you add a new themed component: hardcode the palette values
-above, note in a comment that they must track `.config/xresources`,
-and add a `spacbr doctor` check for it if drift would be easy to miss.
+above (or give it its own theme file if that's how it's configured,
+like Zed), note in a comment that they must track
+`.config/xresources`, and add a `spacbr doctor` check for it if drift
+would be easy to miss.
 
 ### Icons: deliberately none
 
@@ -152,11 +238,50 @@ The installer uses **managed copies, not symlinks**. `install/install.sh`
 copies `.config`/`.local` into the real `$HOME`, and copies `install/`,
 `packages/`, `docs/`, and friends into `$XDG_DATA_HOME/spacbr`. Once
 installed, the original git clone can be deleted — nothing on the
-running system points back at it. Every file SPACBR deploys is
-recorded in a manifest (`$XDG_STATE_HOME/spacbr/manifest`), which is
-what makes `spacbr uninstall` safe: it only ever removes paths that
-manifest lists, never packages, never anything it didn't put there
-itself.
+running system points back at it.
+
+Deployed files are recorded in a manifest
+(`$XDG_STATE_HOME/spacbr/manifest`), which is what `spacbr uninstall`
+removes — but **not every deployed file is manifested**, and that's
+deliberate, not an oversight. `.local/src/*` (the suckless source —
+the user's own live, rebuildable, potentially hand-patched copy, not
+disposable config) and `.local/share/backgrounds/*` (wallpapers —
+indistinguishable from ones the user added themselves once deployed)
+are still copied/updated normally but never tracked for later
+deletion. This was found the hard way: uninstall used to delete every
+manifested path unconditionally, which meant it deleted every
+wallpaper and the entire suckless source tree (`dwm.c`, `config.h`,
+the Makefiles) while leaving orphaned `.o` files and already-built
+binaries behind — and since slock's Makefile was among the deleted
+files, `sudo make uninstall` for slock had nothing to work with and
+silently failed, leaving its setuid binary behind while the installer
+still reported success. See `_should_not_manifest()` in
+`install/functions/configs.sh`.
+
+Two related, smaller deploy-time fixes worth knowing about:
+
+- `_should_skip()` (same file) filters macOS AppleDouble sidecar files
+  (`._*`) out of every deploy path. Found for real after `scp`-ing a
+  source tree from a Mac: they matched extension filters and sorted
+  ahead of real files, so `wallpaper`'s picker offered a `._cars.jpg`
+  as a candidate before `cars.jpg` itself, and they turned up inside
+  `$XDG_DATA_HOME/spacbr/install` too (`deploy_self`'s `cp -r` doesn't
+  go through `_should_skip()` at all, so it gets its own explicit
+  post-copy cleanup pass instead).
+- `packages/aur-overrides/<name>/` holds a vendored, SPACBR-patched
+  PKGBUILD for a package whose published AUR version doesn't build (or
+  needs a build-option change upstream won't take) — see
+  `arc-gtk-theme` above for why one exists today.
+  `install_aur_overrides()` in `install/functions/packages.sh` builds
+  these directly via `makepkg` in a scratch copy, independent of
+  whether `paru` itself is even installed. `install_aur_helper()` in
+  the same file bootstraps `paru` from source automatically (not
+  `paru-bin` — verified for real that the prebuilt binary was linked
+  against an older `libalpm` ABI than a current `pacman` ships, and
+  failed to even run) if a plain `packages/aur` entry or an override
+  needs it and it isn't present yet; failures here are non-fatal, same
+  as the rest of AUR handling (§43: supplementary, never a hard
+  dependency of the base desktop).
 
 See [`../install/`](../install/) and its inline comments for exactly
 how install/update/repair/uninstall work today.
@@ -181,6 +306,19 @@ see `release/README.md` for the exact domain-to-GitHub path mapping
 and what's still unwired (no release has been tagged yet, spacbr.com's
 DNS/hosting itself is outside this repo).
 
+This whole chain was verified for real end to end — genuine
+`curl -fsSL ... | sh` against a locally-served fake release, a real
+pseudo-terminal, full package install through to the final
+`spacbr doctor` — and it caught a bug that would have broken the
+documented one-line install for every single real user: by the time
+bootstrap.sh's final `exec sh install.sh` runs, stdin is the curl
+pipe, already at EOF, so `install.sh`'s "Continue? [y/N]" `read` got
+an empty reply and aborted immediately, every time. Fixed by
+reconnecting stdin to the real controlling terminal
+(`exec 0</dev/tty`) before the handoff, falling back to `--yes` only
+if there genuinely isn't one (piped through another script, no tty at
+all).
+
 Until a real release exists, `spacbr update`/`repair` without an
 explicit source directory can't fetch anything newer than what's
 already deployed — see the top of `install/update.sh`.
@@ -189,11 +327,11 @@ already deployed — see the top of `install/update.sh`.
 
 | Path | What |
 |---|---|
-| `.config/` | XDG configuration for everything except the Suckless tools (those keep their config in their own source tree, matching upstream convention) |
+| `.config/` | XDG configuration for everything except the Suckless tools (those keep their config in their own source tree, matching upstream convention). Includes `mimeapps.list` + `handlr/` (default-app associations — PDF → Zathura, http(s)/html → Firefox, audio/video/images → mpv/nsxiv via regex) and `zed/` (the GUI editor exception, see above) |
 | `.local/bin/` | User scripts — the dmenu-driven contextual interfaces, plus the `spacbr` CLI |
-| `.local/src/` | Suckless components built from source, with patches under each tool's `patches/` |
-| `.local/share/` | Backgrounds, gnupg config — user data SPACBR ships defaults for |
-| `packages/` | Curated pacman manifests: `base`, `x11`, `desktop`, `hardware`, `aur` |
+| `.local/src/` | Suckless components built from source, with patches under each tool's `patches/`. Deployed and updated normally but never manifested for uninstall — see "Deployment model" |
+| `.local/share/` | Backgrounds, gnupg config — user data SPACBR ships defaults for. Backgrounds specifically are also never manifested for uninstall, same reasoning |
+| `packages/` | Curated pacman manifests: `base`, `x11`, `desktop`, `hardware`, `aur`, plus `aur-overrides/<name>/` for a vendored PKGBUILD when a package's published AUR version needs one — see "Deployment model" |
 | `install/` | The installer and its shared `functions/` — deployed to end users |
 | `release/` | Maintainer-only: build/publish releases, the web bootstrap script — never deployed |
 | `docs/` | This directory |

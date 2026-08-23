@@ -27,10 +27,13 @@ and that one ever disagree, the config wins.
 | `XF86 Display` | Display layout menu (xrandr: auto/extend/mirror/external/internal) |
 | `XF86 Bluetooth` | Bluetooth menu (power/scan/connect/disconnect/remove) |
 
-Volume, mic mute, and brightness use the standard hardware keys
-(`XF86 AudioRaiseVolume`/`LowerVolume`/`Mute`/`MicMute`,
-`XF86 MonBrightnessUp`/`Down`) and don't go through dmenu — they're
-direct `wpctl`/`brightnessctl` calls.
+Volume, mic mute, brightness, and media transport use the standard
+hardware keys (`XF86 AudioRaiseVolume`/`LowerVolume`/`Mute`/`MicMute`,
+`XF86 MonBrightnessUp`/`Down`, `XF86 AudioPlay`/`AudioNext`/`AudioPrev`)
+and don't go through dmenu — they're direct `wpctl`/`brightnessctl`/
+`playerctl` calls. Brightness is scoped to `brightnessctl -c backlight`
+specifically, not the default (which auto-picks the first device in
+*any* class and can land on an unrelated LED instead of the screen).
 
 Every one of the scripts behind these bindings is also reachable as a
 plain command: `spacbr audio`, `spacbr bluetooth`, `spacbr display`,

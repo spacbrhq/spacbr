@@ -41,6 +41,14 @@ keyboard shortcut → dmenu → action
 | Bluetooth | BlueZ (`bluetoothctl`) |
 | Brightness | `brightnessctl` |
 | Display | `xrandr` |
+| Media | `mpv` + `playerctl` |
+| Documents | `Zathura` |
+| Images | `nsxiv` |
+| Browser | `Firefox` |
+| File manager | `PCManFM` |
+| Password manager | `pass` |
+| Default apps | `handlr-regex` |
+| Editor | `Neovim` / `Vim` (`Zed` for GUI/mouse-driven work — a documented exception, not a second owner) |
 
 Each of these has exactly one owner, by design — see
 [docs/architecture.md](docs/architecture.md#one-owner-per-responsibility)
@@ -50,9 +58,10 @@ for the reasoning behind it.
 
 One palette everywhere — **denshichrome**: `#2f343f` background,
 `#e1e3e7` foreground, `#404552` selection, `#4084d6` accent. `dwm`,
-`st`, and `slock` read it live from `.config/xresources`; `dmenu`,
-GTK, `mpv`, `dunst`, Vim/Neovim, and Zathura carry the same values
-hardcoded and are checked for drift by `spacbr doctor`. One monospace
+`st`, `slock`, and `nsxiv` read it live from `.config/xresources`;
+`dmenu`, GTK, `mpv`, `dunst`, Vim/Neovim, Zathura, and Zed (its own
+theme file) carry the same values hardcoded and are checked for drift
+by `spacbr doctor` where a mechanical check makes sense. One monospace
 face (`Hack`) across the terminal, the bar, the launcher, and GTK
 apps — no exceptions. See
 [docs/architecture.md](docs/architecture.md#visual-system) for the
@@ -65,7 +74,8 @@ full palette table and which components are which.
 .local/bin/     user scripts — the dmenu-driven contextual interfaces
 .local/src/     Suckless components, built from source (dwm, dmenu, st,
                 slock, dwmblocks) with their patches under patches/
-packages/       curated pacman package manifests (base, x11, desktop, hardware, aur)
+packages/       curated pacman package manifests (base, x11, desktop, hardware, aur,
+                aur-overrides/ for a vendored PKGBUILD when needed)
 install/        the installer (install/update/repair/uninstall) — deployed to end users
 release/        maintainer-only: build/publish versioned releases, the web bootstrap script
 system/         systemd/X11 integration
@@ -90,6 +100,7 @@ docs/           additional documentation
 | `MODKEY+Shift+W` | Wallpaper picker |
 | `XF86 Display` | Display management (xrandr) |
 | `XF86 Bluetooth` | Bluetooth menu |
+| `XF86 AudioPlay`/`AudioNext`/`AudioPrev` | Media transport (`playerctl`) |
 | `Print` | Screenshot |
 | `MODKEY+1..9` | Switch tag |
 

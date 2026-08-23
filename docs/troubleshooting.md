@@ -106,6 +106,25 @@ machine may differ from what's assumed here.
   happens, check `$TERMINAL` is actually exported (`echo $TERMINAL`
   should print `st`) — this was a real bug fixed early in the repo's
   history (see git log).
+- The block detects connectivity by finding whichever interface
+  carries the default route (`ip route show default`), not by
+  guessing from interface names. It used to match names against
+  `/^e/` ("ethernet"), which silently never matched WiFi interfaces
+  (`wlan0`, `wlp2s0`, ...) — a WiFi-only machine would have shown
+  "no eth" forever regardless of actual connectivity. If this ever
+  regresses, check `ip route show default` directly first.
+
+## Bluetooth menu hangs forever
+
+If there's no Bluetooth adapter, `bluetoothctl` has no `org.bluez`
+D-Bus service to talk to (systemd itself refuses to even start
+`bluetoothd` — `ConditionPathIsDirectory=/sys/class/bluetooth` fails)
+and blocks indefinitely instead of failing. `.local/bin/bluetooth`
+checks `/sys/class/bluetooth` exists before doing anything else and
+exits with a notification if not — same test `spacbr doctor`'s
+"bluetooth service active" check already uses. If this ever hangs
+again despite that check, something's wrong with the check itself, not
+just missing hardware.
 
 ## Bluetooth/display/wallpaper/power menus show nothing or error
 
@@ -114,6 +133,23 @@ These are dmenu front-ends over `bluetoothctl`/`xrandr`/`hsetroot`/
 problem — check the underlying tool works standalone first
 (`bluetoothctl show`, `xrandr --query`, etc.) before assuming the
 script is broken.
+
+## Opening a file (PDF, image, link) doesn't launch the app you expect
+
+Default-app associations go through `handlr-regex`, configured in
+`.config/mimeapps.list`. A regex catch-all like `^image/.*=nsxiv.desktop;`
+only wins when *no* installed `.desktop` file has a real, exact
+declared association for that specific mimetype — it's not a priority
+override. This was found for real: `zathura-pdf-mupdf.desktop` also
+declares `image/jpeg`/`png`/`bmp`/`tiff`/`svg+xml` (mupdf renders
+standalone images too) and Firefox declares `image/gif`/`webp` (inline
+image handling), so a plain `^image/.*` catch-all silently lost to
+both of them for exactly the formats you'd actually hit day to day.
+Check what's actually configured with `handlr get <mimetype>`
+(e.g. `handlr get image/jpeg`); if it's wrong, add an *exact* entry
+for that mimetype in `mimeapps.list` rather than assuming the regex
+line covers it — exact entries are what mimeapps.list actually gives
+override priority to.
 
 ## Installer/update/repair fails partway through
 
@@ -129,6 +165,17 @@ script is broken.
   deployed copy, can't refresh dotfile *content* — see the note at the
   top of `install/update.sh`. Point them at an updated clone instead:
   `spacbr update ~/spacbr`.
+- `spacbr repair` always re-syncs dotfiles from a real source directory
+  now, regardless of what `spacbr doctor`'s checks find. It didn't
+  used to: repair only attempted anything if some check had failed,
+  but none of the checks verify individual `.local/bin` scripts exist
+  (`wallpaper`, `audio`, `bluetooth`, ...) — deleting one and running
+  `spacbr repair ~/spacbr` reported "Nothing to repair" while doing
+  nothing, contradicting repair's own documented ability to restore
+  missing `.local/bin` content. If `spacbr repair` without a source
+  argument reports nothing to fix, that's real (nothing it can check
+  found anything wrong) — point it at a source directory if you
+  suspect a specific file went missing instead.
 
 ## Uninstalling didn't remove everything I expected
 
