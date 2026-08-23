@@ -46,6 +46,18 @@ Each of these has exactly one owner, by design — see
 [docs/architecture.md](docs/architecture.md#one-owner-per-responsibility)
 for the reasoning behind it.
 
+## Visual identity
+
+One palette everywhere — **denshichrome**: `#2f343f` background,
+`#e1e3e7` foreground, `#404552` selection, `#4084d6` accent. `dwm`,
+`st`, and `slock` read it live from `.config/xresources`; `dmenu`,
+GTK, `mpv`, `dunst`, Vim/Neovim, and Zathura carry the same values
+hardcoded and are checked for drift by `spacbr doctor`. One monospace
+face (`Hack`) across the terminal, the bar, the launcher, and GTK
+apps — no exceptions. See
+[docs/architecture.md](docs/architecture.md#visual-system) for the
+full palette table and which components are which.
+
 ## Repository layout
 
 ```

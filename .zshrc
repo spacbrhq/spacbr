@@ -27,5 +27,9 @@ _comp_options+=(globdots)
 # Syntax Highlighting
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
 
+# Startup banner — only inside an actual terminal window in the X
+# session, never at the raw tty1 login shell that's about to exec startx
+[ -n "$DISPLAY" ] && command -v fastfetch >/dev/null 2>&1 && fastfetch
+
 # Launch Xorg
 [ "$(tty)" = "/dev/tty1" ] && ! pidof -s Xorg >/dev/null 2>&1 && exec startx "$XINITRC"

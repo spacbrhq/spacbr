@@ -30,12 +30,16 @@ static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
 static const char *fonts[]          = { "Hack:size=10" };
 static const char dmenufont[]       = "Hack:size=10";
-static char normbgcolor[]           = "#222222";
-static char normbordercolor[]       = "#444444";
-static char normfgcolor[]           = "#bbbbbb";
-static char selfgcolor[]            = "#eeeeee";
-static char selbordercolor[]        = "#005577";
-static char selbgcolor[]            = "#005577";
+/* denshichrome palette — must match .config/xresources's dwm.* keys
+ * exactly: loadxrdb() overwrites these at runtime, but the compiled
+ * defaults should already match so there's no flash of the wrong
+ * theme before Xresources loads (or if it's ever missing). */
+static char normbgcolor[]           = "#2f343f";
+static char normbordercolor[]       = "#2f343f";
+static char normfgcolor[]           = "#e1e3e7";
+static char selfgcolor[]            = "#fafafa";
+static char selbordercolor[]        = "#404552";
+static char selbgcolor[]            = "#404552";
 static char *colors[][3] = {
        /*               fg           bg           border   */
        [SchemeNorm] = { normfgcolor, normbgcolor, normbordercolor },

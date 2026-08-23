@@ -50,6 +50,11 @@ run_all_checks() {
     run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"
     run_check "polkit agent"        "[ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ]" "pacman -S polkit-gnome"
 
+    info "Visual system consistency"
+    run_check "dwm colors match palette"   "grep -q '#2f343f' \"\$HOME/.local/src/dwm/config.h\" 2>/dev/null" "dwm/config.h's normbgcolor etc. should match .config/xresources's dwm.* keys"
+    run_check "dmenu colors match palette" "grep -q '#2f343f' \"\$HOME/.local/src/dmenu/config.h\" 2>/dev/null" "dmenu/config.h's SchemeNorm should match the same palette dwm/st/slock use"
+    run_check "GTK font unified"           "! grep -rq 'Cantarell' \"\$HOME/.config/gtk-2.0\" \"\$HOME/.config/gtk-3.0\" \"\$HOME/.config/gtk-4.0\" 2>/dev/null" "gtk-font-name should be Hack in all three gtk-*.0 configs, not the GTK default"
+
     info "XDG layout"
     run_check "~/.config exists"    "[ -d \"\$XDG_CONFIG_HOME\" ]" "mkdir -p ~/.config"
     run_check "~/.local/bin exists" "[ -d \"\$HOME/.local/bin\" ]" "mkdir -p ~/.local/bin"

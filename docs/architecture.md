@@ -54,6 +54,51 @@ The permanent UI (the dwmblocks bar) stays minimal on purpose — it
 shows state, not controls. Controls live behind the keyboard/dmenu
 layers so the desktop stays visually quiet.
 
+## Visual system
+
+Everything shares one palette — internally called **denshichrome**:
+
+| Role | Hex |
+|---|---|
+| Background | `#2f343f` |
+| Foreground | `#e1e3e7` |
+| Selection / border accent | `#404552` |
+| Bright accent (blue) | `#4084d6` |
+| Bright white | `#fafafa` |
+| Error / urgent | `#ed4737` |
+
+`.config/xresources` is the canonical definition. Three components read
+it **live, at runtime**, so they can never drift out of sync with it:
+
+- `dwm` — via the applied xrdb patch (`loadxrdb()`, bound to `MODKEY+F5`
+  and SIGHUP)
+- `st` — via its applied xresources patch
+- `slock` — via its `ResourcePref` table
+
+Everything else — `dmenu`, GTK (`gtk-2.0`/`3.0`/`4.0`), `mpv`, `dunst`,
+Vim/Neovim, Zathura — has these same hex values **hardcoded** and must
+be kept in sync by hand. This is a real gap, not a theoretical one:
+this repo has twice shipped actual drift from it — dwm's own compiled-in
+fallback colors didn't match the palette at all (meaning `MODKEY+p`,
+the single most-used keybinding, rendered `dmenu` in the wrong colors
+until this was caught), and GTK apps rendered in `Cantarell` while
+every other component used `Hack`. `spacbr doctor`'s "Visual system
+consistency" checks now catch both regressions automatically.
+
+There's an unused, already-present patch
+(`.local/src/dmenu/patches/dmenu-xresources-4.9.diff`) that would move
+`dmenu` into the live-synced group like `dwm`/`st`/`slock`, eliminating
+this class of drift for it permanently. It doesn't apply cleanly
+against the current `dmenu.c` (already modified by the fuzzy-match
+patch — 3 of 6 hunks fail) and hand-resolving a C patch with no way to
+compile-test the result on this machine was judged too risky to do
+blind. Worth revisiting once there's a real build environment to
+verify against.
+
+When you add a new themed component: hardcode the palette values
+above, note in a comment that they must track `.config/xresources`,
+and add a `spacbr doctor` check for it if drift would be easy to miss.
+
 ## Deployment model
 
 The installer uses **managed copies, not symlinks**. `install/install.sh`
@@ -83,11 +128,11 @@ that touches shared/public state, run manually, never automatically.
 `spacbr.com/install` redirects to `release/bootstrap.sh` (served raw
 from GitHub) — a small, auditable script that detects
 the platform, resolves a release, downloads and checksum-verifies it,
-then hands off to that release's own `install/install.sh`. See
-`release/README.md` for the exact domain-to-GitHub path mapping and
-what's still unwired (no release has been tagged yet, no GitHub
-remote is configured, spacbr.com's DNS/hosting itself is outside this
-repo).
+then hands off to that release's own `install/install.sh`. The repo
+itself is live at [github.com/spacbrhq/spacbr](https://github.com/spacbrhq/spacbr);
+see `release/README.md` for the exact domain-to-GitHub path mapping
+and what's still unwired (no release has been tagged yet, spacbr.com's
+DNS/hosting itself is outside this repo).
 
 Until a real release exists, `spacbr update`/`repair` without an
 explicit source directory can't fetch anything newer than what's
