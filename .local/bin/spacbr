@@ -27,6 +27,7 @@ spacbr — SPACBR management CLI
   spacbr display      xrandr layout menu
   spacbr wallpaper     set/next/previous/random wallpaper
   spacbr screenshot    full/window/region/color screenshot
+  spacbr record        full/region/window screen recording, with/without audio
   spacbr mirrors       refresh pacman mirrorlist via reflector
   spacbr power         lock/logout/suspend/reboot/shutdown menu
 EOF
@@ -47,6 +48,7 @@ case "${1:-}" in
     display)    shift; exec "$HOME/.local/bin/display" "$@" ;;
     wallpaper)  shift; exec "$HOME/.local/bin/wallpaper" "$@" ;;
     screenshot) shift; exec "$HOME/.local/bin/screenshot" "$@" ;;
+    record)     shift; exec "$HOME/.local/bin/record" "$@" ;;
     mirrors)    shift; exec "$HOME/.local/bin/mirrors" "$@" ;;
     power)      shift; exec "$HOME/.local/bin/power" "$@" ;;
     -h|--help|help|"") usage ;;

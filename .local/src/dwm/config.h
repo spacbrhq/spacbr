@@ -19,6 +19,7 @@
 #define CLIPMENU "clipmenu"
 #define DNSCTL "~/.local/bin/dns"
 #define MIRRORCTL "~/.local/bin/mirrors"
+#define RECORDCTL "~/.local/bin/record"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -99,6 +100,7 @@ static const Key keys[] = {
     { MODKEY,                       XK_o,      spawn,          SHCMD(PASSMENU) },
     { MODKEY,                       XK_c,      spawn,          SHCMD(CLIPMENU) },
     { 0,                            XK_Print,  spawn,          SHCMD(SCREENSHOT) },
+    { MODKEY|ShiftMask,             XK_r,      spawn,          SHCMD(RECORDCTL) },
 	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAYCTL) },
 	{ MODKEY|ShiftMask,             XK_l,      spawn,          SHCMD(LOCKSCREEN) },
 	{ 0, 			 XF86XK_ScreenSaver,	   spawn,	       SHCMD(LOCKSCREEN) },

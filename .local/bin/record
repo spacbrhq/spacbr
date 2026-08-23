@@ -1,0 +1,75 @@
+#!/bin/sh
+# dmenu-driven screen recording via ffmpeg (x11grab + pulse audio --
+# both already SPACBR dependencies, no new package needed). Toggle
+# behavior: run it once to start (picks what to record and whether to
+# include audio via two small dmenu prompts), run it again while
+# recording to stop and save -- no menu needed for that, there's only
+# one sensible action.
+#
+# SIGINT, not SIGKILL/SIGTERM: ffmpeg needs to see it to write a valid
+# moov atom and finalize the mp4 cleanly. A killed-outright recording
+# is usually an unplayable, truncated file.
+
+OUTDIR="$HOME/Videos"
+mkdir -p "$OUTDIR"
+PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.pid"
+LOGFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.log"
+
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Record" "$1"
+}
+
+# Toggle off: already recording, so this invocation means "stop".
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    kill -INT "$(cat "$PIDFILE")"
+    rm -f "$PIDFILE"
+    notify "Recording stopped and saved to $OUTDIR"
+    exit 0
+fi
+
+target=$(printf '%s\n' "Full screen" "Region" "Window" | dmenu -p "record")
+[ -z "$target" ] && exit 0
+
+audio=$(printf '%s\n' "No audio" "Microphone" "System audio" | dmenu -p "audio")
+[ -z "$audio" ] && exit 0
+
+case "$target" in
+    "Full screen")
+        set -- $(xdotool getdisplaygeometry)
+        video_opts="-video_size $1x$2 -i $DISPLAY"
+        ;;
+    "Region")
+        set -- $(slop -f "%x %y %w %h" 2>/dev/null) || exit 1
+        video_opts="-video_size ${3}x${4} -i ${DISPLAY}+${1},${2}"
+        ;;
+    "Window")
+        win="$(xdotool getactivewindow)"
+        eval "$(xdotool getwindowgeometry --shell "$win")"
+        video_opts="-video_size ${WIDTH}x${HEIGHT} -i ${DISPLAY}+${X},${Y}"
+        ;;
+esac
+
+case "$audio" in
+    "Microphone")
+        audio_opts="-f pulse -i default"
+        ;;
+    "System audio")
+        sink="$(pactl get-default-sink 2>/dev/null)"
+        [ -z "$sink" ] && { notify "No default audio sink found"; exit 1; }
+        audio_opts="-f pulse -i ${sink}.monitor"
+        ;;
+    "No audio")
+        audio_opts=""
+        ;;
+esac
+
+file="$OUTDIR/$(date +%Y%m%d_%H%M%S).mp4"
+
+# shellcheck disable=SC2086
+ffmpeg -y -f x11grab -framerate 30 $video_opts $audio_opts \
+    -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
+    ${audio_opts:+-c:a aac} "$file" >"$LOGFILE" 2>&1 &
+echo $! > "$PIDFILE"
+disown
+
+notify "Recording started: $target, $audio — run again to stop"

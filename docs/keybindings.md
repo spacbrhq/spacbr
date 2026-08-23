@@ -27,6 +27,7 @@ and that one ever disagree, the config wins.
 | `MODKEY+Shift+N` | DNS server picker (DHCP/Cloudflare/Google/Quad9/custom) |
 | `MODKEY+Shift+M` | Pacman mirrorlist refresh (reflector, worldwide or by country) |
 | `MODKEY+Shift+C` | Color picker (region select, hex value to clipboard + notification) |
+| `MODKEY+Shift+R` | Screen recording — full/region/window, with/without audio. Run again while recording to stop and save |
 | `XF86 Display` | Display layout menu (xrandr: auto/extend/mirror/external/internal) |
 | `XF86 Bluetooth` | Bluetooth menu (power/scan/connect/disconnect/remove) |
 
@@ -44,7 +45,7 @@ not the class-less default, which can land on an unrelated LED.
 Every one of the scripts behind these bindings is also reachable as a
 plain command: `spacbr audio`, `spacbr bluetooth`, `spacbr display`,
 `spacbr wallpaper`, `spacbr power`, `spacbr screenshot`, `spacbr network`,
-`spacbr dns`, `spacbr mirrors`.
+`spacbr dns`, `spacbr mirrors`, `spacbr record`.
 
 ## Window management
 
