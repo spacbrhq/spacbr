@@ -35,12 +35,12 @@ if [ -n "$eth_iface" ]; then
             fi
         fi
         read -r netstatus < "$cache" 2>/dev/null
-        [ "$netstatus" = 'online' ] && ethericon=" online" || ethericon=" offline"
+        [ "$netstatus" = 'online' ] && ethericon="online" || ethericon="offline"
     else
-        ethericon=" disconnected"
+        ethericon="disconnected"
     fi
 else
-    ethericon=" no eth"
+    ethericon="no eth"
 fi
 
 printf "%s\n" "$ethericon"

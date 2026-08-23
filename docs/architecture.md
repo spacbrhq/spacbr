@@ -99,6 +99,17 @@ When you add a new themed component: hardcode the palette values
 above, note in a comment that they must track `.config/xresources`,
 and add a `spacbr doctor` check for it if drift would be easy to miss.
 
+### Icons: deliberately none
+
+The dwmblocks bar uses short text labels (`Mem: `, `Net: `, `Bat: `),
+not pictographic icons. This was a considered decision, not an
+oversight: plain `Hack` only ships Powerline separator/branch/lock
+glyphs, not network/volume/battery icons — getting real icons would
+mean adding `ttf-hack-nerd` as a new font dependency, which cuts
+against CLAUDE.md's repeated "avoid excessive icons" guidance (§4,
+§16, §75). If this is ever revisited, it's a deliberate trade-off to
+make explicitly, not something to silently "fix" back in.
+
 ## Deployment model
 
 The installer uses **managed copies, not symlinks**. `install/install.sh`
