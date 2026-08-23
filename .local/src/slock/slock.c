@@ -445,8 +445,6 @@ lockscreen(Display *dpy, struct xrandr *rr, int screen)
 				XRRSelectInput(dpy, lock->win, RRScreenChangeNotifyMask);
 
 			XSelectInput(dpy, lock->root, SubstructureNotifyMask);
-			unsigned int opacity = (unsigned int)(alpha * 0xffffffff);
-			XChangeProperty(dpy, lock->win, XInternAtom(dpy, "_NET_WM_WINDOW_OPACITY", False), XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&opacity, 1L);
 			XSync(dpy, False);
 			return lock;
 		}
@@ -626,6 +624,17 @@ main(int argc, char **argv) {
 				}
 			}
 #endif
+
+			/* Darken on top of the blur/pixelation (see config.h's
+			 * dimAlpha for why blur alone isn't sufficient). Blend
+			 * mode is required for the alpha channel of the fill
+			 * color to actually mix with the image instead of
+			 * replacing it outright. */
+			if (dimAlpha > 0) {
+				imlib_context_set_blend(1);
+				imlib_context_set_color(0, 0, 0, dimAlpha);
+				imlib_image_fill_rectangle(0, 0, scr->width, scr->height);
+			}
 		}
 	}
 

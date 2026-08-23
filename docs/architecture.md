@@ -124,6 +124,51 @@ a fatal error — the lock proceeds regardless, verified to actually
 stay locked indefinitely under the same conditions that used to defeat
 it within moments.
 
+A third bug, found for real rather than by inspection, made the lock
+screen show the *live* desktop instead of the static blurred snapshot
+under `picom` (running with `detect-client-opacity = true`, needed for
+its own reasons — see `.config/picom/picom.conf`): the upstream alpha
+patch this config also carried set `_NET_WM_WINDOW_OPACITY` on the lock
+window to a configurable `alpha` (`0.9` by default). That patch was
+designed for a translucent *solid color* tint over nothing on a plain
+VT — it predates this repo's blur patch, which gives the window a real
+screenshot as its background instead of a solid color. Combining the
+two meant picom kept compositing 10% of the real, still-updating
+desktop back on top of the static blurred image for as long as the
+screen stayed locked. Proven with a fullscreen `mpv` test pattern:
+locking, waiting 3 seconds, and diffing two screenshots showed the
+video's motion had continued underneath — the desktop was still
+playing, not just weakly blurred. Bumping `alpha` to `1.0` to "fully
+opaque" made it *worse*: `xprop` showed the resulting property was
+`0` (fully invisible), because `alpha * 0xffffffff` was computed in
+32-bit `float` precision (`alpha`'s declared type) and float's 24-bit
+mantissa can't represent `0xffffffff` exactly — it rounds up to `2^32`,
+one past `unsigned int`'s range, so the cast back to `unsigned int` was
+undefined behavior that this compiler resolved to `0`. There is no
+value of that expression that reaches genuine full opacity; the fix
+was to delete the opacity mechanism outright rather than tune it —
+`slock`'s window is a normal, fully opaque X11 window by default once
+nothing sets `_NET_WM_WINDOW_OPACITY` on it at all, which is exactly
+what a screenshot-backed lock screen needs.
+
+Once that leak was gone, the original `blurRadius = 5` from the
+adapted patch turned out to be undersized on its own too — a box blur
+only softens edges, so any region wider than the radius (a solid
+terminal background, a large flat color) stays essentially untouched
+in its interior. `config.h` now blurs at `blurRadius = 16` and layers
+a `dimAlpha = 210` (~82%) black overlay on top via
+`imlib_image_fill_rectangle` with blending enabled, baked into the
+same captured image before it ever becomes the window background.
+Verified against real desktop content (a terminal full of `ls -la`
+output): fully illegible. Verified against a SMPTE color-bar test
+pattern (deliberately adversarial — large, fully-saturated, flat-color
+regions are close to a worst case for any blur+darken scheme, since
+proportional darkening preserves relative contrast and hue): still
+faintly distinguishable at the color-bar boundaries. Real
+desktop/video content isn't built from edge-to-edge saturated primary
+colors, so this is treated as an accepted, documented limit rather
+than tuned further at the cost of a much darker default lock screen.
+
 ## Visual system
 
 Everything shares one palette — internally called **denshichrome**:
