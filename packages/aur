@@ -70,6 +70,26 @@ mpdris2-rs
 # setup_mpd() in services.sh, conditional on mpd being installed at
 # all like everything else that function does.
 
+brave-origin-nightly-bin
+helium-browser-bin
+zen-browser-bin
+# Explicitly requested, so treated the same way localsend's own entry
+# above already explains: previously excluded (see the "considered and
+# left out" list below) as three more browsers competing with
+# Firefox's "Browser" ownership (§7) -- that reasoning is a default,
+# not a lock, and doesn't apply once someone's actually asked for
+# these specifically. Firefox stays the one thing dwm/dmenu/xdg-mime
+# etc. actually wire up as the default browser (same "one thing owns
+# the default, alternatives are just available" shape as Zed alongside
+# Neovim, or alacritty alongside st) -- these three are launched like
+# any other app through the dmenu launcher (MODKEY+p), not given
+# dedicated keybindings or made the xdg default. All three confirmed
+# present in the AUR as of 2026-08-25 (brave-origin-nightly-bin
+# 1.96.10-1, helium-browser-bin 0.15.7.1-1, zen-browser-bin 1.21.15b-1)
+# -- re-check they still exist if this is ever revisited; -bin AUR
+# packages for fast-moving browsers churn names/maintainers more than
+# most.
+
 # --- Considered from your previous AUR list and deliberately left out ---
 #
 # clipmenu-git     — turned out clipmenu is an OFFICIAL package now
@@ -84,9 +104,6 @@ mpdris2-rs
 # arc-icon-theme   — competes with the already-chosen Papirus-Dark
 #                     icon set; Arc-Dark (the GTK *theme*) is kept,
 #                     its matching icon set is not.
-# brave-origin-nightly-bin, helium-browser-bin, zen-browser-bin
-#                  — three more browsers; Firefox already owns
-#                     "Browser" (§7). One owner per responsibility.
 # session-desktop-bin
 #                  — a messaging app outside SPACBR's defined
 #                     capability list (§44), same reasoning that
