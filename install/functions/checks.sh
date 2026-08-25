@@ -29,10 +29,23 @@ run_all_checks() {
     run_check "multilib enabled"     "pacman-conf --repo-list 2>/dev/null | grep -qx multilib" "spacbr repair (or spacbr install) to deploy system/pacman/pacman.conf, which enables [multilib]"
 
     info "Suckless components"
-    run_check "dwm"                 "command -v dwm" "cd .local/src/dwm && make && make install"
-    run_check "dmenu"               "command -v dmenu" "cd .local/src/dmenu && make && make install"
-    run_check "st"                  "command -v st" "cd .local/src/st && make && make install"
-    run_check "dwmblocks"           "command -v dwmblocks" "cd .local/src/blocks && make && make install"
+    # Checked against the exact ~/.local/bin/<name> path SPACBR installs
+    # to, not a bare `command -v` -- found for real that `command -v`
+    # alone is both a false negative (this script's own shell process
+    # never re-sources the profile that puts ~/.local/bin on PATH, so
+    # it can't find a binary that's genuinely there) and a false
+    # positive (clipmenu, a real SPACBR package, depends on the
+    # official `dmenu` package, so a plain `command -v dmenu` happily
+    # finds the vanilla unpatched /usr/bin/dmenu and reports success
+    # even if the SPACBR-patched ~/.local/src/dmenu build had actually
+    # failed). slock is the one exception, checked separately below --
+    # it deliberately installs to /usr/local/bin, not ~/.local/bin, so
+    # its setuid-root bit survives even on a system where /home is
+    # mounted nosuid.
+    run_check "dwm"                 "[ -x \"\$HOME/.local/bin/dwm\" ]" "cd .local/src/dwm && make && make install"
+    run_check "dmenu"               "[ -x \"\$HOME/.local/bin/dmenu\" ]" "cd .local/src/dmenu && make && make install"
+    run_check "st"                  "[ -x \"\$HOME/.local/bin/st\" ]" "cd .local/src/st && make && make install"
+    run_check "dwmblocks"           "[ -x \"\$HOME/.local/bin/dwmblocks\" ]" "cd .local/src/blocks && make && make install"
     run_check "slock"               "command -v slock" "cd .local/src/slock && make && sudo make install"
     run_check "slock is setuid"     "[ -u \"\$(command -v slock)\" ]" "sudo chmod u+s \$(command -v slock)"
 

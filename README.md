@@ -151,12 +151,14 @@ password; see `docs/architecture.md`'s "Live installer" section for
 why that distinction matters and how the handoff actually works.) See
 [`install/live-install.sh`](install/live-install.sh)'s own header
 comment before running it: it's a genuinely destructive, one-way
-operation (it erases the disk you point it at), it only supports a
+operation (it erases the disk you point it at), and it only supports a
 single-disk UEFI + Limine setup (no LVM/RAID/encryption/GRUB — use
-`archinstall` itself for those), and **it has not been run
-start-to-finish against real hardware** — built by directly reading
-`archinstall`'s own source for the proven patterns, but test it in a
-disposable VM before trusting it on a real machine.
+`archinstall` itself for those). It **has** now been run start to
+finish against real hardware, immediately followed by `install.sh`
+completing on the resulting fresh boot — see the CHANGELOG's "First
+full end-to-end validation" entry — but it's still young; a disposable
+VM run first is a reasonable extra precaution if the target machine
+matters to you.
 
 **Already have Arch installed** (via `archinstall`, manually, or the
 step above)? **Read [`docs/prerequisites.md`](docs/prerequisites.md)
@@ -190,28 +192,30 @@ it's structured that way.
 
 ## Status
 
-Early, but real-hardware tested. In place and verified live against an
-actual Arch machine — not just read from code: the visual system,
+Early, but real-hardware tested — including the full boot-to-desktop
+path, not just individual pieces read from code. `install/live-install.sh`
+has now been run start to finish against real hardware (wipe a disk,
+partition, base install, reboot into it), followed immediately by
+`install/install.sh` completing on that same fresh machine
+(`✓ SPACBR installed.`), with the result confirmed genuine afterward —
+all five Suckless binaries (`dwm`/`dmenu`/`st`/`dwmblocks`/`slock`)
+resolving to their correct SPACBR-built locations in a real interactive
+login, not just a closing message taken on faith. Everything else
+already verified live before that still stands: the visual system,
 Suckless patches, dmenu contextual scripts, package manifests, the
 `spacbr` CLI, and the full install/update/repair/doctor pipeline,
 including the firewall, `pacman.conf`, CPU microcode, GPU drivers, the
 maintenance timers, and NetBird. The release tooling
 (`release/build.sh`/`publish.sh`/`bootstrap.sh`) is build-tested
 against this repo's own HEAD with output verified, but not used for a
-real release yet. `install/live-install.sh` (the from-scratch live-ISO
-installer) is the one exception to "verified live" — see its own
-header comment and `docs/architecture.md`'s "Live installer" section
-for why, and test it in a disposable VM before real hardware.
+real release yet.
 
-Not yet done: no release has actually been tagged/published, no GitHub
-remote is configured, and spacbr.com's actual DNS/hosting isn't wired
-up — see `release/README.md` for the exact remaining steps. Until a
-release exists, `spacbr update`/`repair` without an explicit source
-directory can't fetch anything newer than what's already deployed —
-see the note at the top of `install/update.sh` — and
-`live-install.sh`'s default repo URL (`github.com/spacbrhq/spacbr`)
-needs overriding at its own prompt if that remote isn't live yet. See
-`VERSION` for the current release.
+Not yet done: no release has actually been tagged/published, and
+spacbr.com's actual DNS/hosting isn't wired up — see `release/README.md`
+for the exact remaining steps. Until a release exists,
+`spacbr update`/`repair` without an explicit source directory can't
+fetch anything newer than what's already deployed — see the note at
+the top of `install/update.sh`. See `VERSION` for the current release.
 
 ## License
 

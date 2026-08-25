@@ -8,6 +8,38 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### First full end-to-end validation of the two-phase system (2026-08-25)
+
+After the fifth real bug's fix (sudo keep-alive) was pushed and pulled
+onto the test machine, re-ran `install/install.sh` and it completed
+start to finish: `✓ SPACBR installed.` This is the first time
+`live-install.sh` (boot → disk → base system → reboot) and
+`install.sh` (first login → full desktop) have both actually run to
+completion, back to back, against real hardware — not just
+individually verified pieces. Confirmed the result is real, not just
+the closing message: all five Suckless binaries resolve to the
+correct build in a genuine interactive login shell (`dwm`, `dmenu`,
+`st`, `dwmblocks` at `~/.local/bin/`; `slock` at `/usr/local/bin/`,
+correctly outside `~/.local/bin` since it needs its setuid bit to
+survive a `nosuid`-mounted `/home`).
+
+While chasing why the closing `run_all_checks` reported `dwm`/`st`/
+`dwmblocks` as failing despite the build log showing all five as
+successfully built and installed, found and fixed a real bug in the
+checks themselves, not the build: `run_check "dwm" "command -v dwm"`
+(and the same pattern for `dmenu`/`st`/`dwmblocks`) is both a false
+negative — `install.sh`'s own shell process never re-sources the
+profile it just deployed, so `~/.local/bin` isn't on `$PATH` for that
+check even when the binary is genuinely there — and, more seriously,
+a false *positive* for `dmenu` specifically: `clipmenu` (a real
+SPACBR package) depends on the official `dmenu` package, so a bare
+`command -v dmenu` happily finds the vanilla, unpatched
+`/usr/bin/dmenu` and reports success even if the SPACBR-patched
+`~/.local/src/dmenu` build had actually failed. Fixed by checking the
+exact `~/.local/bin/<name>` path directly for `dwm`/`dmenu`/`st`/
+`dwmblocks`, leaving `slock`'s check as `command -v` since it
+deliberately installs elsewhere.
+
 ### Fifth real bug: sudo's cached credential expires mid AUR-build (2026-08-25)
 
 Same live-fire run, further along: `install/install.sh` reached
