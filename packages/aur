@@ -30,7 +30,18 @@ localsend
 # longer applies here specifically (the general "don't add apps
 # speculatively" principle still does everywhere else).
 
-netbird
+netbird-bin
+# -bin, not source: verified for real (2026-08-25) that netbird-bin
+# was exactly version-matched with the source package (0.77.1-1) --
+# unlike localsend-bin above, which was genuinely behind. Building
+# netbird from source is a multi-minute Go compile (a large dependency
+# tree resolved fresh from proxy.golang.org every time); a version-
+# matched -bin skips all of that for zero real cost right now. Same
+# caveat as always with any -bin package though: nothing guarantees it
+# stays in sync the way localsend-bin didn't -- re-check
+# `paru -Si netbird-bin` against the source package's version if this
+# is ever revisited, don't just assume this holds forever.
+#
 # Mesh VPN, replacing tailscale (which was an official package,
 # packages/base). Not available officially -- confirmed not in
 # core/extra/multilib as of 2026-08-25, AUR-only. WireGuard-based like
