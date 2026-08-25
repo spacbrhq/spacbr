@@ -70,7 +70,11 @@ One palette everywhere — **eightchrome** (by eightharsh): `#2f343f` background
 theme file) carry the same values hardcoded and are checked for drift
 by `spacbr doctor` where a mechanical check makes sense. One monospace
 face (`Hack`) across the terminal, the bar, the launcher, and GTK
-apps — no exceptions. See
+apps, with one deliberate exception: the Plymouth boot splash's
+wordmark uses Rajdhani Bold (`system/plymouth/spacbr/`) as an identity
+mark, not interface text — everything else on that same screen,
+including its progress indicator and password prompt, is still Hack.
+See
 [docs/architecture.md](docs/architecture.md#visual-system) for the
 full palette table and which components are which.
 
@@ -137,27 +141,33 @@ connect to the network, then:
 curl -fsSL https://raw.githubusercontent.com/spacbrhq/spacbr/main/install/live-install.sh | sh
 ```
 
-That partitions the disk (EFI + btrfs, no subvolume — matches a real
-`archinstall` reference config, see `docs/architecture.md`), installs
-a minimal bootable Arch base — both `linux` and `linux-lts`, Limine as
-the bootloader (Unified Kernel Images, installed to the removable EFI
+That partitions the disk (EFI System Partition, unencrypted, + a
+LUKS2-encrypted btrfs root, no subvolume — matches a real `archinstall`
+reference config for the layout itself, see `docs/architecture.md`),
+asks you to set a disk-encryption passphrase, installs a minimal
+bootable Arch base — both `linux` and `linux-lts`, Limine as the
+bootloader (Unified Kernel Images, installed to the removable EFI
 path), Plymouth, NTP, mirrors set to Japan/South Korea over HTTPS —
-creates your user with sudo, and clones this repo into it. **Reboot,
-log in with your normal password once, and the rest happens on its
-own**: a first-login bootstrap runs the real installer below
-automatically and starts `dwm` when it's done — no second command to
-remember or type. (Not tty auto-login — every boot still needs a real
-password; see `docs/architecture.md`'s "Live installer" section for
-why that distinction matters and how the handoff actually works.) See
+creates your user, and clones this repo into it. **Reboot, enter that
+passphrase once when Plymouth asks for it, and the rest happens on its
+own**: you're auto-logged in, a first-login bootstrap runs the real
+installer below automatically, and `dwm` starts when it's done — no
+second command, and no second password (see `docs/architecture.md`'s
+"Boot & authentication" section for the full flow and why one
+passphrase is genuinely this system's only authentication, not a
+security shortcut). See
 [`install/live-install.sh`](install/live-install.sh)'s own header
 comment before running it: it's a genuinely destructive, one-way
 operation (it erases the disk you point it at), and it only supports a
-single-disk UEFI + Limine setup (no LVM/RAID/encryption/GRUB — use
-`archinstall` itself for those). It **has** now been run start to
-finish against real hardware, immediately followed by `install.sh`
-completing on the resulting fresh boot — see the CHANGELOG's "First
-full end-to-end validation" entry — but it's still young; a disposable
-VM run first is a reasonable extra precaution if the target machine
+single-disk UEFI + Limine + LUKS2 setup (no LVM/RAID/GRUB — use
+`archinstall` itself for those). **Not yet verified end-to-end on real
+hardware in its current, LUKS2-encrypted form** — an earlier,
+unencrypted version of this script was, but the disk-encryption
+rewrite is new and hasn't had its own real boot test yet (see
+`docs/architecture.md`'s "Boot & authentication" section for a real,
+named, unresolved risk worth knowing about before trusting this on
+hardware that matters). A disposable VM run first is a reasonable
+extra precaution if the target machine
 matters to you.
 
 **Already have Arch installed** (via `archinstall`, manually, or the

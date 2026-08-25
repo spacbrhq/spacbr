@@ -8,6 +8,437 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Real boot-loop risk found and fixed in the new autologin flow (2026-08-25)
+
+Bug-hunt pass over the LUKS2/autologin rewrite just below, specifically
+looking for anything that would break the "one password, nothing else
+to type, feels like one system" promise that whole rewrite was built
+around.
+
+**Real bug, not theoretical**: `.zshrc`'s first-boot trigger ran
+`install/install.sh` but never checked whether it actually succeeded
+before falling through to `exec startx`. Under the old `ly`-based
+design, a failure here just meant landing back at `ly`'s password
+prompt -- a natural pause point where a person would notice something
+was wrong. With no login screen at all now, a failure (no network,
+say) would still fall through to `exec startx`, which would *also*
+fail (Xorg isn't installed if `install.sh` never got that far), ending
+the tty1 session -- which `agetty --autologin` just respawns, into the
+exact same failure, forever, with nothing ever asking anyone to look
+at it. Fixed: `.zshrc` now checks `install.sh`'s real exit status and
+stays at a plain interactive shell (with the actual error still on
+screen) instead of trying to start X on a failed install.
+
+**Real inconsistency, not cosmetic**: every message about this first
+login -- `live-install.sh`'s own confirmation text, `README.md`,
+`docs/architecture.md`, all written earlier the same day -- promised
+"one passphrase, nothing else to type." `install.sh` itself, called
+with no arguments, prints its own "This will: ... Continue?"
+confirmation and blocks on it. `.zshrc`'s trigger (like `ly`'s
+`spacbr-login` before it) never passed `--yes`, so the very first real
+run of this flow would have silently broken that promise, asking a
+second question nothing else in the design ever mentioned. Fixed by
+passing `--yes` from the first-boot trigger specifically -- manual
+runs (`spacbr update`/`repair`, a plain re-run) still confirm as
+before; only the fully-automated first-boot path skips it, since the
+user already agreed to all of this at `live-install.sh`'s own, far more
+thorough, confirmation.
+
+**Gap, not a bug**: `spacbr doctor` had no visibility at all into
+whether the new boot/auth chain was actually configured correctly --
+no check for the autologin drop-in, for `getty@tty1` being enabled, or
+(when root is actually LUKS2-encrypted) for `sd-encrypt`/`plymouth`
+still being in `mkinitcpio`'s `HOOKS`. Added a "Boot & authentication"
+section to `run_all_checks` (`install/functions/checks.sh`) covering
+all three -- the LUKS-specific ones only fire when `lsblk` actually
+reports the root device as `crypt`, the same "not applicable, not a
+failure" shape the existing btrfs-only snapper checks already use, so
+this doesn't misfire against a plain, unencrypted Arch box running
+`spacbr repair` standalone.
+
+**Cosmetic, but real for "feels like one system"**: `.config/xinitrc`'s
+own `PATH` prepend still carried an elaborate justification specific to
+a bug in `ly`'s own PATH-handling -- accurate history, but confusing to
+read now that `ly` doesn't exist anywhere else in this repo. Rewrote it
+to explain why the line stays (defensive default, not caller-specific)
+without a dangling reference to a component that's gone.
+
+### LUKS2 full-disk encryption, Plymouth unlock prompt, ly removed for autologin (2026-08-25)
+
+Asked directly for a real architecture change: one password total, at
+disk-unlock time, gated by LUKS2 and shown through Plymouth, instead of
+today's two (a currently-nonexistent LUKS prompt plus `ly`'s login).
+Confirmed with the user before writing anything: `ly` is removed
+entirely (not kept as a fallback — the entries just below this one
+describe work that's now superseded, not contradicted), and this pass
+is installer-only, not run against the live test machine (LUKS2 means
+converting the root partition, which needs a real wipe+reinstall, not
+an in-place fix like every other change this session).
+
+Researched the actual mechanism before writing anything (ArchWiki
+fetched live, not recalled): `HOOKS=(base systemd autodetect microcode
+modconf kms keyboard sd-vconsole plymouth block sd-encrypt filesystems
+fsck)` -- combining two separately-cited rules (systemd hook before
+plymouth; plymouth before sd-encrypt) -- and
+`rd.luks.name=<LUKS-UUID>=cryptroot root=/dev/mapper/cryptroot` on the
+kernel cmdline (`sd-encrypt`'s own addressing, replacing
+`root=PARTUUID=...`). Limine needs zero changes: it only ever loads a
+UKI from the unencrypted ESP by path, confirmed against ArchWiki's own
+UKI page. `Plymouth.SetDisplayPasswordFunction` (already built earlier
+this session, before there was any LUKS2 to exercise it) is
+architecturally the right, generic callback for this.
+
+**Real, named, unresolved risk found and not resolved**: ArchWiki's
+own Plymouth troubleshooting section documents a script-module theme's
+password prompt possibly not visually *updating* when mkinitcpio uses
+the systemd hook family -- exactly SPACBR's combination, since
+`sd-encrypt` requires that hook family unconditionally. No clean fix is
+documented anywhere found. Only a real boot test (not part of this
+pass) can confirm whether this actually affects
+`system/plymouth/spacbr/spacbr.script`.
+
+Found and fixed a real sequencing gap along the way: `.zshrc`'s tty1
+`exec startx` line only ever ran because `ly`'s "Xinitrc" session type
+called it -- with `ly` gone, the *shell itself* has to pick this up,
+but `live-install.sh` created users with `-s /bin/bash` (zsh wasn't
+pacstrapped until Phase 2), so the very first autologin would have
+dropped into a shell that never sources `.zshrc` at all. Fixed by
+pacstrapping `zsh` in Phase 1, creating the user with `-s /bin/zsh`
+directly, and having Phase 1 hand-place `.zshrc` +
+`.config/shell/{profile,aliasrc}` into the new home directory before
+Phase 2 ever runs -- the same "has to already work on the first login"
+treatment `ly`'s own `spacbr-login` got before it.
+
+Removed: `system/ly/` entirely (`config.ini`, `spacbr-login`,
+`spacbr.dur`, `make-dur.py` -- including the `.dur`-file wallpaper
+rendition from the entry just below, now dead weight since nothing
+renders `.dur` files without `ly`), the `ly` package from `packages/x11`
+and Phase 1's pacstrap line, `deploy_ly_config()`.
+
+Added: `system/autologin/tty1-autologin.conf` (a `getty@tty1.service`
+drop-in template, `agetty --autologin`, `Type=simple` +
+`Environment=XDG_SESSION_TYPE=x11` per ArchWiki's specific guidance for
+the X-autostart case), `deploy_autologin()`
+(`install/functions/system.sh`), LUKS2 partitioning/`cryptsetup`
+handling in `live-install.sh` (passphrase never touches a variable, log
+line, or `set -x` -- both `cryptsetup luksFormat`/`open` prompt on the
+real terminal natively, the same way `read_password` already does for
+the root/user account passwords).
+
+Docs: added a "Boot & authentication" section to
+`docs/architecture.md` (the flow, every sourced fact, and the open
+Plymouth risk, in one place); corrected several now-stale claims found
+while updating it (an old "the installer doesn't set up LUKS, this is
+for completeness" note, an old explicit "deliberately not auto-login"
+security argument that no longer holds once LUKS2 exists, a stale
+"validated end-to-end on real hardware" claim in `README.md` that no
+longer describes this now-rewritten script).
+
+### ly now shows the same wallpaper too, via a .dur file (2026-08-25)
+
+Follow-up to the entry just below this one, which said ly's screen "is
+*not* the real problem -- it's a TUI, physically incapable of
+displaying a photo... not something to chase further." That's still
+true of a literal raster image, but not the whole story: ly ships its
+own `.dur` animation format (`animation = dur_file` in
+`system/ly/config.ini`, already had `full_color = true` set from
+before) that can render a per-cell 256-color grid, which `full_color`
+expands to real 24-bit RGB. That's enough to show an actual, if blocky,
+likeness of the same photo Limine/Plymouth already show -- not a
+placeholder animation.
+
+Built `system/ly/make-dur.py` to generate `system/ly/spacbr.dur` from
+`waves.jpg`: downsamples to the real terminal grid (200x56, confirmed
+via a `TIOCGWINSZ` ioctl against `/dev/tty1` on the test machine, not
+guessed -- earlier logs had conflictingly shown both 200x56 and 80x25
+at different points, the latter turned out to be a stale pre-KMS
+reading), quantizes each cell to the nearest xterm-256 color, and uses
+the half-block trick (`▄`, independent fg/bg per cell) to double the
+effective resolution to 200x112 for free.
+
+Treated this as a real crash-risk change, not just cosmetic: ly's own
+`DurFile.init` is called with `try` and no fallback in its `main.zig`,
+so a malformed `.dur` file doesn't mean "blank background," it means ly
+fails to start on tty1 at all -- same severity class as the two other
+real `ly` config bugs already hit this session. Verified the schema
+two ways before touching the live config: checked it field-for-field
+against `src/animations/DurFile.zig` (formatVersion must be exactly 7,
+colorFormat only ever "16" or "256" despite durdraw's own docs
+mentioning "RGB"), and diffed structure against `/etc/ly/example.dur`,
+the known-good file the `ly` package itself ships. Then load-tested for
+real on a spare VT (`openvt -c 4 -s -- ly-dm --config <scratch dir>`)
+and confirmed a clean startup log with no dur-related errors and the
+process still running, before ever pointing tty1's real config at it.
+
+`install/functions/system.sh`'s `deploy_ly_config()` and
+`install/live-install.sh`'s Phase 1 ly block both now also deploy
+`spacbr.dur` to `/etc/ly/spacbr.dur` alongside `config.ini` and
+`spacbr-login` -- Phase 1 needs it too, since ly (with `animation =
+dur_file` already set) runs and must succeed before Phase 2 is ever
+reached.
+
+### Desktop wallpaper now closes the loop with Limine/Plymouth's photo (2026-08-25)
+
+Asked directly: make Limine -> Plymouth -> ly -> desktop feel like one
+system, not several stitched together. The single biggest actual break
+turned out to be the desktop itself -- Limine and Plymouth already
+shared one wallpaper photo, but `.config/xinitrc` fell back to a
+completely unrelated image (`the-backwater.jpg`) the moment dwm
+started, undoing the continuity right at the moment it matters most
+(the first thing visible after actually logging in). `ly`'s own screen
+was *not* the real problem -- it's a TUI (termbox2-based), physically
+incapable of displaying a photo; that's an inherent constraint of the
+tool, not something to chase further, and its colors already match
+eightchrome.
+
+Fixed: `xinitrc`'s fallback wallpaper is now `waves.jpg` (the same
+photo, not forced over an actual manual pick via
+`.local/bin/wallpaper` -- that still always wins once made). Also moved
+the wallpaper line earlier (before `dwmblocks`/`picom` start) and
+removed its trailing `&`: backgrounded and this late, dwm's own bar
+and borders could render before `hsetroot` finished painting the root
+window, a visible flash of plain black first. Verified the file itself
+reaches the machine correctly (it had only ever been added to the
+repo, never actually synced to this test machine's live
+`~/.local/share/backgrounds/`) and updated this machine's existing
+wallpaper state file (an earlier manual pick, `the-backwater.jpg`) to
+`waves.jpg` so the fix is actually visible on the next login, not
+masked by state left over from before this fix existed.
+
+### ly sessions failed instantly: its own `path` setting has no ~/.local/bin (2026-08-25)
+
+Reported live: pick a session in ly, enter the password, see a brief
+flash, land right back at ly's login screen. Confirmed against ly's
+actual auth.zig source (not guessed): `initEnv` calls
+`setEnvironmentVariable(..., "PATH", path, true)` -- an unconditional
+*overwrite* of the whole session's PATH, not a prepend -- using
+`config.ini`'s `path` setting, which defaults to a fixed system-only
+list (`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`)
+with no `~/.local/bin` in it at all. dwm, st, and dwmblocks all live in
+`~/.local/bin` (confirmed on this repo's own test machine); `dbus-
+launch dwm` at the bottom of `.config/xinitrc` couldn't find dwm,
+exited almost instantly, and xinit tore the whole session back down --
+exactly the observed symptom. (dmenu turned out to have a second,
+unrelated wrinkle on this specific test machine: a stray non-SPACBR
+`dmenu` package at `/usr/bin/dmenu`, already on the default PATH --
+harmless once `~/.local/bin` is prepended *first*, since SPACBR's own
+patched build then correctly wins, but worth knowing about if dwm ever
+looks like it's running the wrong dmenu.)
+
+Fixed in `.config/xinitrc` itself, not `ly`'s config: added `PATH="
+$HOME/.local/bin:$PATH"` right at the top, before anything else runs.
+Deliberately not just an `ly` config fix -- xinitrc is the script
+actually responsible for finding these binaries regardless of how it
+was invoked (ly, or a plain manual `startx ~/.config/xinitrc`), so
+fixing it there covers both. Verified for real: simulated ly's exact
+PATH and confirmed dwm/dmenu/st/dwmblocks/slock all resolve correctly
+with the fix in place (slock alone was already fine -- it installs to
+`/usr/local/bin`, already on ly's default path, for its own setuid-root
+reasons). Not yet verified through an actual successful login with the
+fix deployed -- that still needs to happen for real.
+
+### Orphaned picom pegged a CPU core at 100% after a session ended (2026-08-25)
+
+Found live while testing ly for the first time: after a real login->
+logout cycle, `picom` was still running -- reparented to PID 1 (its
+parent, Xorg, had already exited), pinned at 100% CPU indefinitely,
+with `clipmenud` also orphaned alongside it (not CPU-heavy, but the
+same underlying gap). Root cause: `.config/xinitrc` backgrounds several
+helpers (`dwmblocks &`, `picom &`, `clipmenud &`, the polkit agent,
+`hsetroot &`, `xss-lock &`) and never had anything that killed them
+when the session ended -- it relied entirely on each one noticing its
+X connection died and exiting on its own. picom apparently doesn't do
+that reliably; whatever its own bug is, xinitrc shouldn't depend on
+every backgrounded helper handling a dead X connection gracefully to
+avoid leaking a runaway process.
+
+Fixed by no longer `exec`-ing the final `dbus-launch dwm` (the one line
+in this file that was exec'd) and adding `trap 'kill $(jobs -p)
+2>/dev/null' EXIT` before it instead -- keeps the script itself alive
+as dwm's parent so the trap actually gets a chance to run once dwm
+exits, for any reason (normal logout, a crash, or X dying out from
+under it), and kills every backgrounded job this shell still knows
+about. Verified for real: killed the actual runaway PID by hand to
+stop the immediate CPU drain, confirmed no other orphans were left
+(`ps aux` clean, load average back to normal), then deployed the fix to
+both the running system's live `~/.config/xinitrc` and the repo clone.
+Not yet verified end-to-end through a fresh login/logout cycle with the
+fix in place (needs a real login attempt, same as the ly work that
+surfaced this in the first place) -- confirm this doesn't regress next
+time ly is exercised for real.
+
+### Plymouth back, sharing Limine's wallpaper, with real password-prompt support (2026-08-25)
+
+Brought back after being fully removed earlier the same day -- this
+time built to actually share the boot chain's new visual identity
+instead of standing apart from it. `system/plymouth/spacbr/wallpaper.jpg`
+is the same file as Limine's (copied, not symlinked -- Plymouth's
+`Image()` loads relative to the theme's own `ImageDir`), including the
+same baked-in eightchrome header panel, scaled to cover the screen
+using Plymouth's own official example script's aspect-ratio-aware
+scale/crop pattern. `packages/aur-overrides/ttf-rajdhani` and
+`deploy_plymouth_theme()` (`install/functions/system.sh`) are both
+back, recreated identically to before removal.
+
+New this time: real password-prompt support via
+`Plymouth.SetDisplayPasswordFunction` -- signature `(prompt, bullets)`
+confirmed against Plymouth's actual source
+(`script_lib_plymouth_on_display_password`'s call site), not assumed.
+Shows the real prompt text plus a row of accent-colored `●` dots (one
+per character typed), Hack Bold, redrawn on every keystroke.
+Previously left out on purpose ("the existing installer doesn't set up
+LUKS" -- still true; this is for completeness, not a new encryption
+requirement). Verified: a full boot with this code present runs
+error-free start to finish (`journalctl -b 0` clean, fonts/script/
+wallpaper all confirmed byte-identical inside the actual UKI). **Not
+verified**: what the password dialog actually looks like on screen --
+this repo's test machine has no encrypted volume to trigger it, and
+manually forcing it via `plymouthd`/VT manipulation was deliberately
+not attempted (real risk to the physical console for a research
+check, not worth it on someone's actual test hardware).
+
+### Two-layer wallpaper legibility, inspired by a KaOS Limine screenshot (2026-08-25)
+
+Shown a KaOS theme screenshot with a translucent header panel over its
+own wallpaper -- checked `CONFIG.md` again for a "panel"/"box"
+directive first rather than assume one exists: there isn't one, so
+that panel has to be baked directly into KaOS's own wallpaper image,
+not something Limine renders live. Replicated the technique with our
+own photo instead of copying their colors: `system/limine/wallpaper.jpg`
+now has a soft eightchrome-toned gradient (smoothstep fade, not a hard
+edge) baked into its own top ~46-60%, generated with Pillow, positioned
+to land under `interface_branding`/help text/the menu at this repo's
+`term_margin`. With that panel already handling the legibility-critical
+region, the *live* `term_background` overlay dropped from `TT=50` to a
+much lighter `TT=90` -- confirmed by re-sampling that the baked panel
+alone already brings the photo's brightest band close to eightchrome-bg
+tone, so the wave texture below it (never a legibility problem --
+nothing renders text there) stays visibly richer than the old
+single-layer uniform darken allowed. Verified for real: rebooted the
+test machine clean at 15s with both layers deployed.
+
+### Fixed: Limine wallpaper path resolved from the wrong root (2026-08-25)
+
+The wallpaper added earlier the same day never actually rendered --
+`wallpaper: boot():/wallpaper.jpg` with the file placed next to
+`limine.conf` at `/EFI/BOOT/wallpaper.jpg`. Confirmed against
+`CONFIG.md`: `boot():/...` resolves from the ESP *partition root*, not
+from `limine.conf`'s own directory -- the exact same reason the UKI
+entries already say `boot():/EFI/Linux/arch-*.efi` in full rather than
+a bare filename. Everything else (colors, text, entries) rendered
+correctly the whole time, which is consistent with this: a missing
+wallpaper file just gets silently skipped, not treated as an error.
+Fixed to `boot():/EFI/BOOT/wallpaper.jpg`, matching where the file
+actually lives. First suspected a JPEG-decoder metadata problem
+(stripped EXIF/Photoshop segments, re-encoded clean) before finding the
+real cause -- that re-encode wasn't wrong to do, just wasn't why it
+was failing.
+
+### Limine wallpaper + version number (2026-08-25)
+
+Added `system/limine/wallpaper.jpg` (a moody grey-blue ocean photo,
+supplied directly, not sourced by Claude) as the boot menu's actual
+background — the one deliberate exception to "no images" in the boot
+chain, made on explicit request with a specific asset provided, not
+introduced unprompted. Two real decisions, not just dropping the file
+in: shrunk from a 5504x3072 original to 2560px wide (~5MB -> ~1.3MB,
+`sips -Z 2560`) so Limine's UEFI-firmware image decoder doesn't fight
+the fast-boot work from earlier rounds; `term_background` set to
+`502f343f` (TT=`50`) rather than the wallpaper-mode default of `80`,
+computed after actually sampling the photo's own top 20% (RGB
+178,185,193 -- bright fog, exactly where the branding/help text
+renders) to make sure text stays legible against this specific image,
+not a generic guess. `interface_branding` now also shows the real
+version (`SPACBR 0.1.0`, read from `VERSION`, same convention
+`checks.sh`'s `spacbr version` already uses). Both the wallpaper file
+and `VERSION` are read relative to `live-install.sh`'s own location
+with a graceful fallback (plain-color config, hardcoded "0.1.0") if
+either isn't found -- never a broken image reference. Verified for
+real on the test machine: rebooted clean at 15s with the wallpaper and
+version both live. The same original photo (full resolution this time)
+was also added to `.local/share/backgrounds/` for the desktop wallpaper
+rotation.
+
+### Removed Plymouth entirely (2026-08-25)
+
+Built, themed across several redesigns (eightchrome colors, a Hack
+Bold wordmark, then a Rajdhani Bold one with its own
+`packages/aur-overrides/ttf-rajdhani` override for the font, a
+block-character then a thin-rule progress indicator), tested for real
+on this repo's own test machine every step -- and never actually landed
+as something that looked right for this system, through repeated
+rounds of feedback. Taken back out rather than kept as an unloved
+feature: `plymouth` dropped from `live-install.sh`'s pacstrap list and
+its `HOOKS`/kernel-cmdline (`quiet splash`) wiring, `deploy_plymouth_theme()`
+removed from `install/functions/system.sh` (and its call from
+`install.sh`), `system/plymouth/spacbr/` and
+`packages/aur-overrides/ttf-rajdhani/` deleted outright. Boot now shows
+plain kernel/systemd text -- no splash of any kind, not a blank screen
+standing in for one. Limine's own theming (colors, margin, the
+fallback UKI entry) is untouched; none of that was ever Plymouth's.
+
+### Reverted the branded slock message (2026-08-25)
+
+The two-line `"SPACBR\nEnter password to unlock"` from the same day's
+welcome-notification work didn't land well -- back to plain "Enter
+password to unlock". Unlike the welcome notification (a genuine
+one-time event), the lock screen is seen many times a day, every day;
+"no branding for its own sake" is the right default there after all.
+Rebuilt and reinstalled for real on the test machine to confirm.
+
+### One-time welcome notification and a branded slock message (2026-08-25)
+
+Speeding up the boot experience (Limine `timeout: 3`, a quick Plymouth
+fade) surfaced a real gap: with those fast, SPACBR otherwise never
+says its own name anywhere a user is likely to see unprompted --
+`fastfetch`'s banner only fires inside a terminal someone chose to
+open, not at the tty1→`startx` handoff (deliberately, per its own
+comment), and `slock` showed purely functional text with zero
+branding. Fixed without adding a permanent widget or slowing anything
+down: `install.sh` marks `$XDG_STATE_HOME/spacbr/welcome-pending`
+exactly once, only on a genuinely fresh install (checked via
+`$SPACBR_MANIFEST`'s absence, not on every `update`/`repair` re-run);
+`.config/xinitrc` consumes that marker right before dwm starts and
+fires one `notify-send` pointing at `MODKEY+p` -- dwm's whole
+`keyboard shortcut -> dmenu -> action` model has no other on-screen
+hint anywhere. `slock`'s message is now `"SPACBR\nEnter password to
+unlock"` instead of just the second line -- the one screen seen many
+times a day that had no branding at all. Rebuilt and installed for
+real on this repo's own test machine to confirm it compiles clean.
+
+### Boot experience redesign (Plymouth + Limine) and a self-review pass (2026-08-25)
+
+Reworked the Plymouth splash and `limine.conf` theming (eightchrome
+colors, a Rajdhani Bold wordmark, a real fallback UKI surfaced as its
+own `SPACBR (fallback)` boot entry) and, once asked to review the work
+for bugs, found and fixed three real ones instead of declaring it done
+on first pass:
+
+- `deploy_plymouth_theme()` (`install/functions/system.sh`) used a bare
+  `for name in spacbr.plymouth spacbr.script` loop variable with no
+  `local` — every other `deploy_*` function in the same file already
+  declares its loop vars `local`; this one didn't, meaning `name` would
+  leak into whatever ran next in the same `install.sh` shell process.
+  Confirmed via an isolated test invoking the real function (not a
+  hand-copy of its steps) that `name` is unset in the caller afterward
+  with the fix in place.
+- The same function checked whether Plymouth's hook was enabled with
+  `grep -q '\bplymouth\b' /etc/mkinitcpio.conf` — a whole-file match
+  that could false-positive on the word "plymouth" appearing in an
+  unrelated comment. Anchored to the actual `HOOKS=(...)` line instead,
+  matching the precision `live-install.sh` itself already uses when
+  inserting the hook.
+- `live-install.sh`'s own pre-wipe confirmation screen (`About to:`) had
+  drifted out of date mid-session: it still said "Plymouth (fade-in
+  theme)" after the theme was moved to Phase 2 for real (Rajdhani isn't
+  installed until then) — a user reading that screen before a
+  destructive disk-wipe would've been told something false about what
+  was about to happen. Fixed, and added a line about the new fallback
+  UKI while at it, plus a line in `install.sh`'s own confirmation
+  mentioning `packages/aur-overrides/*` gets built locally (was already
+  true for `arc-gtk-theme`, undocumented there too — more worth
+  surfacing now that a second override, `ttf-rajdhani`, does the same).
+
 ### Sixth real bug: arc-gtk-theme's override build has no PGP key imported (2026-08-25)
 
 Found while investigating the same live run's `spacbr repair` output:

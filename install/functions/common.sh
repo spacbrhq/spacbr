@@ -19,13 +19,25 @@ mkdir -p "$SPACBR_STATE"
 
 BACKUP_DIR="$SPACBR_STATE/backups/$(date +%Y%m%d-%H%M%S)"
 
-_color() { [ -t 1 ] && printf '\033[%sm' "$1" || true; }
+# True-color eightchrome (by eightharsh), not generic 16-color ANSI --
+# same "38;2;R;G;B" truecolor sequence .config/fastfetch/config.jsonc
+# already uses for this exact palette. accent #4084d6 (info), green
+# color2 #9bcf4f (ok), yellow color3 #f6d13a (warn), red color1 #ed4737
+# == the "Error / urgent" role in docs/architecture.md's palette table
+# (error/die). Keep these four triples in sync with .config/xresources
+# by hand.
+_color() { [ -t 1 ] && printf '\033[38;2;%sm' "$1" || true; }
 _reset() { [ -t 1 ] && printf '\033[0m' || true; }
 
-info()  { printf '%s %s\n' "$(_color 36)::$(_reset)" "$*"; }
-ok()    { printf '%s %s\n' "$(_color 32)✓$(_reset)" "$*"; }
-warn()  { printf '%s %s\n' "$(_color 33)!$(_reset)" "$*" >&2; }
-error() { printf '%s %s\n' "$(_color 31)✗$(_reset)" "$*" >&2; }
+info()  { printf '%s %s\n' "$(_color '64;132;214')::$(_reset)" "$*"; }
+ok()    { printf '%s %s\n' "$(_color '155;207;79')✓$(_reset)" "$*"; }
+warn()  { printf '%s %s\n' "$(_color '246;209;58')!$(_reset)" "$*" >&2; }
+error() { printf '%s %s\n' "$(_color '237;71;55')✗$(_reset)" "$*" >&2; }
+
+# banner -- small text wordmark, no ASCII art (CLAUDE.md SS81: "not
+# from giant logos, excessive branding"). Same accent color as the
+# fastfetch "SPACBR" module and dwm/dmenu/st's own accent.
+banner() { [ -t 1 ] && printf '\n%sSPACBR%s\n\n' "$(_color '64;132;214')" "$(_reset)"; }
 
 die() {
     error "$*"

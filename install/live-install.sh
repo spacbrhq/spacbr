@@ -4,8 +4,10 @@
 # installer UX (answer a handful of questions, confirm once clearly,
 # then it does everything) but deliberately does NOT try to be a
 # general-purpose installer the way archinstall is -- no LVM, no RAID,
-# no disk-encryption, no partition-layout customization, no profile
-# menu. One disk, one layout, one opinionated configuration. SPACBR is
+# no partition-layout customization, no profile menu. One disk, one
+# layout, one opinionated configuration -- including LUKS2 full-disk
+# encryption on root, always on, not a checkbox (see the "Boot &
+# authentication" section of docs/architecture.md). SPACBR is
 # an opinionated personal system (CLAUDE.md SS1); this is the
 # opinionated personal installer to match. If you need something this
 # script doesn't do, use archinstall (or a manual install) to get a
@@ -14,13 +16,19 @@
 #
 # TWO-PHASE MODEL, same "tiny bootstrap -> real installer" shape this
 # repo already uses for release/bootstrap.sh:
-#   Phase 1 (this script, live ISO, as root): partition, format,
-#     mount, pacstrap a minimal base system, configure just enough to
-#     boot and log in, clone this repo into the new user's home.
+#   Phase 1 (this script, live ISO, as root): partition (LUKS2-encrypted
+#     root), format, mount, pacstrap a minimal base system, configure
+#     just enough to boot and reach a desktop automatically, clone this
+#     repo into the new user's home.
 #   Phase 2 (install/install.sh, after rebooting into the new system,
 #     as that user): everything SPACBR actually is -- packages,
 #     dotfiles, Suckless builds, dmenu scripts, services, CPU
 #     microcode, GPU drivers, maintenance timers.
+#
+# Unlike most of this file, disk encryption is NOT "no customization" --
+# SPACBR is opinionated about *whether* (always, full-disk LUKS2 root),
+# not about LVM/RAID/multi-volume layouts, which stay genuinely out of
+# scope the same as the rest of this header already says.
 #
 # This script deliberately does NOT try to run install.sh itself
 # inside the arch-chroot here. It can't: install.sh enables services
@@ -41,17 +49,37 @@
 #     specific, deliberately narrow country selection -- not "closest
 #     to me", which this script has no reliable way to determine on
 #     a live ISO anyway).
-#   - Disk: single disk, GPT, 1GiB EFI System Partition + btrfs for
+#   - Disk: single disk, GPT, 1GiB EFI System Partition (unencrypted,
+#     Limine + the UKIs live here) + a LUKS2-encrypted btrfs root for
 #     everything else, mounted directly (no subvolume -- matches
 #     archinstall's own default_layout exactly, verified against a
-#     real user_configuration.json). No swap partition -- zram instead
-#     (zstd compression), matching archinstall's own current default.
+#     real user_configuration.json, just with a LUKS2 container between
+#     the partition and the filesystem now). No swap partition -- zram
+#     instead (zstd compression), matching archinstall's own current
+#     default.
 #   - Bootloader: Limine, UEFI, Unified Kernel Images, installed to
 #     the *removable* EFI path (EFI/BOOT/BOOTX64.EFI) rather than a
 #     machine-specific NVRAM boot entry -- more portable, survives a
-#     NVRAM reset, no efibootmgr entry to go stale.
+#     NVRAM reset, no efibootmgr entry to go stale. Limine itself needs
+#     zero LUKS-aware configuration: it only ever loads a UKI from the
+#     unencrypted ESP by path, decryption is entirely initramfs-side
+#     (confirmed against ArchWiki's own UKI page).
 #   - Kernels: linux AND linux-lts, each gets its own UKI/boot entry.
-#   - Plymouth: enabled, wired into mkinitcpio's HOOKS.
+#   - Plymouth: enabled, wired into mkinitcpio's HOOKS (with sd-encrypt,
+#     not just cosmetically) -- shares Limine's wallpaper, and shows
+#     the LUKS2 unlock password prompt itself
+#     (system/plymouth/spacbr/spacbr.script's SetDisplayPasswordFunction)
+#     instead of a plain console prompt. See CHANGELOG.md for the full
+#     history (removed once, brought back, now doing real authentication
+#     work, not just a splash).
+#   - Login: no display manager, no second password. The LUKS2
+#     passphrase (entered once, at Plymouth, during early boot) is the
+#     only password this system ever asks for -- systemd auto-logs the
+#     one SPACBR user in on tty1 afterward (system/autologin/), whose
+#     .zshrc runs install/install.sh on its very first invocation
+#     (same "one login, nothing else to type" contract the old
+#     .bash_profile-based bootstrap and, later, ly's login_cmd both
+#     had -- only the mechanism keeps changing) and then execs startx.
 #   - NTP: systemd-timesyncd enabled.
 #   - Timezone: prompted, defaults to Asia/Kolkata.
 #   - Root password + a real sudo user, both prompted.
@@ -70,18 +98,32 @@
 
 set -eu
 
+# This script's own directory -- used wherever this file reads content
+# relative to itself (system/autologin/, .zshrc, system/limine/
+# wallpaper.jpg, VERSION) rather than assuming the repo is cloned onto
+# the *target* yet (it
+# isn't, at this point in Phase 1) or embedding that content inline.
+# Works whether this script is run standalone or from a real local
+# clone (see docs/prerequisites.md) -- degrades gracefully at each
+# individual use site if a given file isn't actually there.
+SPACBR_ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
 # ---------------------------------------------------------------------
 # Self-contained helpers (common.sh doesn't exist yet -- this repo
 # isn't cloned until Phase 1 finishes)
 # ---------------------------------------------------------------------
 
-_color() { [ -t 1 ] && printf '\033[%sm' "$1" || true; }
+# True-color eightchrome (by eightharsh) -- kept in sync with
+# install/functions/common.sh's copy of these same four color triples
+# (and .config/xresources) by hand.
+_color() { [ -t 1 ] && printf '\033[38;2;%sm' "$1" || true; }
 _reset() { [ -t 1 ] && printf '\033[0m' || true; }
-info()   { printf '%s %s\n' "$(_color 36)::$(_reset)" "$*"; }
-ok()     { printf '%s %s\n' "$(_color 32)✓$(_reset)" "$*"; }
-warn()   { printf '%s %s\n' "$(_color 33)!$(_reset)" "$*" >&2; }
-error()  { printf '%s %s\n' "$(_color 31)✗$(_reset)" "$*" >&2; }
+info()   { printf '%s %s\n' "$(_color '64;132;214')::$(_reset)" "$*"; }
+ok()     { printf '%s %s\n' "$(_color '155;207;79')✓$(_reset)" "$*"; }
+warn()   { printf '%s %s\n' "$(_color '246;209;58')!$(_reset)" "$*" >&2; }
+error()  { printf '%s %s\n' "$(_color '237;71;55')✗$(_reset)" "$*" >&2; }
 die()    { error "$*"; exit 1; }
+banner() { [ -t 1 ] && printf '\n%sSPACBR%s\n\n' "$(_color '64;132;214')" "$(_reset)"; }
 
 confirm() {
     printf '%s [y/N] ' "$1"
@@ -162,6 +204,7 @@ fi
 
 command -v sgdisk >/dev/null 2>&1 || die "sgdisk not found (gptfdisk) -- this shouldn't happen on the stock Arch ISO. Is this actually the Arch live ISO?"
 command -v pacstrap >/dev/null 2>&1 || die "pacstrap not found (arch-install-scripts) -- this shouldn't happen on the stock Arch ISO."
+command -v cryptsetup >/dev/null 2>&1 || die "cryptsetup not found -- this shouldn't happen on the stock Arch ISO (it ships cryptsetup by default for exactly this kind of install). Is this actually the Arch live ISO?"
 
 info "Checking network connectivity..."
 if ! curl -fsS --max-time 5 -o /dev/null https://archlinux.org 2>/dev/null; then
@@ -185,7 +228,8 @@ KERNELS="linux linux-lts"
 # runs until the final confirmation after this whole section
 # ---------------------------------------------------------------------
 
-printf '\n%s\n\n' "SPACBR live installer -- Phase 1 (disk, base system, bootloader)"
+banner
+printf '%s\n\n' "SPACBR live installer -- Phase 1 (disk, base system, bootloader)"
 
 info "Available disks:"
 lsblk -dpno NAME,SIZE,MODEL,TYPE | awk '$4=="disk"{ $4=""; print }'
@@ -219,19 +263,25 @@ prompt SPACBR_REPO_URL "SPACBR repo URL to clone (override if spacbrhq/spacbr on
 
 printf '\n%s\n' "About to:"
 printf '  - COMPLETELY ERASE %s (every partition, all data, unrecoverable)\n' "$DISK"
-printf '  - Create: %s (1GiB, EFI System Partition, FAT32), %s (rest of disk, btrfs)\n' "$EFI_PART" "$ROOT_PART"
-printf '  - btrfs mounted directly at / (no subvolume, matching archinstall default_layout)\n'
+printf '  - Create: %s (1GiB, EFI System Partition, FAT32, unencrypted), %s (rest of\n' "$EFI_PART" "$ROOT_PART"
+printf '    disk, LUKS2-encrypted btrfs)\n'
+printf '  - Ask you to set a disk-encryption passphrase (typed twice, hidden) --\n'
+printf '    this becomes THE password for this machine: it unlocks the disk at every\n'
+printf '    boot, through Plymouth, and nothing else asks for a password afterward\n'
+printf '  - btrfs mounted directly at / inside the LUKS2 container (no subvolume,\n'
+printf '    matching archinstall default_layout)\n'
 printf '  - Install a minimal Arch base (kernels: %s) + Limine (UKI, removable EFI path)\n' "$KERNELS"
 printf '  - Locale %s, keymap %s, console font %s, timezone %s\n' "$LOCALE" "$KEYMAP" "$CONSOLE_FONT" "$TIMEZONE"
 printf '  - Mirrors: reflector, HTTPS, %s\n' "$MIRROR_COUNTRIES"
 printf '  - Hostname "%s", user "%s" with sudo, root password set (rescue access)\n' "$TARGET_HOSTNAME" "$USERNAME"
-printf '  - NetworkManager + systemd-timesyncd (NTP) + sshd enabled, zram swap, Plymouth (fade-in theme)\n'
+printf '  - NetworkManager + systemd-timesyncd (NTP) + sshd enabled, zram swap, Plymouth enabled (themed later, in install.sh -- see below)\n'
+printf '  - linux also gets a fallback UKI (broader driver support) for the boot menu'\''s "SPACBR (fallback)" entry\n'
 printf '  - Clone %s into /home/%s/spacbr\n' "$SPACBR_REPO_URL" "$USERNAME"
-printf '  - Set up %s to run install/install.sh automatically the FIRST time you log\n' "$USERNAME"
-printf '    in after reboot (normal password login, not auto-login) -- that installs\n'
-printf '    the actual SPACBR desktop (packages, dotfiles, Suckless, services, GPU\n'
-printf '    drivers) and starts dwm on its own once done. One reboot, one login,\n'
-printf '    nothing else to type.\n\n'
+printf '  - %s is auto-logged in on tty1 after every successful LUKS2 unlock --\n' "$USERNAME"
+printf '    no second password, no display manager. Their FIRST login runs\n'
+printf '    install/install.sh automatically, which installs the actual SPACBR\n'
+printf '    desktop (packages, dotfiles, Suckless, services, GPU drivers) and starts\n'
+printf '    dwm on its own once done. One passphrase, one reboot, nothing else to type.\n\n'
 
 printf 'Type the disk path again to confirm ERASING %s: ' "$DISK"
 read -r disk_confirm
@@ -263,27 +313,45 @@ wipefs -af "$DISK" >/dev/null
 info "Partitioning $DISK..."
 sgdisk --zap-all "$DISK"
 sgdisk -n1:0:+1GiB -t1:ef00 -c1:"EFI System Partition" "$DISK"
-sgdisk -n2:0:0     -t2:8300 -c2:"SPACBR root"          "$DISK"
+sgdisk -n2:0:0     -t2:8309 -c2:"SPACBR root (LUKS)"   "$DISK"
 partprobe "$DISK" 2>/dev/null || true
 sleep 2
 ok "partitioned"
 
+# ---------------------------------------------------------------------
+# LUKS2: the root partition is a raw block device until this point --
+# everything from here on (mkfs, mount, the eventual kernel cmdline)
+# targets the *decrypted* mapping (/dev/mapper/cryptroot), never
+# $ROOT_PART directly again. Both cryptsetup calls below prompt
+# interactively on the real terminal (cryptsetup's own native
+# echo-off/confirm handling, same as read_password's stty dance but
+# built into the tool itself) -- the passphrase is never captured into
+# a shell variable, printed, or logged anywhere in this script.
+# ---------------------------------------------------------------------
+
+info "Setting up disk encryption on $ROOT_PART -- you'll be asked to set a passphrase now (typed twice)..."
+cryptsetup luksFormat --type luks2 "$ROOT_PART"
+info "Unlocking it once now to format it..."
+cryptsetup open "$ROOT_PART" cryptroot
+ok "LUKS2 container created and unlocked as /dev/mapper/cryptroot"
+
 info "Formatting..."
 mkfs.fat -F32 -n EFI "$EFI_PART"
-mkfs.btrfs -f -L SPACBR "$ROOT_PART"
+mkfs.btrfs -f -L SPACBR /dev/mapper/cryptroot
 ok "formatted"
 
 info "Mounting..."
-# No subvolume -- the raw btrfs partition is mounted directly at /,
-# matching archinstall's own "default_layout" behavior exactly
-# (verified against a real user_configuration.json generated by
-# archinstall on this repo's own test machine: its disk_config has an
-# empty "btrfs": [] array, meaning no subvolume was created, just
-# "compress=zstd" as the only mount option -- no "noatime", no "ssd"
-# flag, no compression-level suffix. An earlier version of this script
-# added a "@" subvolume and extra mount options as an improvement;
-# corrected to match the real reference exactly instead.
-mount -o compress=zstd "$ROOT_PART" /mnt
+# No subvolume -- the raw btrfs filesystem (now living inside the
+# LUKS2 container) is mounted directly at /, matching archinstall's
+# own "default_layout" behavior exactly (verified against a real
+# user_configuration.json generated by archinstall on this repo's own
+# test machine: its disk_config has an empty "btrfs": [] array, meaning
+# no subvolume was created, just "compress=zstd" as the only mount
+# option -- no "noatime", no "ssd" flag, no compression-level suffix.
+# An earlier version of this script added a "@" subvolume and extra
+# mount options as an improvement; corrected to match the real
+# reference exactly instead.
+mount -o compress=zstd /dev/mapper/cryptroot /mnt
 mkdir -p /mnt/boot
 mount "$EFI_PART" /mnt/boot
 ok "mounted at /mnt"
@@ -330,10 +398,25 @@ fi
 # (packages/{base,x11,desktop,hardware}) once booted for real.
 # ---------------------------------------------------------------------
 
-info "Installing base system (pacstrap: $KERNELS, limine, plymouth)..."
+info "Installing base system (pacstrap: $KERNELS, limine, plymouth, cryptsetup, zsh)..."
 # shellcheck disable=SC2086
+# cryptsetup: needed inside the target itself, not just on the live
+# ISO -- mkinitcpio's sd-encrypt hook shells out to it when building
+# the initramfs, and it's the tool for any later `cryptsetup
+# luksAddKey`/passphrase-change against the now-encrypted root.
+#
+# zsh is pacstrapped here rather than left to Phase 2's packages/base:
+# it has to already be this user's login shell (see the useradd call
+# below) for the very *first* auto-login to run this file's first-boot
+# bootstrap at all -- a fresh account's default shell would otherwise
+# be whatever `useradd` falls back to, which never sources .zshrc.
+# Xorg itself (xorg-server etc.) does NOT need to be here too: the
+# first-boot bootstrap in .zshrc runs install.sh -- which installs
+# Xorg via packages/x11 -- to completion, synchronously, before ever
+# exec-ing startx. By the time startx actually runs, Xorg is
+# guaranteed to exist.
 pacstrap -K /mnt base $KERNELS linux-firmware btrfs-progs networkmanager sudo git \
-    efibootmgr limine plymouth zram-generator openssh $UCODE_PKG
+    efibootmgr limine plymouth cryptsetup zsh zram-generator openssh $UCODE_PKG
 ok "base system installed"
 
 info "Generating fstab..."
@@ -375,7 +458,7 @@ printf '%s:%s\n' root "$ROOT_PASSWORD" | arch-chroot /mnt chpasswd
 ok "root password set (rescue/emergency access only -- day to day, use $USERNAME + sudo)"
 
 info "Creating user $USERNAME..."
-arch-chroot /mnt useradd -m -G wheel -s /bin/bash "$USERNAME"
+arch-chroot /mnt useradd -m -G wheel -s /bin/zsh "$USERNAME"
 printf '%s:%s\n' "$USERNAME" "$USER_PASSWORD" | arch-chroot /mnt chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /mnt/etc/sudoers
 # Verify the sed actually matched -- don't just assume it worked. If
@@ -391,58 +474,58 @@ fi
 ok "user $USERNAME created with sudo"
 
 # ---------------------------------------------------------------------
-# First-login bootstrap -- this is what actually bridges Phase 1 into
-# Phase 2 as one continuous experience (boot -> log in -> fully
-# configured desktop) instead of two separate manual commands.
+# Automatic login (system/autologin/) -- this is what bridges Phase 1
+# into Phase 2 as one continuous experience (boot -> unlock -> fully
+# configured desktop) instead of two separate manual commands. No
+# display manager, no second password: the LUKS2 passphrase already
+# entered at Plymouth earlier in this boot is the only authentication
+# this machine ever asks for (docs/architecture.md, "Boot &
+# authentication"). Real standing security tradeoff, same as it always
+# is for any auto-login setup -- accepted deliberately here because
+# the disk itself is already the thing being protected, and it's
+# already locked behind the LUKS2 passphrase; a second prompt behind
+# the same physical-access threat model would be authenticating the
+# same fact twice, not adding real protection.
 #
-# Deliberately NOT tty auto-login: that would mean every future boot
-# skips authentication entirely, a real standing security tradeoff for
-# the whole life of the machine just to save typing one command once.
-# This still requires a normal password login -- the automation is in
-# what happens *after* that login succeeds, not in skipping login
-# itself. Written as .bash_profile (not .zprofile/.zshrc): the user
-# useradd'd above has bash as its shell until install.sh's own
-# set_default_shell() switches it to zsh, and Arch's stock /etc/skel
-# doesn't ship a .bash_profile, so this is guaranteed to be the one
-# bash reads. Once the shell switches to zsh, bash (and this file)
-# is never read by a normal login again -- naturally inert from then
-# on, nothing left to clean up.
+# Must run on tty1 specifically -- getty@tty1 is enabled (not
+# disabled, the opposite of the old ly setup) with an autologin
+# drop-in overriding its ExecStart.
 # ---------------------------------------------------------------------
 
-info "Writing first-login bootstrap for $USERNAME..."
-cat > "/mnt/home/$USERNAME/.bash_profile" <<'PROFILE_EOF'
-# SPACBR first-boot bootstrap -- created by install/live-install.sh.
-# Runs install/install.sh automatically on first login, then hands off
-# to a real zsh login shell (whose own .zshrc has its own tty1
-# auto-startx logic, so this chain reaches a running desktop with no
-# further manual steps). Marker removed before running, not after --
-# deliberately only ever attempts this once automatically; if
-# install.sh fails partway (e.g. no network yet), the fix is a manual
-# re-run (it's safe/idempotent to re-run, same as every other
-# spacbr install/update/repair), not an automatic retry loop on every
-# subsequent login that could otherwise hang forever on a persistent
-# failure.
-if [ -f "$HOME/.spacbr-first-boot" ] && [ -d "$HOME/spacbr" ]; then
-    rm -f "$HOME/.spacbr-first-boot"
-    printf '\nSPACBR: first login -- running the installer now (this happens once).\n\n'
-    ( cd "$HOME/spacbr" && ./install/install.sh )
-    printf '\nSPACBR: installer finished. Starting your real shell...\n'
-    exec zsh -l
-fi
-PROFILE_EOF
-touch "/mnt/home/$USERNAME/.spacbr-first-boot"
-arch-chroot /mnt chown "$USERNAME:$USERNAME" "/home/$USERNAME/.bash_profile" "/home/$USERNAME/.spacbr-first-boot"
-sync
-# Read the marker back rather than trusting touch's exit status alone --
-# found for real that this file went missing on the actual installed
-# system despite this section completing without error (same mount,
-# same unmount as .bash_profile, which DID persist correctly), root
-# cause unconfirmed. Whatever caused it, a silent missing marker means
-# .bash_profile's "if" is simply false forever and the user gets a
-# bare shell on first login with no indication anything was supposed
-# to happen -- so verify it landed and fail loudly here instead.
-[ -f "/mnt/home/$USERNAME/.spacbr-first-boot" ] || die "wrote /home/$USERNAME/.spacbr-first-boot but it's not there on read-back -- the first-login bootstrap would silently never fire. Stopping before declaring success."
-ok "first-login bootstrap ready"
+info "Setting up automatic login for $USERNAME on tty1..."
+[ -f "$SPACBR_ROOT_DIR/system/autologin/tty1-autologin.conf" ] || die "system/autologin/tty1-autologin.conf not found next to this script -- this repo needs to be a real local clone for autologin to be configured correctly, not just this one file downloaded standalone. See docs/prerequisites.md."
+mkdir -p /mnt/etc/systemd/system/getty@tty1.service.d
+sed "s/@SPACBR_USERNAME@/$USERNAME/" "$SPACBR_ROOT_DIR/system/autologin/tty1-autologin.conf" \
+    > /mnt/etc/systemd/system/getty@tty1.service.d/autologin.conf
+arch-chroot /mnt systemctl enable getty@tty1.service
+ok "getty@tty1 autologin configured for $USERNAME"
+
+# .zshrc (+ the two files it sources on its first two lines) is what
+# actually runs the first-boot install.sh trigger and then execs
+# startx -- see that file for the logic itself. Placed here, directly,
+# the same way ly's spacbr-login used to be: the very first auto-login
+# has no other way to reach a working shell rc, since Phase 2's own
+# deploy_dotfiles() hasn't run yet at this point (it's what deploy_dotfiles
+# will itself re-sync moments later, on that same first login -- this
+# is only bootstrapping that first run, not a permanent parallel copy).
+# Load-bearing like the ly files were: a missing .zshrc here means the
+# first auto-login drops into a shell with no first-boot trigger and
+# no exec-startx, i.e. a machine that boots to a blank prompt forever.
+info "Placing first-boot shell configuration for $USERNAME..."
+[ -f "$SPACBR_ROOT_DIR/.zshrc" ] || die ".zshrc not found next to this script -- see the autologin message above, same cause."
+[ -f "$SPACBR_ROOT_DIR/.config/shell/profile" ] || die ".config/shell/profile not found next to this script -- see the autologin message above, same cause."
+[ -f "$SPACBR_ROOT_DIR/.config/shell/aliasrc" ] || die ".config/shell/aliasrc not found next to this script -- see the autologin message above, same cause."
+mkdir -p "/mnt/home/$USERNAME/.config/shell"
+cp "$SPACBR_ROOT_DIR/.zshrc" "/mnt/home/$USERNAME/.zshrc"
+cp "$SPACBR_ROOT_DIR/.config/shell/profile" "/mnt/home/$USERNAME/.config/shell/profile"
+cp "$SPACBR_ROOT_DIR/.config/shell/aliasrc" "/mnt/home/$USERNAME/.config/shell/aliasrc"
+# Placed as root -- must hand ownership to the real user now, not just
+# for correctness but because Phase 2's own deploy_dotfiles (running
+# AS that user) needs to be able to overwrite these same paths a few
+# minutes later; a root-owned file with the usual 644 mode isn't
+# writable by its non-owner, which would make that later `cp -p` fail.
+arch-chroot /mnt chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.zshrc" "/home/$USERNAME/.config"
+ok "first-boot .zshrc placed for $USERNAME"
 
 info "Configuring zram swap..."
 mkdir -p /mnt/etc/systemd
@@ -467,39 +550,47 @@ arch-chroot /mnt systemctl enable sshd
 ok "NetworkManager, systemd-timesyncd, and sshd enabled"
 
 # ---------------------------------------------------------------------
-# Plymouth: wire the hook into mkinitcpio, right after the hook that
-# sets up the device manager -- the documented Arch wiki position
-# (must run before the hooks that produce console output), for
-# whichever of the two current mkinitcpio hook families is in play:
-# the legacy udev-based set ("base udev ..."), verified against this
-# repo's own real test machine's actual shipped HOOKS line ("base udev
-# autodetect microcode modconf kms keyboard keymap consolefont block
-# filesystems fsck"), or the newer systemd-based set ("base systemd
-# ..."), tried second since it wasn't the one confirmed on real
-# hardware. Whichever a freshly pacstrapped mkinitcpio actually ships
-# by default may not match either exactly -- this is a best-effort
-# insertion with a safe fallback (warn and continue, not die), not a
-# guarantee.
+# mkinitcpio HOOKS -- systemd-based initramfs with sd-encrypt (LUKS2
+# root) and plymouth (shows the sd-encrypt password prompt itself,
+# instead of a plain systemd-ask-password console agent). One
+# deterministic full-line replacement now, not the old two-family
+# conditional insertion: sd-encrypt only exists in the systemd hook
+# family, so there's no udev-family branch left to support once LUKS2
+# is unconditional.
+#
+# Exact ordering verified against two separately-cited ArchWiki rules,
+# not guessed: the dm-crypt page's own systemd+sd-encrypt example line,
+# and the Plymouth page's troubleshooting section stating the systemd
+# hook must come before plymouth, and plymouth must come before
+# encrypt/sd-encrypt.
+#
+# Known real risk, not resolved here: that same Plymouth troubleshooting
+# section documents a password prompt that may not visually *update* on
+# a script-module theme (system/plymouth/spacbr/spacbr.script is one)
+# specifically when using the systemd hook family -- exactly this
+# combination. No fix is clearly documented anywhere found. Only a real
+# boot test (not part of this pass -- see docs/architecture.md) can
+# confirm whether this affects SPACBR's theme in practice.
+#
+# Theme itself is NOT set here on purpose -- deferred to install.sh
+# (Phase 2) via deploy_plymouth_theme(). The spacbr theme's wordmark
+# uses Rajdhani Bold (packages/aur-overrides/ttf-rajdhani), which
+# doesn't exist until Phase 2 installs it; setting the theme before
+# that font exists would make mkinitcpio's plymouth hook silently
+# `fc-match` to some fallback instead. Leaving Plymouth on its packaged
+# default for this one first boot (until Phase 2's first-login
+# install.sh run finishes) is the same "Phase 1 gets you booted, Phase
+# 2 makes it SPACBR" split every other Phase 1/2 boundary in this file
+# already uses -- LUKS2 unlock itself still works fine on Plymouth's
+# stock theme in the meantime, it just isn't themed yet.
 # ---------------------------------------------------------------------
 
-info "Enabling Plymouth (theme: fade-in)..."
-if grep -q '^HOOKS=(base udev ' /mnt/etc/mkinitcpio.conf; then
-    sed -i 's/^HOOKS=(base udev /HOOKS=(base udev plymouth /' /mnt/etc/mkinitcpio.conf
-    ok "plymouth hook added to mkinitcpio HOOKS (udev-based hook set)"
-elif grep -q '^HOOKS=(base systemd ' /mnt/etc/mkinitcpio.conf; then
-    sed -i 's/^HOOKS=(base systemd /HOOKS=(base systemd plymouth /' /mnt/etc/mkinitcpio.conf
-    ok "plymouth hook added to mkinitcpio HOOKS (systemd-based hook set)"
-else
-    warn "mkinitcpio.conf's HOOKS line didn't match either expected prefix ('base udev ...' or 'base systemd ...') -- add 'plymouth' to it yourself (right after the device-manager hook) before it'll actually show a splash. Continuing without it; this does not block booting."
+info "Configuring mkinitcpio HOOKS for LUKS2 (sd-encrypt) + Plymouth..."
+sed -i 's/^HOOKS=(.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole plymouth block sd-encrypt filesystems fsck)/' /mnt/etc/mkinitcpio.conf
+if ! grep -q '^HOOKS=(base systemd .*sd-encrypt' /mnt/etc/mkinitcpio.conf; then
+    die "couldn't confirm mkinitcpio.conf's HOOKS line was actually rewritten -- stopping before building a UKI that can't unlock its own root. Check /mnt/etc/mkinitcpio.conf by hand."
 fi
-# fade-in specifically -- matches the theme selected in the real
-# user_configuration.json this script was verified against, not the
-# package's own default theme.
-if arch-chroot /mnt plymouth-set-default-theme fade-in 2>/dev/null; then
-    ok "plymouth theme set to fade-in"
-else
-    warn "couldn't set plymouth theme to fade-in (plymouth-set-default-theme failed) -- continuing with whatever the package default is"
-fi
+ok "mkinitcpio HOOKS set: systemd + sd-vconsole + plymouth + sd-encrypt"
 
 # ---------------------------------------------------------------------
 # Unified Kernel Images. /etc/kernel/cmdline is what mkinitcpio's UKI
@@ -507,12 +598,19 @@ fi
 # archinstall's own _config_uki(), which writes exactly this file for
 # exactly this reason). "quiet splash" so Plymouth's splash isn't
 # fighting kernel boot text for the screen.
+#
+# rd.luks.name=<LUKS-container-UUID>=cryptroot + root=/dev/mapper/cryptroot
+# is sd-encrypt's own addressing scheme (verified against ArchWiki's
+# dm-crypt page) -- replaces the plain root=PARTUUID=... this file used
+# before LUKS2. The UUID is the LUKS *container's* UUID
+# (cryptsetup luksUUID), deliberately not the filesystem's -- a
+# different value read a different way, easy to get wrong.
 # ---------------------------------------------------------------------
 
-ROOT_PARTUUID="$(blkid -s PARTUUID -o value "$ROOT_PART")"
-[ -n "$ROOT_PARTUUID" ] || die "couldn't read PARTUUID for $ROOT_PART -- the boot config would be wrong, stopping before writing it."
+LUKS_UUID="$(cryptsetup luksUUID "$ROOT_PART")"
+[ -n "$LUKS_UUID" ] || die "couldn't read the LUKS UUID for $ROOT_PART -- the boot config would be wrong, stopping before writing it."
 
-KERNEL_CMDLINE="root=PARTUUID=$ROOT_PARTUUID rw zswap.enabled=0 quiet splash"
+KERNEL_CMDLINE="rd.luks.name=$LUKS_UUID=cryptroot root=/dev/mapper/cryptroot rw zswap.enabled=0 quiet splash"
 mkdir -p /mnt/etc/kernel
 printf '%s\n' "$KERNEL_CMDLINE" > /mnt/etc/kernel/cmdline
 
@@ -524,7 +622,34 @@ for kernel in $KERNELS; do
         warn "$preset not found (expected from the $kernel package) -- skipping its UKI config"
         continue
     fi
-    cat > "$preset" <<EOF
+    if [ "$kernel" = "linux" ]; then
+        # Primary kernel only gets a real fallback UKI too -- stock
+        # mkinitcpio's own convention (a commented-out 'fallback' preset
+        # ships in every mkinitcpio.conf), just re-enabled here instead
+        # of invented. -S autodetect skips the hook that trims the
+        # initramfs down to only the modules THIS install's current
+        # hardware needs, so the fallback image carries broader driver
+        # support -- a real safety net if autodetect ever guesses wrong
+        # (different hardware, a driver regression), not a renamed
+        # duplicate of default_uki. linux-lts doesn't get one: two
+        # kernels already covers "primary breaks, boot the other one";
+        # a fallback of the fallback is real menu clutter for
+        # diminishing safety-net value, not a gap.
+        cat > "$preset" <<EOF
+# mkinitcpio preset file for 'linux' (SPACBR: UKI only, no plain initramfs)
+
+ALL_kver="/boot/vmlinuz-linux"
+
+PRESETS=('default' 'fallback')
+
+default_uki="/boot/EFI/Linux/arch-linux.efi"
+
+fallback_uki="/boot/EFI/Linux/arch-linux-fallback.efi"
+fallback_options="-S autodetect"
+EOF
+        ok "linux.preset configured (UKI -> arch-linux.efi, fallback -> arch-linux-fallback.efi)"
+    else
+        cat > "$preset" <<EOF
 # mkinitcpio preset file for '$kernel' (SPACBR: UKI only, no plain initramfs)
 
 ALL_kver="/boot/vmlinuz-$kernel"
@@ -533,7 +658,8 @@ PRESETS=('default')
 
 default_uki="/boot/EFI/Linux/arch-$kernel.efi"
 EOF
-    ok "$kernel.preset configured (UKI -> /boot/EFI/Linux/arch-$kernel.efi)"
+        ok "$kernel.preset configured (UKI -> /boot/EFI/Linux/arch-$kernel.efi)"
+    fi
 done
 
 info "Building Unified Kernel Images (mkinitcpio -P)..."
@@ -541,7 +667,8 @@ arch-chroot /mnt mkinitcpio -P
 for kernel in $KERNELS; do
     [ -f "/mnt/boot/EFI/Linux/arch-$kernel.efi" ] || die "mkinitcpio finished but /boot/EFI/Linux/arch-$kernel.efi wasn't created -- something's wrong with the $kernel preset. Stopping before declaring success on a system that can't actually boot $kernel."
 done
-ok "UKIs built for: $KERNELS"
+[ -f /mnt/boot/EFI/Linux/arch-linux-fallback.efi ] || die "mkinitcpio finished but arch-linux-fallback.efi wasn't created -- something's wrong with linux.preset's fallback config. Stopping before declaring success on a system whose fallback entry can't actually boot."
+ok "UKIs built for: $KERNELS (plus linux's fallback)"
 
 # ---------------------------------------------------------------------
 # Limine -- installed to the removable EFI path (EFI/BOOT/BOOTX64.EFI),
@@ -564,18 +691,187 @@ mkdir -p /mnt/boot/EFI/BOOT
 cp /mnt/usr/share/limine/BOOTX64.EFI /mnt/boot/EFI/BOOT/
 [ -f /mnt/usr/share/limine/BOOTIA32.EFI ] && cp /mnt/usr/share/limine/BOOTIA32.EFI /mnt/boot/EFI/BOOT/
 
+# Wallpaper (system/limine/wallpaper.jpg) and VERSION, read relative to
+# this script's own location (see SPACBR_ROOT_DIR at the top of this
+# file). Pre-shrunk to 2560px wide (from a 5504x3072 original, sips -Z
+# 2560) specifically for boot-time decode speed -- Limine's own image
+# decoder runs on UEFI firmware, not a real CPU/GPU, and a fast boot
+# was the entire point of the last several rounds of work here;
+# shipping the full 5MB original would fight that directly. Falls back
+# to the plain-color "Quiet Mono" config (no wallpaper directives at
+# all) if the file isn't found, not a broken/missing-image boot screen.
+HAVE_WALLPAPER=0
+if [ -f "$SPACBR_ROOT_DIR/system/limine/wallpaper.jpg" ]; then
+    cp "$SPACBR_ROOT_DIR/system/limine/wallpaper.jpg" /mnt/boot/EFI/BOOT/wallpaper.jpg
+    HAVE_WALLPAPER=1
+    ok "Limine wallpaper copied to ESP"
+else
+    warn "system/limine/wallpaper.jpg not found next to this script -- Limine will use a plain eightchrome background instead of the wallpaper"
+fi
+SPACBR_VERSION="$(cat "$SPACBR_ROOT_DIR/VERSION" 2>/dev/null || echo "0.1.0")"
+
 {
-    printf 'timeout: 5\n'
-    for kernel in $KERNELS; do
-        [ -f "/mnt/boot/EFI/Linux/arch-$kernel.efi" ] || continue
-        printf '\n/Arch Linux (%s)\n' "$kernel"
+    # timeout: 3 -- was 5. "The bootloader should feel almost
+    # invisible during normal use" / "avoid large countdown timers":
+    # short enough to feel like a beat, not a wait, still enough time
+    # to actually catch and pick the fallback/LTS entry when it matters.
+    printf 'timeout: 3\n'
+    # eightchrome (by eightharsh) -- keep these values in sync with
+    # .config/xresources by hand (same colors as background/foreground/
+    # color1/color2/color3/color4 there); Limine's config format has no
+    # way to read Xresources. Directive names/format verified against
+    # Limine's own CONFIG.md: colors are RRGGBB (no '#'), term_palette
+    # is a ';'-separated 8-color array (black;red;green;brown;blue;
+    # magenta;cyan;gray), term_background is TTRRGGBB with TT stands
+    # for transparency (00 = fully opaque, higher = more of whatever's
+    # behind it shows through).
+    #
+    # Two different term_background values depending on HAVE_WALLPAPER:
+    # 002f343f (TT=00, fully opaque -- the documented no-wallpaper
+    # default) when there's no image to show through at all, versus
+    # 902f343f (TT=90) when there is one.
+    #
+    # Legibility for this specific photo is handled in two layers, not
+    # one -- inspired by a KaOS Limine theme screenshot, which turned
+    # out (checked against CONFIG.md: no "panel"/"box" directive exists
+    # at all) to bake its own translucent header panel directly into
+    # its wallpaper image rather than something Limine renders live:
+    #   1. system/limine/wallpaper.jpg itself already has a soft
+    #      eightchrome-toned gradient baked into its own top ~46-60%
+    #      (smoothstep-faded, not a hard-edged box) -- exactly the
+    #      region interface_branding/help text/the menu land in at this
+    #      file's term_margin. Generated once, not at install time (see
+    #      the comment above HAVE_WALLPAPER).
+    #   2. term_background's TT=90 is then a light *global* tint on top
+    #      of that -- mostly for overall cohesion with eightchrome, not
+    #      doing the legibility work by itself anymore. Confirmed by
+    #      sampling: the baked panel alone already brings the photo's
+    #      brightest band (top 20%, RGB(178,185,193) in the unpaneled
+    #      original) down close to eightchrome-bg tone, so a much
+    #      lighter global overlay than the old single-layer TT=50
+    #      (which had to do all the darkening by itself) still leaves
+    #      that region legible, while the wave texture below the panel
+    #      -- which was never a legibility problem, nothing renders
+    #      text there -- stays visibly richer than a uniform full-screen
+    #      darken would allow.
+    #
+    # No term_font_scale here on purpose -- an earlier version of this
+    # file set 2x2 to give the stock font real presence, but "not
+    # oversized" / "avoid large display-style typography" is the
+    # opposite ask: the spaciousness below comes from term_margin (a
+    # generous 96px, up from the previous 80) working on Limine's own
+    # normal-sized font, not from bigger glyphs. Same "negative space,
+    # not bigger text" idea CLAUDE.md's own SS75 already states for
+    # every other SPACBR surface.
+    #
+    # Custom term_font (Iosevka / IBM Plex Mono / Hack, in that
+    # preference order) was considered and not done: Limine's term_font
+    # needs a raw, header-less 256-glyph CP437 bitmap font (8px wide,
+    # confirmed by byte-inspecting Neptune3013/fallout-limine-theme's
+    # own PHXEGA8.F14 -- exactly 256*14 bytes, no header), not a normal
+    # TTF. No trustworthy pre-made conversion of any of the three exists
+    # (checked -- Iosevka's own issue tracker has an open, unresolved
+    # request for exactly this, "1-bit bitmap version .psf", #1353);
+    # hand-converting one needs a FontForge+PSFtools pipeline whose
+    # output quality can't be verified without eyes on the physical
+    # screen. Limine's stock font stays -- it already reads as clean
+    # and compact, which was the actual goal, not a specific typeface.
+    #
+    # No "UEFI Firmware Settings" entry: that needs Limine's
+    # efi_boot_entry protocol, which reboots into a *named* NVRAM boot
+    # entry -- checked this repo's own test machine with `efibootmgr
+    # -v`, no such entry exists there, and Limine is deliberately
+    # installed to the removable EFI path specifically to not depend on
+    # NVRAM entries existing at all. Adding a hardcoded guess here would
+    # likely be a dead menu item on most real hardware.
+    #
+    # interface_help_colour/interface_help_colour_bright: Limine's
+    # defaults for these are its own stock green/cyan-ish colors
+    # (0x00aa00 / derived), independent of interface_branding_colour --
+    # left untouched, the on-screen key-bindings hint and countdown
+    # digit clash against eightchrome instead of reading as one themed
+    # screen. Help text itself renders at the *top* of the screen per
+    # Limine's own CONFIG.md -- there's no directive to move it to the
+    # bottom the way a from-scratch mockup might lay it out.
+    #
+    # "Quiet Mono": identity stays neutral, the accent marks the
+    # live/selected thing instead -- same principle Plymouth's own
+    # progress rule applies (system/plymouth/spacbr/spacbr.script).
+    # Branding sits in plain foreground like the help text around it.
+    # term_foreground_
+    # bright is set to accent here as a real, testable hypothesis, not
+    # a confirmed fact: CONFIG.md documents term_foreground_bright's
+    # existence but not when Limine actually uses it, and this can't be
+    # checked from here -- there's no way to see the rendered menu
+    # without eyes on the physical screen. If the highlighted entry
+    # actually renders in accent, this is exactly "selected reads as
+    # live, everything else stays quiet"; if Limine doesn't use bright
+    # this way at all, it's a harmless unused directive, not a breakage.
+    #
+    # remember_last_entry: yes -- boots whichever entry was picked last
+    # time by default instead of always resetting to the first one.
+    printf 'remember_last_entry: yes\n'
+    # Version number, same "SPACBR <version>" convention checks.sh's
+    # own "spacbr version" output already uses -- not a new format
+    # invented for this screen.
+    printf 'interface_branding: SPACBR %s\n' "$SPACBR_VERSION"
+    printf 'interface_branding_colour: e1e3e7\n'
+    printf 'interface_help_colour: e1e3e7\n'
+    printf 'interface_help_colour_bright: 4084d6\n'
+    if [ "$HAVE_WALLPAPER" -eq 1 ]; then
+        # boot():/... resolves from the ESP *partition root*, not from
+        # limine.conf's own directory (confirmed against CONFIG.md) --
+        # same reason the UKI entries below already say
+        # boot():/EFI/Linux/arch-*.efi in full, not boot():/arch-*.efi.
+        # wallpaper.jpg lives next to limine.conf itself (/EFI/BOOT/),
+        # so it needs the same full-path treatment; boot():/wallpaper.jpg
+        # silently pointed at a file that doesn't exist at the partition
+        # root, which is why the wallpaper never rendered.
+        printf 'wallpaper: boot():/EFI/BOOT/wallpaper.jpg\n'
+        # stretched, not centered: centered's behavior depends on how
+        # the image's native pixel size compares to this machine's
+        # actual screen resolution, which isn't known at config-write
+        # time and varies by hardware -- stretched fills the exact
+        # screen dimensions the same way on any display, at the cost of
+        # minor distortion on screens whose aspect ratio isn't close to
+        # the photo's own (~1.79:1, close to most 16:9 displays).
+        printf 'wallpaper_style: stretched\n'
+        printf 'term_background: 902f343f\n'
+    else
+        printf 'term_background: 002f343f\n'
+    fi
+    printf 'term_foreground: e1e3e7\n'
+    printf 'term_foreground_bright: 4084d6\n'
+    printf 'term_palette: 2f343f;ed4737;9bcf4f;f6d13a;4084d6;dab6fc;60e1e0;e1e3e7\n'
+    printf 'term_palette_bright: 404552;fda685;94e88c;fff75e;5294e2;ceb3e1;8ddddd;fafafa\n'
+    printf 'term_margin: 96\n'
+    # Entry names read as menu choices a normal user can act on, not a
+    # kernel-package-name dump ("Linux 6.x", "initramfs-linux.img"
+    # never appear here) and not a repeat of the "SPACBR" branding line
+    # above for every single entry -- "(fallback)"/"(LTS)" is the only
+    # thing that needs to vary per entry, so that's the only thing that
+    # does. default_entry stays unset: entry order below (linux/default
+    # first) already makes the primary kernel Limine's default, and
+    # remember_last_entry above overrides that anyway once it's used.
+    if [ -f /mnt/boot/EFI/Linux/arch-linux.efi ]; then
+        printf '\n/SPACBR\n'
         printf '    protocol: efi\n'
-        printf '    path: boot():/EFI/Linux/arch-%s.efi\n' "$kernel"
-    done
+        printf '    path: boot():/EFI/Linux/arch-linux.efi\n'
+    fi
+    if [ -f /mnt/boot/EFI/Linux/arch-linux-lts.efi ]; then
+        printf '\n/SPACBR (LTS)\n'
+        printf '    protocol: efi\n'
+        printf '    path: boot():/EFI/Linux/arch-linux-lts.efi\n'
+    fi
+    if [ -f /mnt/boot/EFI/Linux/arch-linux-fallback.efi ]; then
+        printf '\n/SPACBR (fallback)\n'
+        printf '    protocol: efi\n'
+        printf '    path: boot():/EFI/Linux/arch-linux-fallback.efi\n'
+    fi
 } > /mnt/boot/EFI/BOOT/limine.conf
 # UKIs embed their own cmdline (from /etc/kernel/cmdline above) --
 # Limine's config doesn't need to repeat it for protocol: efi entries.
-if ! grep -q '^/Arch Linux' /mnt/boot/EFI/BOOT/limine.conf; then
+if ! grep -q '^/SPACBR' /mnt/boot/EFI/BOOT/limine.conf; then
     die "limine.conf has no boot entries -- the UKIs above exist but none matched. Stopping before declaring success on a system that can't boot."
 fi
 
@@ -631,10 +927,13 @@ fi
 sync
 printf '\n'
 ok "Phase 1 complete."
-info "Next: reboot, then log in as $USERNAME (normal password login) at the console."
-info "install/install.sh runs automatically on that first login, then starts dwm"
-info "on its own once it's done -- nothing else to type. See docs/prerequisites.md"
-info "or README.md if you ever need to run it by hand instead."
+info "Next: reboot, enter the disk-encryption passphrase you set when Plymouth"
+info "asks for it -- that's the only password this system asks for. $USERNAME is"
+info "then auto-logged in on tty1, install/install.sh runs automatically on that"
+info "first login, and dwm starts on its own once it's done -- nothing else to"
+info "type. See docs/prerequisites.md or README.md if you ever need to run"
+info "install.sh by hand instead."
 
 umount -R /mnt
-confirm "Unmounted. Reboot now?" && reboot
+cryptsetup close cryptroot
+confirm "Unmounted and locked. Reboot now?" && reboot

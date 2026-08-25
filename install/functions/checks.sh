@@ -21,6 +21,29 @@ run_all_checks() {
     run_check "x86_64"              "detect_x86_64" "SPACBR only supports x86_64"
     run_check "Xorg present"        "command -v Xorg || command -v X" "pacman -S xorg-server"
 
+    info "Boot & authentication"
+    # Not gated on "is this a live-install.sh install" -- deploy_autologin
+    # is meant to run (and be checked) the same way on a standalone
+    # `spacbr install` against a plain Arch box too, per its own comment.
+    run_check "tty1 autologin configured" "grep -q -- \"--autologin \$USER \" /etc/systemd/system/getty@tty1.service.d/autologin.conf 2>/dev/null" "spacbr repair (or spacbr install) to run deploy_autologin"
+    run_check "getty@tty1 enabled"  "systemctl is-enabled --quiet getty@tty1.service" "sudo systemctl enable getty@tty1.service"
+    # LUKS2, unlike the checks above, genuinely isn't universal: it's
+    # always on for a live-install.sh install (docs/architecture.md,
+    # "Boot & authentication"), but Phase 2 alone can't retroactively
+    # encrypt an already-existing plain Arch box's root partition --
+    # same "not applicable, not a failure" shape as the btrfs-only
+    # snapper checks below. lsblk's own TYPE field, not a SPACBR-specific
+    # device-mapper name like "cryptroot" -- this needs to hold for any
+    # dm-crypt root, not just one set up by this repo's own installer.
+    if lsblk -no TYPE "$(findmnt -no SOURCE / 2>/dev/null)" 2>/dev/null | grep -qx crypt; then
+        # Anchored to the actual HOOKS= line and word-bounded, same
+        # reasoning as deploy_plymouth_theme's own HOOKS grep -- avoids a
+        # false positive on the large commented-out example block every
+        # mkinitcpio.conf ships.
+        run_check "mkinitcpio has sd-encrypt hook" "grep -qE '^HOOKS=\(.*\bsd-encrypt\b' /etc/mkinitcpio.conf" "root is LUKS2-encrypted but sd-encrypt isn't in HOOKS -- the system wouldn't be able to unlock its own root from a rebuilt initramfs. See install/live-install.sh's mkinitcpio HOOKS block for the exact line."
+        run_check "mkinitcpio has plymouth hook"   "grep -qE '^HOOKS=\(.*\bplymouth\b' /etc/mkinitcpio.conf" "root is LUKS2-encrypted but plymouth isn't in HOOKS -- the LUKS2 unlock prompt would fall back to a plain systemd-ask-password console agent instead of the themed one. spacbr repair, or add it by hand before sd-encrypt in HOOKS."
+    fi
+
     info "Package management"
     # Readable without sudo -n gymnastics (unlike nftables.conf/the
     # polkit rule): /etc/pacman.conf is world-readable 644, so a plain

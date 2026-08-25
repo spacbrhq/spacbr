@@ -1,0 +1,50 @@
+# SPACBR-maintained ttf-rajdhani, sourced straight from Google Fonts'
+# own repo instead of either AUR listing for this font.
+#
+# Why this exists: the only two AUR packages for Rajdhani --
+# ttf-rajdhani (0 votes) and fonts-rajdhani (1 vote) -- are both
+# unmaintained since 2016/2018 and build from a stale upstream
+# (itfoundry/rajdhani) snapshot with no clear LICENSE file in the repo
+# itself. google/fonts' ofl/rajdhani/ ships the same family with an
+# explicit OFL.txt right next to it -- the canonical, clearly-licensed
+# source every font-vendoring tool actually pulls Google Fonts from.
+# Pinned to a specific commit (not a branch) for reproducibility, same
+# reasoning as arc-gtk-theme's pinned release tarball in this same
+# aur-overrides/ directory.
+#
+# Why SPACBR needs this at all: Rajdhani Bold is the boot splash's
+# wordmark face (system/plymouth/spacbr/spacbr.script) -- a deliberate,
+# documented exception to "one house monospace face (Hack) everywhere"
+# (docs/architecture.md "Typography"), the same kind of one-off Zed
+# already is. Rajdhani has no box-drawing/block glyphs at all (checked
+# against the actual font file), so it's the wordmark only -- the
+# progress bar and password prompt next to it stay in Hack.
+
+pkgname=ttf-rajdhani
+pkgver=2.000
+pkgrel=1
+pkgdesc="Rajdhani, a Devanagari+Latin sans by Indian Type Foundry (SPACBR: sourced from google/fonts' ofl/rajdhani, not the stale/unmaintained AUR listings)"
+arch=('any')
+url="https://fonts.google.com/specimen/Rajdhani"
+license=('OFL')
+_commit=8772f86137e17678cbd3584ca9a3c9486c3e7e50
+_base="https://raw.githubusercontent.com/google/fonts/${_commit}/ofl/rajdhani"
+
+source=("OFL.txt::${_base}/OFL.txt"
+        "Rajdhani-Light.ttf::${_base}/Rajdhani-Light.ttf"
+        "Rajdhani-Regular.ttf::${_base}/Rajdhani-Regular.ttf"
+        "Rajdhani-Medium.ttf::${_base}/Rajdhani-Medium.ttf"
+        "Rajdhani-SemiBold.ttf::${_base}/Rajdhani-SemiBold.ttf"
+        "Rajdhani-Bold.ttf::${_base}/Rajdhani-Bold.ttf")
+
+sha512sums=('eae53aa2ac365f68cf77751d2ceca71b7ac78d48bd606a987754742926caeafb811e9bc1b9c69183a83f971a7c9cc388c56195392a87486aa167186e691f1eab'
+            '40fdc37d3bd9e158468a98357afa7ff58af4679c23d8fe66e9b15758fbe53f9ba2f8399a02a4bb055810ba1532e450d51f8255571b9b794e61b70da7a35fa44b'
+            'f0d1140adb16bafd14642aa75e2598f2b72092a991ec5d9899ae61c9624b3ad0029652365a14caa25969c801a915739d9bca21b32e9a8a386670bbb89a0bb778'
+            '8cc88ea011c3e8cf60a9a756d12aaa7433c4af875ba31dc28ae9826c3ebd8288bc369079ab9ff594db7e34707b164ecf69fd232d917e3b35e0b259eaa511ce85'
+            '6a394fc9c26867aff6d3970c2ec00dc86df8634852349e4b0bbc4e9ba11f426e17a0769f0321ac4499eae67c2b00b0cb5bfc57904de69c4b68ba954a7cf6ad1d'
+            '33b47f36b3ac09baa4a17abb5da41f6615e21cb9df9830315d5548e9d3aec43d8c3893a6efa03a878a6191c441643871b797d2bea8d8782a0d4079f0fd81a22f')
+
+package() {
+    install -Dm644 "$srcdir"/Rajdhani-*.ttf -t "$pkgdir/usr/share/fonts/TTF/"
+    install -Dm644 "$srcdir/OFL.txt" "$pkgdir/usr/share/licenses/$pkgname/OFL.txt"
+}

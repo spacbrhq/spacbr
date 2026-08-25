@@ -1,4 +1,26 @@
 #!/bin/sh
+# dwm/dmenu/st/dwmblocks/slock all live in ~/.local/bin -- this needs
+# to be on PATH before anything below tries to run one of them, or
+# `dbus-launch dwm` at the bottom of this file can't find dwm, exits
+# almost instantly, and xinit tears the whole session back down.
+# `.zshrc` execs startx from an interactive login shell that already
+# sourced `.config/shell/profile` (same PATH prepend, so this is
+# usually a no-op by the time it runs) -- kept here anyway as this
+# script's own defensive default, since it needs to be correct
+# regardless of how it gets invoked, not just from `.zshrc`'s own tty1
+# autologin path (a plain manual `startx ~/.config/xinitrc` from some
+# other context shouldn't silently depend on a specific caller having
+# already set this up). Found for real once already, under the
+# previous login-manager-based design: a login tool whose own PATH
+# setting unconditionally overwrote the session PATH instead of
+# prepending to it, dropping ~/.local/bin entirely, was the actual
+# root cause of a real "picks a session, brief flash, back at the
+# login screen" bug -- see CHANGELOG.md. That specific tool is gone
+# now, but the lesson (this script shouldn't trust its caller's PATH)
+# still applies to whatever invokes it next.
+PATH="$HOME/.local/bin:$PATH"
+export PATH
+
 userresources=$HOME/.config/xresources
 usermodmap=$HOME/.config/xmodmap
 sysresources=/etc/X11/xinit/.Xresources
@@ -13,6 +35,21 @@ sysmodmap=/etc/X11/xinit/.Xmodmap
 # Automatically set dpi
 xrandr --auto
 xrandr --dpi 96
+
+# Wallpaper: restore last-set (via ~/.local/bin/wallpaper), fall back
+# to the same photo Limine and Plymouth already showed during boot
+# (system/limine/wallpaper.jpg == .local/share/backgrounds/waves.jpg,
+# same file) -- the whole point of sharing one wallpaper across the
+# boot chain falls apart at the exact moment that matters most (first
+# thing you see once you're actually logged in) if the desktop then
+# switches to a completely unrelated image. Placed here (before
+# dwmblocks/picom start) and *not* backgrounded with `&`, unlike
+# everything below it -- hsetroot painting the root window after dwm's
+# own bar/borders already rendered means a visible flash of X's
+# default black background first; blocking here means the photo is
+# already there by the time anything else draws on top of it.
+statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
+hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/share/backgrounds/waves.jpg")"
 
 # Keyboard repeat: X11's own default (660ms delay, 25/sec) is
 # noticeably sluggish for normal typing/navigation -- this is the
@@ -73,10 +110,6 @@ clipmenud &
 [ -x /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 ] && \
 	/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 
-# Wallpaper: restore last-set (via ~/.local/bin/wallpaper), fall back to a default
-statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
-hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/share/backgrounds/the-backwater.jpg")" &
-
 # Idle locking: blank after 15 min, lock the moment the screen blanks or the
 # session suspends. xss-lock is the one lightweight idle mechanism (event
 # driven, no polling daemon) and also catches logind-triggered suspend
@@ -95,4 +128,35 @@ xset +dpms
 xset dpms 900 900 900
 xss-lock -- slock &
 
-exec dbus-launch dwm
+# One-time welcome -- marker written by install.sh only on a genuinely
+# fresh install (see there for why), consumed here rather than there
+# because nothing exists to receive a notification until dunst (D-Bus-
+# activated by the notify-send call itself -- see the
+# dbus-update-activation-environment comment above) is actually
+# reachable. dwm's whole interaction model ("keyboard shortcut ->
+# dmenu -> action") has no on-screen hint anywhere else, so this is the
+# one deliberate exception to "no permanent widgets, no branding for
+# its own sake" (docs/architecture.md) -- it fires once, ever, per
+# install, not on every login.
+if [ -f "$statedir/welcome-pending" ]; then
+	rm -f "$statedir/welcome-pending"
+	command -v notify-send >/dev/null 2>&1 && \
+		notify-send -t 8000 -h string:x-dunst-stack-tag:spacbr-welcome \
+			"SPACBR" "MODKEY+p opens the launcher, MODKEY+t opens a terminal." &
+fi
+
+# Not exec'd (unlike every other line here) specifically so this
+# script keeps running as dwm's parent, and this trap actually gets a
+# chance to fire once dwm exits, for any reason -- normal logout, a
+# crash, or X itself dying out from under it.
+#
+# Found for real, not theoretical: dwmblocks/picom/clipmenud/etc. above
+# are backgrounded with a bare `&`, and nothing was ever killing them
+# when the session ended. picom specifically doesn't exit cleanly when
+# its X connection dies -- confirmed live, orphaned (reparented to PID
+# 1) and pegged at 100% CPU indefinitely after a session ended, dwm
+# itself already gone. Whatever picom's own bug is here, this script
+# shouldn't rely on every backgrounded helper handling a dead X
+# connection gracefully to avoid leaking a runaway process.
+trap 'kill $(jobs -p) 2>/dev/null' EXIT
+dbus-launch dwm

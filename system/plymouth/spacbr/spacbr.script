@@ -1,0 +1,195 @@
+# SPACBR boot splash -- eightchrome (by eightharsh). Keep the RGB
+# triples in sync with .config/xresources by hand; Plymouth's script
+# language has no way to read Xresources.
+#
+# Shares wallpaper.jpg with Limine (system/limine/wallpaper.jpg, copied
+# here too since Plymouth's Image() loads relative to this theme's own
+# ImageDir, not an arbitrary path) -- same photo, same baked-in
+# eightchrome header panel (see docs/architecture.md's Limine section
+# for how/why that panel was made), so the two screens read as one
+# continuous experience instead of Limine showing the photo and
+# Plymouth cutting to a flat color. Text below is kept inside roughly
+# the top half of the screen on purpose -- that's where the baked
+# panel actually darkens the photo enough to stay legible; anything
+# placed lower would sit on the same bright/variable wave texture that
+# made a plain flat background necessary the first time this theme was
+# built without a photo.
+#
+# Two fonts, deliberately: Rajdhani Bold for the wordmark only (a
+# one-off exception to "one house monospace face (Hack) everywhere" --
+# see docs/architecture.md "Typography" for why, same kind of
+# documented exception Zed already is), Hack Bold for everything else
+# (progress rule, password prompt) -- the technical/utility role, same
+# face as every other themed surface. Rajdhani has no box-drawing/
+# block glyphs at all -- checked against the actual font file -- so it
+# was never an option for those.
+#
+# Verified against Plymouth's own script-plugin source (src/plugins/
+# splash/script/script-lib-{sprite,image,plymouth,math}.c and
+# script-object.c), not guessed: Window.SetBackgroundTopColor/
+# BottomColor(r,g,b) and Image.Text(text,r,g,b,alpha,font) take 0.0-1.0
+# floats and a Pango font-description string; Sprite()/SetImage let one
+# sprite's image be swapped in place instead of piling up a new sprite
+# every progress tick; Math.Int is floor(); the '+' operator
+# concatenates when either side is a string (script_obj_plus), which
+# is also how a number becomes the trailing size in a font string;
+# Plymouth.SetDisplayPasswordFunction's callback gets (prompt, bullets)
+# -- prompt a string, bullets an integer count of characters typed so
+# far -- confirmed against script_lib_plymouth_on_display_password's
+# actual call site, not assumed from the function name alone. The
+# background-image scale-to-cover math below (compare screen and image
+# aspect ratios, scale by whichever dimension is the tighter fit, then
+# center) is Plymouth's own official example pattern for exactly this
+# (basic theme reference script), not invented here.
+
+# fallback matte, in case Image() below ever fails to load -- eightchrome bg
+Window.SetBackgroundTopColor(0.184, 0.204, 0.247);
+Window.SetBackgroundBottomColor(0.184, 0.204, 0.247);
+
+# background photo, scaled to cover the whole screen (may crop one
+# axis symmetrically if the screen's aspect ratio doesn't match the
+# photo's own ~1.79:1 -- same tolerance already accepted on the Limine
+# side, where "stretched" scaling has the equivalent caveat)
+background_image = Image("wallpaper.jpg");
+screen_ratio = Window.GetHeight() / Window.GetWidth();
+background_image_ratio = background_image.GetHeight() / background_image.GetWidth();
+if (screen_ratio > background_image_ratio)
+  {
+    background_scale = Window.GetHeight() / background_image.GetHeight();
+  }
+else
+  {
+    background_scale = Window.GetWidth() / background_image.GetWidth();
+  }
+scaled_background_image = background_image.Scale(background_image.GetWidth() * background_scale, background_image.GetHeight() * background_scale);
+background_sprite = Sprite(scaled_background_image);
+background_sprite.SetX(Window.GetWidth() / 2 - scaled_background_image.GetWidth() / 2);
+background_sprite.SetY(Window.GetHeight() / 2 - scaled_background_image.GetHeight() / 2);
+background_sprite.SetZ(-10000);
+
+title_size = Math.Int(Window.GetHeight() * 0.12);
+bar_size = Math.Int(Window.GetHeight() * 0.016);
+prompt_size = Math.Int(Window.GetHeight() * 0.022);
+bar_cells = 40;
+
+# wordmark: foreground #e1e3e7 (not accent -- the accent is spent on
+# the progress rule below, not repeated on the identity too), Rajdhani
+# Bold, centered, sized off the screen, sitting inside the baked panel.
+wordmark_image = Image.Text("SPACBR", 0.882, 0.890, 0.906, 1, "Rajdhani Bold " + title_size);
+wordmark_sprite = Sprite(wordmark_image);
+wordmark_sprite.SetX(Window.GetWidth() / 2 - wordmark_image.GetWidth() / 2);
+wordmark_sprite.SetY(Window.GetHeight() * 0.22 - wordmark_image.GetHeight() / 2);
+wordmark_sprite.SetZ(1);
+wordmark_sprite.SetOpacity(0);
+
+# progress rule: a thin, small row of low-eighth-block glyphs (▁), Hack
+# Bold -- reads as a slim line, not a stack of pixels. Track (faint
+# foreground) is always visible; fill (accent) draws over it left to
+# right as boot progresses, same glyph so it looks like one rule being
+# colored in rather than two separate bars.
+track_text = "";
+for (i = 0; i < bar_cells; i++)
+{
+    track_text = track_text + "▁";
+}
+track_image = Image.Text(track_text, 0.882, 0.890, 0.906, 0.2, "Hack Bold " + bar_size);
+track_x = Window.GetWidth() / 2 - track_image.GetWidth() / 2;
+track_y = wordmark_sprite.GetY() + wordmark_image.GetHeight() + Window.GetHeight() * 0.05;
+track_sprite = Sprite(track_image);
+track_sprite.SetX(track_x);
+track_sprite.SetY(track_y);
+track_sprite.SetZ(0);
+track_sprite.SetOpacity(0);
+
+# fill: one sprite, reused every tick via SetImage instead of a new
+# Sprite() per tick (which would just pile up unused sprites).
+fill_sprite = Sprite();
+fill_sprite.SetX(track_x);
+fill_sprite.SetY(track_y);
+fill_sprite.SetZ(2);
+
+# password prompt: hidden (opacity 0) until Plymouth actually asks for
+# one (LUKS, a TPM passphrase, anything using systemd-ask-password) --
+# most SPACBR installs never trigger this, but the theme should not
+# fall back to something broken/unstyled on the installs that do.
+# Positioned lower than the wordmark/bar but still inside the baked
+# panel's darkened band, since it needs the same legibility guarantee.
+password_prompt_sprite = Sprite();
+password_prompt_sprite.SetZ(3);
+password_prompt_sprite.SetOpacity(0);
+password_bullets_sprite = Sprite();
+password_bullets_sprite.SetZ(3);
+password_bullets_sprite.SetOpacity(0);
+
+# Wordmark and track fade in fast (first ~15% of Plymouth's boot-
+# duration estimate), then the fill rule tracks real boot progress for
+# the rest.
+fun spacbr_boot_progress_callback(duration, progress)
+{
+    fade = progress * 6;
+    if (fade > 1)
+      {
+        fade = 1;
+      }
+    wordmark_sprite.SetOpacity(fade);
+    track_sprite.SetOpacity(fade);
+
+    filled = Math.Int(progress * bar_cells);
+    if (filled > bar_cells)
+      {
+        filled = bar_cells;
+      }
+    fill_text = "";
+    for (i = 0; i < filled; i++)
+      {
+        fill_text = fill_text + "▁";
+      }
+    fill_image = Image.Text(fill_text, 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_size);
+    fill_sprite.SetImage(fill_image);
+}
+Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
+
+# Rebuilt on every keystroke (Plymouth calls this each time the typed
+# count changes, not just once) -- cheap enough (a handful of small
+# Image.Text calls) that redrawing from scratch each time is simpler
+# and safer than trying to diff against the previous bullet count.
+fun spacbr_display_password_callback(prompt, bullets)
+{
+    prompt_image = Image.Text(prompt, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
+    password_prompt_sprite.SetImage(prompt_image);
+    password_prompt_sprite.SetX(Window.GetWidth() / 2 - prompt_image.GetWidth() / 2);
+    password_prompt_sprite.SetY(Window.GetHeight() * 0.42);
+    password_prompt_sprite.SetOpacity(1);
+
+    bullets_text = "";
+    for (i = 0; i < bullets; i++)
+      {
+        bullets_text = bullets_text + "● ";
+      }
+    bullets_image = Image.Text(bullets_text, 0.251, 0.518, 0.839, 1, "Hack Bold " + prompt_size);
+    password_bullets_sprite.SetImage(bullets_image);
+    password_bullets_sprite.SetX(Window.GetWidth() / 2 - bullets_image.GetWidth() / 2);
+    password_bullets_sprite.SetY(Window.GetHeight() * 0.42 + prompt_image.GetHeight() + Window.GetHeight() * 0.02);
+    password_bullets_sprite.SetOpacity(1);
+}
+Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
+
+# Called both when a password dialog is dismissed and once at normal
+# startup -- hiding an already-hidden sprite is harmless, so no need
+# to special-case "was a dialog even showing".
+fun spacbr_display_normal_callback()
+{
+    password_prompt_sprite.SetOpacity(0);
+    password_bullets_sprite.SetOpacity(0);
+}
+Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
+
+fun spacbr_quit_callback()
+{
+    wordmark_sprite.SetOpacity(0);
+    track_sprite.SetOpacity(0);
+    fill_sprite.SetOpacity(0);
+    password_prompt_sprite.SetOpacity(0);
+    password_bullets_sprite.SetOpacity(0);
+}
+Plymouth.SetQuitFunction(spacbr_quit_callback);

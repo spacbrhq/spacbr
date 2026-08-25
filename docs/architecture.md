@@ -72,6 +72,73 @@ The permanent UI (the dwmblocks bar) stays minimal on purpose — it
 shows state, not controls. Controls live behind the keyboard/dmenu
 layers so the desktop stays visually quiet.
 
+## Boot & authentication
+
+One password, once, per boot:
+
+```
+UEFI → Limine → Plymouth → LUKS2 passphrase → root unlocks
+     → systemd continues → autologin (tty1) → .zshrc → startx → dwm
+```
+
+The LUKS2 passphrase entered at Plymouth is the *only* authentication
+this system ever asks for. There is no display manager and no second
+login prompt — `ly` filled that role for a while (see `CHANGELOG.md`)
+and was removed once full-disk encryption made a second password
+redundant: both prompts sit behind the same physical-access threat
+model, so a second one authenticates the same fact twice rather than
+adding real protection.
+
+- **Disk layout**: a 1GiB unencrypted EFI System Partition (Limine +
+  the UKIs live here — Limine never touches LUKS at all; it just loads
+  a UKI from the ESP by path, decryption is entirely initramfs-side)
+  plus a LUKS2 container holding the btrfs root. See "Live installer"
+  below for the exact `sgdisk`/`cryptsetup` sequence.
+- **mkinitcpio**: `HOOKS=(base systemd autodetect microcode modconf
+  kms keyboard sd-vconsole plymouth block sd-encrypt filesystems
+  fsck)` — `sd-encrypt` (not the older `encrypt` hook) requires the
+  `systemd` hook family, and `plymouth` has to sit between `systemd`
+  and `sd-encrypt` so it can take over `sd-encrypt`'s own password
+  prompt instead of a plain console `systemd-ask-password` agent.
+  Verified against ArchWiki's dm-crypt and Plymouth pages directly, not
+  assumed.
+- **Plymouth**: `system/plymouth/spacbr/spacbr.script`'s
+  `SetDisplayPasswordFunction` callback (already built for this,
+  before LUKS2 existed to actually exercise it) draws the LUKS2
+  passphrase prompt, themed with the same wallpaper Limine shows.
+  **Open risk, not yet resolved**: ArchWiki's Plymouth troubleshooting
+  notes a script-module theme's password prompt may not visually
+  *update* on a systemd-hook initramfs — exactly this combination. No
+  clean fix is documented anywhere found; only a real boot test can
+  confirm whether it actually affects this theme.
+- **Autologin**: `system/autologin/tty1-autologin.conf`, a
+  `getty@tty1.service` drop-in (`agetty --autologin`), deployed by
+  `deploy_autologin()` (`install/functions/system.sh`) and directly by
+  `live-install.sh` in Phase 1. `.zshrc` picks up from there: a
+  manifest-file check runs `install/install.sh --yes` on the very first
+  login only (`--yes` specifically, not just `install.sh` — its default
+  interactive confirmation would otherwise silently break the "nothing
+  else to type" promise the very first time it's reached), then `exec
+  startx` — but only if that install actually succeeded. A real
+  boot-loop risk without that last check: a failed first login used to
+  just land back at `ly`'s password prompt, a natural pause point; with
+  no login screen at all, a failure here with no exit-status guard would
+  fall through to `exec startx` too (which also fails, Xorg isn't
+  installed if `install.sh` never got that far), ending the session,
+  which `agetty --autologin` just respawns into the same failure
+  forever. `.zshrc` checks this and stays at a plain shell on failure
+  instead. `spacbr doctor` checks the autologin drop-in itself and
+  `getty@tty1`'s enabled state (`install/functions/checks.sh`).
+- **Kernel cmdline**: `rd.luks.name=<LUKS-UUID>=cryptroot
+  root=/dev/mapper/cryptroot` (sd-encrypt's own addressing scheme) —
+  the UUID is the LUKS *container's* UUID (`cryptsetup luksUUID`), not
+  the filesystem's.
+
+Never logged, printed, or captured into a shell variable anywhere in
+this pipeline: `cryptsetup luksFormat`/`cryptsetup open` in
+`live-install.sh` prompt on the real terminal directly, the same way
+`read_password` already does for the root/user account passwords.
+
 ## Locking
 
 `slock` is the only lock mechanism (§7/§18) — every lock trigger
@@ -545,6 +612,46 @@ against CLAUDE.md's repeated "avoid excessive icons" guidance (§4,
 §16, §75). If this is ever revisited, it's a deliberate trade-off to
 make explicitly, not something to silently "fix" back in.
 
+### One deliberate exception: the first-login welcome notification
+
+Boot got fast on purpose (Limine's `timeout: 3` — see "Bootloader"
+below; Plymouth was tried and removed, see the same section), which
+surfaced a real, separate problem: SPACBR otherwise never says its own
+name anywhere a
+normal user is likely to see unprompted. `.zshrc`'s `fastfetch` banner
+only shows inside an actual terminal window someone chose to open, not
+at the raw tty1 login shell (deliberately, per its own comment — that
+handoff into `startx` needs to stay instant); the dwmblocks bar
+correctly shows nothing (previous section).
+
+`install.sh` writes `$XDG_STATE_HOME/spacbr/welcome-pending` exactly
+once — only when `$SPACBR_MANIFEST` didn't already exist at the start
+of the run, i.e. genuinely the first time SPACBR has ever been
+installed on this machine, not on a `spacbr update`/`repair` re-run.
+`.config/xinitrc` checks for that marker right before `exec dbus-launch
+dwm`, fires one `notify-send` (the same tool/pattern every other
+SPACBR script already uses for feedback — see `.local/bin/volume`),
+and removes the marker — so it's a real one-time event, not something
+that fires on every login. It has to live in `xinitrc`, not `install.sh`
+itself: nothing exists yet to receive a notification at install time
+(no X session, no `dunst`), and `dunst` is D-Bus-activated by that
+first `notify-send` call itself (see the
+`dbus-update-activation-environment` comment earlier in `xinitrc`).
+
+This is the one deliberate exception to "no permanent widgets, no
+branding for its own sake" — justified because dwm's entire interaction
+model (`keyboard shortcut → dmenu → action`, CLAUDE.md §3) is otherwise
+completely invisible on screen. A genuinely new user has no way to
+discover `MODKEY+p` without being told once.
+
+A branded `slock` message ("SPACBR" as a header line over "Enter
+password to unlock") was tried and reverted the same day — plain
+"Enter password to unlock" (`.local/src/slock/config.h`) again.
+Unlike the welcome notification, this one didn't earn a permanent
+exception: it's a screen seen many times a day, every day, not a
+one-time moment, so the same "no branding for its own sake" default
+applies here after all.
+
 ## Live installer (`install/live-install.sh`)
 
 Boots off the Arch live ISO, ends with a rebootable, SPACBR-clonable
@@ -653,12 +760,209 @@ entry per kernel pointing at its UKI, and install a pacman hook
 package upgrade (without it, an upgraded package's binaries never
 reach the ESP again until someone copies them by hand).
 
+`limine.conf` also carries eightchrome theming — `interface_branding`
+(`SPACBR`), `term_background`/`term_foreground`, and
+`term_palette`/`term_palette_bright` set to the same 16 hex values as
+`.config/xresources`. Directive names, the `RRGGBB`/`TTRRGGBB` formats,
+and the `;`-separated 8-color palette syntax are verified against
+Limine's own `CONFIG.md`, not guessed. There's no mechanism to read
+`.config/xresources` at this stage (no repo clone yet, no shell), so
+these values are hardcoded here the same way GTK/`dunst`/Vim's are
+elsewhere — keep them in sync by hand.
+
+**"Quiet Mono"**: identity stays neutral, the accent marks the
+live/selected thing instead. `interface_branding_colour` is plain
+foreground (`e1e3e7`), not accent. `term_foreground_bright` is set to
+accent (`4084d6`) as a real, testable hypothesis, not a confirmed
+fact — `CONFIG.md` documents the directive's existence but not when
+Limine actually applies it (does it color the highlighted menu entry?
+something else? nothing without a wallpaper?), and that can't be
+resolved by reading source or config docs alone — there's no way to
+see the rendered menu without eyes on a physical screen. Framed as a
+hypothesis on purpose: if it does mark the selected entry, this is
+exactly the same "selected reads as live, everything else stays quiet"
+idea `interface_help_colour_bright` (the countdown digit — see below)
+also applies; if Limine doesn't use `term_foreground_bright` this way,
+it's a harmless unused directive, not a breakage either way.
+`interface_help_colour`/
+`interface_help_colour_bright` (the on-screen key-bindings hint and
+countdown digit) were left at Limine's own stock green/cyan-ish
+defaults before, independent of `interface_branding_colour` and
+clashing against eightchrome — set to foreground/accent for the same
+reason, with the countdown digit specifically getting the accent since
+it actually changes every second (the one other clearly "live" element
+on this screen). Help text itself renders at the *top* of the screen
+per `CONFIG.md` — there's no directive to move it to the bottom.
+
+`term_margin: 96` exists for the same reason as the six colors above:
+a themed-but-untouched default looks worse than no theming at all.
+Without it, `term_margin`'s own documented default is `0` with no
+wallpaper set, so the branding/help text/menu sit jammed against the
+screen's top-left corner. No `term_font_scale` is set — an earlier
+version of this file used `2x2` to give Limine's stock font more
+visual weight, but reversed once the actual design goal turned out to
+be "not oversized, generous negative space" rather than "bigger text";
+the spaciousness comes from `term_margin` working on Limine's normal-
+sized font, the same "more space, not bigger elements" idea CLAUDE.md's
+own §75 already states for every other SPACBR surface.
+
+**Wallpaper**: a real photo (`system/limine/wallpaper.jpg`, a moody
+grey-blue ocean shot — its own tones already sit close to eightchrome's
+palette, not fighting it) — the one deliberate exception to "no images"
+in this whole boot chain, added on explicit request with a specific
+asset supplied, not something introduced unprompted. Two real
+decisions went into it, not just dropping the file in:
+
+- **Pre-shrunk from a 5504×3072 original to 2560px wide** (`sips -Z
+  2560`, ~1.3MB down from ~5MB). Limine's image decoder runs on UEFI
+  firmware, not a real CPU/GPU — decoding the full-resolution original
+  at every boot would fight directly against the "boot should feel
+  fast" goal several earlier rounds of work here were about. 2560px
+  covers essentially any real display without visible softness.
+- **Legibility is two layers, not one** — inspired by a KaOS Limine
+  theme screenshot with a translucent header panel over its own
+  wallpaper. Checked `CONFIG.md` again before copying anything: there's
+  no "panel"/"box" directive at all, so that panel has to be baked
+  directly into KaOS's wallpaper image itself, not something Limine
+  renders live. Replicated the technique, not the colors:
+  1. `wallpaper.jpg` itself has a soft eightchrome-toned gradient baked
+     into its own top ~46–60% (smoothstep fade, generated with Pillow —
+     not a hard-edged box), positioned to land under
+     `interface_branding`/help text/the menu at this file's
+     `term_margin`.
+  2. `term_background: 902f343f` (TT=`90`) is then a light *global*
+     tint on top of that, mostly for cohesion with eightchrome rather
+     than doing the legibility work alone. The image's brightest band
+     (top 20%, sampled at RGB(178,185,193) in the unpaneled original —
+     bright fog, plenty light enough to wash out `e1e3e7` foreground
+     text with zero overlay) is already brought close to eightchrome-bg
+     tone by the baked panel alone, so a much lighter global overlay
+     than an earlier single-layer `TT=50` attempt still leaves it
+     legible, while the wave texture below the panel — never a
+     legibility problem, nothing renders text there — stays visibly
+     richer than a uniform full-screen darken would allow.
+
+  `wallpaper_style: stretched`, not `centered`: `centered`'s on-screen
+  result depends on how the image's native pixels compare to the
+  actual screen resolution, unknowable at config-write time and
+  different per machine; `stretched` fills the exact screen dimensions
+  the same way everywhere, at the cost of minor distortion on displays
+  whose aspect ratio isn't close to the photo's own (~1.79:1, close to
+  most 16:9 screens). Same caveat applies to the baked panel's own
+  position: it's placed at a fixed *percentage* of the image, which
+  tracks reasonably well across displays under `stretched` scaling, but
+  `term_margin` is a fixed *pixel* count — the two can drift apart on
+  resolutions far from what this was tuned against (this repo's own
+  1600×900 test machine), same limitation real-world Limine themes
+  built this way already accept.
+
+**Real gotcha, not hypothetical**: `wallpaper.jpg` is copied to
+`/EFI/BOOT/wallpaper.jpg`, right next to `limine.conf` itself, but the
+directive has to read `wallpaper: boot():/EFI/BOOT/wallpaper.jpg` in
+full — `boot():/wallpaper.jpg` looked correct, deployed without error,
+and simply never rendered the image (everything else on screen still
+worked, which is exactly what a silently-skipped-missing-wallpaper
+looks like). `boot():/...` resolves from the ESP *partition root*,
+confirmed against `CONFIG.md`, not from the directory containing
+`limine.conf` — the same reason the UKI entries below already spell
+out `boot():/EFI/Linux/arch-*.efi` in full rather than a bare filename;
+this file just hadn't been made to follow that same rule yet.
+
+Both the wallpaper file and `VERSION` (folded into `interface_branding`
+as `SPACBR <version>`, the same convention `checks.sh`'s own `spacbr
+version` output already uses) are read relative to `live-install.sh`'s
+own location — not embedded, not assumed cloned onto the *target* (they
+aren't, at this point in Phase 1), but commonly available because this
+script itself is often run from a real local clone on the live ISO
+(see `docs/prerequisites.md`). Missing either degrades gracefully:
+no `VERSION` file falls back to a hardcoded `"0.1.0"`; no wallpaper
+file falls back to the plain-color config from before (`term_background:
+002f343f`, no `wallpaper`/`wallpaper_style` lines at all) — never a
+broken reference to an image that isn't there.
+
+A second copy of the same original photo lives at
+`.local/share/backgrounds/waves.jpg` (full resolution, unlike the
+boot-optimized copy — a running desktop decodes JPEGs on a real CPU/GPU,
+not UEFI firmware, so the boot-time size concern doesn't apply), and
+**is** `.config/xinitrc`'s fallback desktop wallpaper (used whenever
+`.local/bin/wallpaper` hasn't been used to pick something else yet —
+that choice always wins once made, this is only what a fresh session
+shows first). Originally added "to the rotation, not forced on as the
+new default"; reconsidered once it became clear that leaving the old
+default (`the-backwater.jpg`, unrelated to anything else) in place
+defeated the entire point of sharing one wallpaper across the boot
+chain at exactly the moment it matters most — the first thing visible
+after actually logging in. Also moved earlier in `xinitrc` (before
+`dwmblocks`/`picom` start) and un-backgrounded (no trailing `&`, unlike
+everything after it): painting the root window *after* dwm's own bar
+and borders already rendered means a visible flash of X's plain black
+default background first; blocking here means the photo is already
+there before anything else draws on top of it. Limine → Plymouth →
+desktop now bookends on the same image throughout, with no separate
+login-screen stage in between at all: `ly` (a TUI, physically incapable
+of showing a photo in the first place) has been removed entirely —
+system/autologin/ auto-logs the one SPACBR user in straight from
+Plymouth's own LUKS2 unlock, the only password this system asks for.
+See "Boot & authentication" below for the full flow and why.
+
+A custom `term_font` (a real, explicit ask, ranked Iosevka / IBM Plex
+Mono / Hack) was investigated and not done. Limine's `term_font` needs
+a raw, header-less 256-glyph CP437 bitmap font (8px wide) — confirmed
+by byte-inspecting `Neptune3013/fallout-limine-theme`'s own
+`PHXEGA8.F14` (exactly `256 × 14` bytes, no header at all: glyph 0 is
+14 zero bytes, glyph 1 starts at offset 14 and is the CP437 smiley,
+matching the classic PC ROM font dump layout). This is a fundamentally
+different, far more constrained thing than a normal TTF, and no
+trustworthy pre-made conversion of any of the three preferred typefaces
+exists — checked; Iosevka's own issue tracker has an open, unresolved
+request for exactly this (`be5invis/Iosevka#1353`, "1-bit bitmap
+version e.g. Linux Console .psf"). Hand-converting one needs a
+FontForge+PSFtools pipeline whose output quality can't be verified
+without eyes on the physical screen — not something to ship into a
+boot-critical config on faith. Limine's own stock font stays; it
+already reads as the clean/compact thing that was actually being asked
+for, independent of which specific typeface draws it.
+
+No "UEFI Firmware Settings" menu entry either. Limine's only mechanism
+for this is the `efi_boot_entry` protocol, which reboots into a
+*named* existing NVRAM boot entry — checked this repo's own test
+machine with `efibootmgr -v`: no such entry exists there (`UEFI OS`,
+`UEFI:CD/DVD Drive`, `UEFI:Removable Device`, `UEFI:Network Device`
+only), and Limine is deliberately installed to the removable EFI path
+specifically so it doesn't depend on any NVRAM entry existing at all
+(see above). A hardcoded `efi_boot_entry: UEFI Firmware Settings` would
+likely be a dead menu item on most real hardware, not a working one.
+
+Two real research comparisons informed what *did* ship here, not just
+what didn't: `catppuccin/limine` (the most widely-used Limine theme;
+checked its own `themes/mocha/*.conf`) does color-only theming — no
+wallpaper, no custom font — confirming that's a legitimate,
+well-precedented way to theme Limine well, not a limitation of this
+approach. `Neptune3013/fallout-limine-theme` (asked for by name) is
+the source of the wallpaper/`term_font` ideas above, plus one thing
+that *is* adopted from it: `remember_last_entry: yes`, unrelated to
+either theme's visual choices — boots whichever entry was picked last
+time instead of always resetting to the first one, real quality-of-life
+at zero visual or correctness risk.
+
+Entries are `SPACBR` / `SPACBR (LTS)` / `SPACBR (fallback)`, not
+`Arch Linux (linux)` / `Arch Linux (linux-lts)` — the latter exposed
+kernel package names as user-facing text (`Linux 6.x`,
+`initramfs-linux.img`-style jargon this menu never shows) and said the
+distro name twice (once via `interface_branding`, again per entry);
+the menu should read as choices a normal user can act on, with only
+`(LTS)`/`(fallback)` varying per entry since that's the only thing
+that actually differs. `SPACBR (fallback)` is a real, separate UKI —
+see "UKI generation" below — not just a relabeled duplicate.
+
 UKI generation itself is `mkinitcpio`'s job, following `archinstall`'s
 `_config_uki()`: `/etc/kernel/cmdline` holds the kernel command line
-(`root=PARTUUID=...`, `rw`, `zswap.enabled=0` —
-`archinstall`'s own comment: zswap should be disabled when using zram
-— plus `quiet splash` so Plymouth's splash isn't fighting kernel boot
-text for the screen), and each kernel's `/etc/mkinitcpio.d/<kernel>.preset`
+(`rd.luks.name=<LUKS-UUID>=cryptroot root=/dev/mapper/cryptroot`,
+`sd-encrypt`'s own addressing scheme for the LUKS2 root — see "Boot &
+authentication" above — `rw`, `zswap.enabled=0` — `archinstall`'s own
+comment: zswap should be disabled when using zram — plus `quiet
+splash` so Plymouth's splash isn't fighting kernel boot text for the
+screen), and each kernel's `/etc/mkinitcpio.d/<kernel>.preset`
 sets `default_uki=".../arch-<kernel>.efi"` with no `default_image=` at
 all (UKI only, no redundant plain initramfs). Rather than
 regex-editing the vendor-shipped preset file the way `archinstall`
@@ -673,19 +977,71 @@ not a novel approach). `mkinitcpio -P` (run once, builds every preset)
 does the actual build; the script verifies each expected `.efi` file
 exists afterward and refuses to declare success otherwise.
 
-**Plymouth**: package installed, its hook inserted into
-`mkinitcpio.conf`'s `HOOKS` array immediately after `base udev` — the
-Arch-wiki-documented required position (must run before the hooks that
-produce their own console output). The exact insertion point was
-verified against this repo's own real test machine's actual shipped
-`HOOKS` line (`base udev autodetect microcode modconf kms keyboard
-keymap consolefont block filesystems fsck`) rather than assumed from a
-generic default, so the `sed` pattern matching the real prefix is
-known to be correct for at least one real, current Arch install. Theme
-is set explicitly to `fade-in` (`plymouth-set-default-theme`), not
-left at the package's own default — matches the theme selected in the
-same real `user_configuration.json` referenced throughout this
-section.
+The primary kernel (`linux`) alone gets a second, real `fallback`
+preset — stock `mkinitcpio`'s own convention (every `mkinitcpio.conf`
+ships one commented out), re-enabled here rather than invented:
+`PRESETS=('default' 'fallback')` plus `fallback_uki=".../arch-linux-
+fallback.efi"` and `fallback_options="-S autodetect"`. `-S autodetect`
+skips the hook that trims the initramfs down to only the modules this
+specific install's currently-detected hardware needs, so the fallback
+image carries broader driver support — an actual safety net if
+autodetect ever guesses wrong (different hardware later, a driver
+regression), surfaced in `limine.conf` as `SPACBR (fallback)`, not a
+renamed duplicate of the default entry. `linux-lts` doesn't get one:
+two kernels already covers "primary breaks, boot the other one," and a
+fallback of the fallback is menu clutter for diminishing safety-net
+value, not a real gap.
+
+**Plymouth**: package installed, `HOOKS` rewritten to the exact
+systemd + `sd-encrypt` (LUKS2) line documented in "Boot &
+authentication" above — a deterministic full-line replacement, not a
+best-effort insertion, since `sd-encrypt` requires the `systemd` hook
+family unconditionally now. Removed once, brought back, now doing real
+authentication work rather than just a splash — see `CHANGELOG.md` for
+the full back-and-forth. Phase 1 stops
+at enabling the hook; the actual `spacbr` theme is deployed by
+`deploy_plymouth_theme()` (`install/functions/system.sh`) in Phase 2,
+for the same reason as before: its wordmark needs Rajdhani Bold
+(`packages/aur-overrides/ttf-rajdhani`), which doesn't exist until
+Phase 2 installs it.
+
+**Shares Limine's wallpaper on purpose** — `system/plymouth/spacbr/
+wallpaper.jpg` is the same file as `system/limine/wallpaper.jpg`
+(copied, not symlinked: Plymouth's `Image()` loads relative to the
+theme's own `ImageDir`, so it needs its own copy sitting next to
+`spacbr.plymouth`/`spacbr.script`), including the same baked-in
+eightchrome header panel — see "Wallpaper" above for how/why that
+panel exists. The point is continuity: Limine shows the photo, then
+Plymouth shows the *same* photo, instead of cutting to a flat color
+mid-boot. Scaled to cover the whole screen (compare screen/image
+aspect ratios, scale by whichever dimension is the tighter fit, center,
+crop the overflow) using Plymouth's own official example script's
+pattern for this, not invented here. The wordmark and progress rule
+are kept inside roughly the top half of the screen specifically
+because that's where the baked panel actually darkens the photo enough
+to stay legible.
+
+**Real password-prompt support**, not just a progress splash — built
+speculatively before the installer set up LUKS2 at all, now the actual
+mechanism the LUKS2 unlock prompt renders through (see "Boot &
+authentication" above). `Plymouth.SetDisplayPasswordFunction`'s callback signature —
+`(prompt, bullets)`, `prompt` a string, `bullets` an integer count of
+characters typed so far — is confirmed against
+`script_lib_plymouth_on_display_password`'s actual call site in
+Plymouth's own source, not assumed from the function name. Renders the
+real prompt text plus a row of `●` dots (one per typed character,
+Hack Bold, accent-colored) below the wordmark, redrawn from scratch on
+every keystroke rather than trying to diff against the previous count
+— simpler and safe given how cheap a few `Image.Text` calls are.
+`Plymouth.SetDisplayNormalFunction` hides both again. Verified: the
+theme parses and runs a full, error-free boot lifecycle with this
+code present (confirmed via `journalctl -b 0`). **Not verified**: the
+password dialog's actual on-screen appearance, or whether it visually
+*updates* per keystroke — see "Boot & authentication" above for a real,
+named, unresolved ArchWiki-documented risk specific to this exact
+combination (script-module theme + systemd-hook initramfs). Neither
+can be confirmed without a real LUKS2 boot on real hardware, which
+hasn't happened yet.
 
 **NTP**: `systemd-timesyncd` enabled (not started — same chroot
 constraint as `NetworkManager`).
@@ -713,38 +1069,46 @@ for "cohesive defaults... easy installation... unified system
 experience", never for its actual implementation, which this doesn't
 touch). Phase 1 can't run Phase 2 itself (the `arch-chroot`/`--now`
 constraint explained above), so the two are bridged with a first-login
-bootstrap instead: Phase 1 writes `~/.bash_profile` for the new user
-(`useradd`'s shell is still `bash` at this point — `install.sh`'s own
-`set_default_shell()` hasn't run yet, and Arch's stock `/etc/skel`
-ships no `.bash_profile` of its own, so this is guaranteed to be the
-one bash actually reads) plus an empty `~/.spacbr-first-boot` marker.
-On the *next normal password login* — console or SSH, whichever the
-user actually reaches first — that profile detects the marker, removes
-it, and runs `install/install.sh` right there before handing off to a
-real interactive `zsh -l` login shell. `.zshrc`'s own pre-existing tty1
-`exec startx` logic then takes it the rest of the way automatically,
-with no new code needed for that part — the user never has to
-manually type `cd ~/spacbr && ./install/install.sh` at all. Net
-result: boot the ISO once, answer Phase 1's prompts once, reboot, log
-in with a normal password once, and land in a running desktop — the
-same "one command, one system, done" shape Omarchy is known for, built
-entirely from this repo's own already-existing, already-tested pieces
-(`install.sh`, `.zshrc`'s startx logic) rather than a new mechanism
-copied from anywhere.
+bootstrap instead. This mechanism has changed twice — see
+`CHANGELOG.md` for the full history — and the reasoning behind each
+change is worth keeping straight:
 
-Deliberately **not** tty auto-login (`agetty --autologin`), which
-would trivially achieve the same "no typing" effect. Auto-login is a
-real, standing security tradeoff — anyone with physical access gets an
-unauthenticated shell, for the entire life of the machine, not just
-the first boot. This design still requires a genuine password login
-every time, including the first; the automation lives entirely in
-*what happens right after* that login succeeds, which costs nothing
-security-wise. The marker is removed *before* `install.sh` runs, not
-after, so a failure partway (e.g. no network yet) means the next login
-drops to a plain shell rather than silently retrying forever on a
-persistent failure — recovering is then the same manual, idempotent
-`cd ~/spacbr && ./install/install.sh` re-run any other install failure
-already uses, not a new failure mode to design around.
+1. **Originally**: a `.bash_profile` written directly by Phase 1,
+   triggered on the *next normal password login* at a plain tty
+   prompt.
+2. **Then `ly`**: a themed TUI login screen replaced the plain prompt;
+   the bootstrap moved into `ly`'s `login_cmd` hook
+   (`system/ly/spacbr-login`).
+3. **Now (`system/autologin/`)**: no login screen at all. `useradd`
+   creates the user with `-s /bin/zsh` directly (`zsh` is pacstrapped
+   in Phase 1 specifically for this — it isn't otherwise, Phase 2's
+   `packages/base` normally covers it), and Phase 1 hand-places
+   `.zshrc` plus the two files it sources
+   (`.config/shell/{profile,aliasrc}`) into the new home directory —
+   the same "can't wait for Phase 2's `deploy_dotfiles`, this has to
+   already work on the very first login" reasoning `ly`'s
+   `spacbr-login` used, just retargeted at the user's own shell rc
+   instead of a display manager's login command. `.zshrc`'s manifest-
+   file check (`$XDG_STATE_HOME/spacbr/manifest` not existing yet)
+   runs `install/install.sh` once, then falls through to its own
+   pre-existing tty1 `exec startx` line. Net result, unchanged from
+   before: boot the ISO once, answer Phase 1's prompts once (including
+   the LUKS2 passphrase — see "Boot & authentication" above), reboot,
+   and land in a running desktop with nothing else to type.
+
+**Now deliberately *is* tty auto-login** (`agetty --autologin`,
+`system/autologin/tty1-autologin.conf`) — reversing an earlier,
+explicit "deliberately not" decision from when this system had no disk
+encryption at all. The reasoning that changed: auto-login used to be a
+pure, uncompensated security tradeoff (anyone with physical access
+gets an unauthenticated shell, for the entire life of the machine).
+With LUKS2 now gating every boot, that's no longer true — the disk
+itself is already locked behind a passphrase before systemd, and
+therefore this autologin unit, is ever reached at all. A second
+password behind the *same* physical-access threat model would
+authenticate the same fact twice, not add real protection, which is
+exactly the reasoning `ly` (a second, genuinely redundant password
+prompt once LUKS2 existed) got removed for.
 
 **Not tested end-to-end.** Everything else in this repo's install
 path — `install.sh`/`update.sh`/`repair.sh`, the firewall, `pacman.conf`,

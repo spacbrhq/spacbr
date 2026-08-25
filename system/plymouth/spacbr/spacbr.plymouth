@@ -1,0 +1,12 @@
+[Plymouth Theme]
+Name=SPACBR
+Description=SPACBR eightchrome boot splash -- shares the same wallpaper as Limine, Rajdhani Bold wordmark, thin Hack progress rule, real password-prompt support.
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/spacbr
+ScriptFile=/usr/share/plymouth/themes/spacbr/spacbr.script
+Font=Rajdhani Bold 14
+MonospaceFont=Hack Bold 14
+ConsoleLogBackgroundColor=0x002f343f
+ConsoleLogTextColor=0x00e1e3e7
