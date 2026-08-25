@@ -1,4 +1,4 @@
-// SPACBR fastfetch config -- denshichrome palette, shown on new terminals
+// SPACBR fastfetch config -- eightchrome palette, shown on new terminals
 // (see .zshrc). Logo colors use fastfetch's truecolor sequence format
 // (38;2;R;G;B), not #RRGGBB -- confirmed against the fastfetch wiki.
 //

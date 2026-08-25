@@ -30,6 +30,25 @@ localsend
 # longer applies here specifically (the general "don't add apps
 # speculatively" principle still does everywhere else).
 
+netbird
+# Mesh VPN, replacing tailscale (which was an official package,
+# packages/base). Not available officially -- confirmed not in
+# core/extra/multilib as of 2026-08-25, AUR-only. WireGuard-based like
+# Tailscale, same "one mesh VPN" slot in the capability list (§44) --
+# not a second owner alongside Tailscale, a straight swap. Ships its
+# own `netbird@main.service` systemd template unit (enabled by
+# setup_netbird() in services.sh, same "enable the daemon, don't run
+# the interactive login" split setup_tailscale used). Per NetBird's own
+# docs (docs.netbird.io/about-netbird/ports-and-firewalls), the client
+# needs no inbound firewall port at all in a standard NAT'd deployment
+# -- purely outbound STUN/relay negotiation -- and manages its own
+# separate nftables table for the `wt0` interface rather than needing
+# an entry in system/nftables/nftables.conf's table, unlike Tailscale's
+# `iifname "tailscale0"` rule. See that file's comment for the one
+# thing worth watching: this repo's own ruleset does a `flush ruleset`
+# on every load, and whether that could ever race against netbird's
+# own dynamically-created table is unverified, not confirmed safe.
+
 mpdris2-rs
 # mpd doesn't expose MPRIS on its own (verified for real: no
 # org.mpris.* name on the session bus at all without this), which

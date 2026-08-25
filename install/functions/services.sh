@@ -31,9 +31,11 @@ set_default_shell() {
         ok "zsh already the login shell"
         return 0
     fi
-    sudo usermod -s "$zsh_path" "$USER" && \
-        ok "login shell set to zsh (takes effect on next login)" || \
+    if sudo usermod -s "$zsh_path" "$USER"; then
+        ok "login shell set to zsh (takes effect on next login)"
+    else
         warn "couldn't set zsh as the login shell — run 'chsh -s $zsh_path' yourself"
+    fi
 }
 
 # setup_snapper -- creates the snapper "root" config (btrfs snapshot
@@ -92,15 +94,20 @@ setup_mpd() {
     fi
 }
 
-# setup_tailscale -- enables tailscaled.service (system-level: it
-# manages network interfaces/routing directly, unlike mpd/syncthing).
-# Does NOT run `tailscale up` -- that's an interactive login (opens a
-# URL to authenticate into a specific tailnet), a real account-linking
-# decision only the user should make, not something to automate.
-setup_tailscale() {
-    command -v tailscale >/dev/null 2>&1 || return 0
-    sudo systemctl enable --now tailscaled.service
-    ok "tailscaled enabled (run 'tailscale up' yourself to actually join a tailnet)"
+# setup_netbird -- enables netbird@main.service (system-level: it
+# manages the wt0 WireGuard interface/routing directly, unlike
+# mpd/syncthing). `@main` is NetBird's own Arch-packaged systemd
+# template unit, one instance per client profile -- "main" is the
+# default profile name, not something SPACBR made up. Does NOT run
+# `netbird up` -- that's an interactive login (opens a browser to
+# authenticate into NetBird Cloud, or a self-hosted management URL via
+# --management-url), a real account-linking decision only the user
+# should make, not something to automate. Same split setup_tailscale
+# used to have, before NetBird replaced it (see packages/aur).
+setup_netbird() {
+    command -v netbird >/dev/null 2>&1 || return 0
+    sudo systemctl enable --now netbird@main.service
+    ok "netbird enabled (run 'netbird up' yourself to actually join a network)"
 }
 
 # setup_syncthing -- enables the user-level syncthing.service (not the
@@ -114,4 +121,50 @@ setup_syncthing() {
     command -v syncthing >/dev/null 2>&1 || return 0
     systemctl --user enable --now syncthing.service
     ok "syncthing enabled (configure devices/folders at 127.0.0.1:8384)"
+}
+
+# setup_maintenance_timers -- enables paccache.timer (pacman-contrib:
+# weekly trim of /var/cache/pacman/pkg down to the last few versions of
+# each package instead of keeping every version ever downloaded) and
+# reflector.timer (reflector: periodic mirrorlist refresh -- the same
+# tool `.local/bin/mirrors`/`spacbr mirrors` already wraps for on-demand
+# use, this just also runs it on a schedule). Real gap, not
+# speculative: found for real that neither was enabled and
+# /var/cache/pacman/pkg had already grown to 2.2GB from a single day's
+# package churn on a machine that's never been rebooted to notice.
+# Both packages are already in packages/base; this only enables their
+# own already-shipped timer units, no new dependency. Non-fatal if
+# either binary is somehow missing (e.g. packages/base was hand-edited)
+# -- just skips that one timer rather than failing the whole step.
+#
+# Also enables fstrim.timer (ships with util-linux, already in
+# packages/base -- no new package either), but only if
+# detect_root_nonrotational (detect.sh) says root is on SSD/NVMe AND
+# root isn't btrfs. A spinning disk gets zero benefit from TRIM, so
+# this isn't enabled unconditionally the way paccache/reflector are.
+# btrfs specifically is excluded even on SSD/NVMe -- corrected after
+# directly reading archinstall's own installer.py
+# (archlinux/archinstall), which disables periodic fstrim for btrfs
+# for exactly this reason: async discard has been the kernel's default
+# for btrfs since 6.2, making a separate periodic TRIM pass redundant
+# (see detect_root_btrfs's comment in detect.sh for the sourced
+# reasoning). Originally shipped without this exclusion and enabled it
+# unconditionally on this repo's own btrfs+NVMe test machine before
+# the correction -- worth knowing if `fstrim.timer` unexpectedly shows
+# disabled on a btrfs system after this change; that's now correct,
+# not a regression.
+setup_maintenance_timers() {
+    command -v paccache >/dev/null 2>&1 && sudo systemctl enable --now paccache.timer
+    command -v reflector >/dev/null 2>&1 && sudo systemctl enable --now reflector.timer
+    ok "paccache.timer / reflector.timer enabled"
+
+    if detect_root_btrfs; then
+        sudo systemctl disable --now fstrim.timer 2>/dev/null
+        ok "fstrim.timer skipped (root is btrfs -- async discard is already the kernel default since 6.2)"
+    elif detect_root_nonrotational; then
+        sudo systemctl enable --now fstrim.timer
+        ok "fstrim.timer enabled (root is on non-rotational storage)"
+    else
+        ok "fstrim.timer skipped (root is on rotational storage)"
+    fi
 }

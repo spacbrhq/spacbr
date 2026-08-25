@@ -71,3 +71,32 @@ deploy_nftables() {
     sudo systemctl reload-or-restart nftables 2>/dev/null || sudo systemctl restart nftables
     ok "nftables ruleset deployed"
 }
+
+# deploy_pacman_conf [SOURCE_DIR] -- copies system/pacman/pacman.conf to
+# /etc/pacman.conf. Validated with `pacman-conf` before it's put in
+# place (syntax/repo-list only, doesn't touch anything) so a typo here
+# can't break every future pacman invocation. Re-syncs repo databases
+# afterward if the repo list actually changed (e.g. multilib newly
+# enabled) -- otherwise a freshly enabled repo has no local database
+# yet and the very next `pacman -S` for anything in it fails.
+deploy_pacman_conf() {
+    local src="${1:-$SPACBR_HOME}/system/pacman/pacman.conf"
+    local dest="/etc/pacman.conf"
+    [ -f "$src" ] || return 0
+    if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+        ok "pacman.conf already up to date"
+        return 0
+    fi
+    if ! pacman-conf --config "$src" --repo-list >/dev/null 2>&1; then
+        error "system/pacman/pacman.conf failed validation -- not deploying"
+        return 1
+    fi
+    local repos_before repos_after
+    repos_before="$(pacman-conf --repo-list 2>/dev/null || true)"
+    sudo install -D -m 644 "$src" "$dest"
+    repos_after="$(pacman-conf --repo-list 2>/dev/null || true)"
+    if [ "$repos_before" != "$repos_after" ]; then
+        sudo pacman -Sy
+    fi
+    ok "pacman.conf deployed"
+}

@@ -35,6 +35,7 @@ SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 info "SPACBR update — source: $SOURCE_DIR"
 require_platform
+require_sudo
 
 if [ "$SOURCE_DIR" = "$SPACBR_SELF" ]; then
     warn "No newer source given — dotfiles won't be re-synced (nothing to copy from)."

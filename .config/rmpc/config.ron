@@ -1,5 +1,5 @@
 // eightharsh's rmpc config -- generated from `rmpc config`'s defaults,
-// only theme changed to reference the denshichrome theme.ron next to
+// only theme changed to reference the eightchrome theme.ron next to
 // this file. Default address (127.0.0.1:6600) already matches
 // .config/mpd/mpd.conf's user-level mpd.socket, and the firewall
 // (system/nftables/nftables.conf) allows loopback unconditionally, so

@@ -9,10 +9,11 @@ Wayland compositor. It's an integration layer on top of stock Arch
 Linux: Arch remains Arch underneath, and SPACBR can be removed without
 breaking it.
 
-Full documentation lives in [`docs/`](docs/): [architecture](docs/architecture.md),
-[keybindings](docs/keybindings.md), [troubleshooting](docs/troubleshooting.md),
-[development](docs/development.md) — read `architecture.md` first if
-you're changing anything here.
+Full documentation lives in [`docs/`](docs/): [prerequisites](docs/prerequisites.md),
+[architecture](docs/architecture.md), [keybindings](docs/keybindings.md),
+[troubleshooting](docs/troubleshooting.md), [development](docs/development.md)
+— read `prerequisites.md` first if you're about to install, or
+`architecture.md` first if you're changing anything here.
 
 ## Philosophy
 
@@ -48,6 +49,7 @@ keyboard shortcut → dmenu → action
 | Screen recording | `ffmpeg` (x11grab + pulse) — `.local/bin/record` |
 | Documents | `Zathura` |
 | Images | `nsxiv` |
+| Email | `Geary` |
 | Browser | `Firefox` |
 | File manager | `PCManFM` |
 | Password manager | `pass` |
@@ -61,7 +63,7 @@ for the reasoning behind it.
 
 ## Visual identity
 
-One palette everywhere — **denshichrome**: `#2f343f` background,
+One palette everywhere — **eightchrome** (by eightharsh): `#2f343f` background,
 `#e1e3e7` foreground, `#404552` selection, `#4084d6` accent. `dwm`,
 `st`, `slock`, and `nsxiv` read it live from `.config/xresources`;
 `dmenu`, GTK, `mpv`, `dunst`, Vim/Neovim, Zathura, and Zed (its own
@@ -101,7 +103,8 @@ docs/           additional documentation
 | `MODKEY+c` | Clipboard history |
 | `MODKEY+Shift+L` / `XF86 ScreenSaver` | Lock screen |
 | `MODKEY+Shift+P` / `XF86 PowerOff` | Power menu (lock/logout/suspend/reboot/shutdown) |
-| `MODKEY+Shift+A` | Audio device selection |
+| `MODKEY+Shift+A` | Audio menu (volume %, device selection) |
+| `MODKEY+Shift+B` | Brightness menu (contrast auto-follows) |
 | `MODKEY+Shift+W` | Wallpaper picker |
 | `XF86 Display` | Display management (xrandr) |
 | `XF86 Bluetooth` | Bluetooth menu |
@@ -117,7 +120,7 @@ After install, `spacbr` is the management entry point:
 
 ```
 spacbr install | update | repair | uninstall | doctor | info | version
-spacbr network | audio | bluetooth | display | wallpaper | screenshot | power
+spacbr network | audio | brightness | bluetooth | display | wallpaper | screenshot | power
 ```
 
 The first group manages the system itself (see `install/`). The second
@@ -126,6 +129,40 @@ dwm keybindings call directly — useful when you'd rather type a
 command than remember a chord.
 
 ## Installing
+
+**Starting from a blank machine and a live Arch ISO?** Boot the ISO,
+connect to the network, then:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/spacbrhq/spacbr/main/install/live-install.sh | sh
+```
+
+That partitions the disk (EFI + btrfs, no subvolume — matches a real
+`archinstall` reference config, see `docs/architecture.md`), installs
+a minimal bootable Arch base — both `linux` and `linux-lts`, Limine as
+the bootloader (Unified Kernel Images, installed to the removable EFI
+path), Plymouth, NTP, mirrors set to Japan/South Korea over HTTPS —
+creates your user with sudo, and clones this repo into it. **Reboot,
+log in with your normal password once, and the rest happens on its
+own**: a first-login bootstrap runs the real installer below
+automatically and starts `dwm` when it's done — no second command to
+remember or type. (Not tty auto-login — every boot still needs a real
+password; see `docs/architecture.md`'s "Live installer" section for
+why that distinction matters and how the handoff actually works.) See
+[`install/live-install.sh`](install/live-install.sh)'s own header
+comment before running it: it's a genuinely destructive, one-way
+operation (it erases the disk you point it at), it only supports a
+single-disk UEFI + Limine setup (no LVM/RAID/encryption/GRUB — use
+`archinstall` itself for those), and **it has not been run
+start-to-finish against real hardware** — built by directly reading
+`archinstall`'s own source for the proven patterns, but test it in a
+disposable VM before trusting it on a real machine.
+
+**Already have Arch installed** (via `archinstall`, manually, or the
+step above)? **Read [`docs/prerequisites.md`](docs/prerequisites.md)
+first** — in particular, a genuinely minimal manual Arch install
+doesn't have working `sudo` by default, which the installer checks for
+and stops on if it's missing.
 
 Once a release is actually published (see `release/README.md` — none
 has been cut yet):
@@ -153,18 +190,28 @@ it's structured that way.
 
 ## Status
 
-Early. In place: the visual system, Suckless patches, dmenu contextual
-scripts, package manifests, the installer (install/update/repair/
-uninstall/doctor), the `spacbr` CLI, and the release tooling
-(`release/build.sh`/`publish.sh`/`bootstrap.sh` — build-tested against
-this repo's own HEAD, output verified). Not yet done: no release has
-actually been tagged/published, no GitHub remote is configured, and
-spacbr.com's actual DNS/hosting isn't wired up — see `release/README.md`
-for the exact remaining steps. Until a release exists, `spacbr update`/
-`repair` without an explicit source directory can't fetch anything
-newer than what's already deployed — see the note at the top of
-`install/update.sh`. None of this has been run against a real Arch
-machine yet. See `VERSION` for the current release.
+Early, but real-hardware tested. In place and verified live against an
+actual Arch machine — not just read from code: the visual system,
+Suckless patches, dmenu contextual scripts, package manifests, the
+`spacbr` CLI, and the full install/update/repair/doctor pipeline,
+including the firewall, `pacman.conf`, CPU microcode, GPU drivers, the
+maintenance timers, and NetBird. The release tooling
+(`release/build.sh`/`publish.sh`/`bootstrap.sh`) is build-tested
+against this repo's own HEAD with output verified, but not used for a
+real release yet. `install/live-install.sh` (the from-scratch live-ISO
+installer) is the one exception to "verified live" — see its own
+header comment and `docs/architecture.md`'s "Live installer" section
+for why, and test it in a disposable VM before real hardware.
+
+Not yet done: no release has actually been tagged/published, no GitHub
+remote is configured, and spacbr.com's actual DNS/hosting isn't wired
+up — see `release/README.md` for the exact remaining steps. Until a
+release exists, `spacbr update`/`repair` without an explicit source
+directory can't fetch anything newer than what's already deployed —
+see the note at the top of `install/update.sh` — and
+`live-install.sh`'s default repo URL (`github.com/spacbrhq/spacbr`)
+needs overriding at its own prompt if that remote isn't live yet. See
+`VERSION` for the current release.
 
 ## License
 

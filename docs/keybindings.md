@@ -22,7 +22,8 @@ and that one ever disagree, the config wins.
 |---|---|
 | `MODKEY+Shift+L` or `XF86 ScreenSaver` | Lock screen (blurred background — built into `slock` itself) |
 | `MODKEY+Shift+P` or `XF86 PowerOff` | Power menu — lock/logout/suspend/reboot/shutdown |
-| `MODKEY+Shift+A` | Audio menu — volume up/down/mute, output/input device |
+| `MODKEY+Shift+A` | Audio menu — volume up/down/set percentage/mute, output/input device |
+| `MODKEY+Shift+B` | Brightness menu — up/down/set percentage (contrast auto-follows) |
 | `MODKEY+Shift+W` | Wallpaper picker |
 | `MODKEY+Shift+N` | DNS server picker (DHCP/Cloudflare/Google/Quad9/custom) |
 | `MODKEY+Shift+M` | Pacman mirrorlist refresh (reflector, worldwide or by country) |
@@ -34,13 +35,20 @@ and that one ever disagree, the config wins.
 Volume, mic mute, brightness, and media transport use the standard
 hardware keys (`XF86 AudioRaiseVolume`/`LowerVolume`/`Mute`/`MicMute`,
 `XF86 MonBrightnessUp`/`Down`, `XF86 AudioPlay`/`AudioNext`/`AudioPrev`)
-and don't go through dmenu — they're direct `wpctl`/`ddcutil`/
-`playerctl` calls. Brightness uses `ddcutil setvcp 10` (DDC/CI over the
-monitor cable), not `brightnessctl`: this machine has no `backlight`-
-class device at all (a desktop with an external monitor, not a laptop
-panel), verified for real via `brightnessctl -l`. A machine with an
-actual laptop panel should use `brightnessctl -c backlight` instead —
-not the class-less default, which can land on an unrelated LED.
+and don't go through dmenu — they're direct `wpctl`/`playerctl` calls,
+or, for volume and brightness, calls into `.local/bin/volume`/
+`.local/bin/brightness`, thin wrappers that add notification feedback
+(a bare `wpctl`/`ddcutil` call changes the level correctly but gives no
+OSD/notification, which reads as "the keys don't work" even though
+they do). Brightness uses `ddcutil setvcp 10` (DDC/CI over the monitor
+cable) under the hood, not `brightnessctl`: this machine has no
+`backlight`-class device at all (a desktop with an external monitor,
+not a laptop panel), verified for real via `brightnessctl -l`. A
+machine with an actual laptop panel should use
+`brightnessctl -c backlight` instead — not the class-less default,
+which can land on an unrelated LED. `.local/bin/brightness get` prints
+the current level (0-100) without changing it, for scripting/checking
+outside of a keypress.
 
 Every one of the scripts behind these bindings is also reachable as a
 plain command: `spacbr audio`, `spacbr bluetooth`, `spacbr display`,

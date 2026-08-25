@@ -106,3 +106,21 @@ pinentry
 # available alternative (.config/alacritty/alacritty.toml, themed to
 # match), not a second owner -- not wired into xinitrc/dwm defaults.
 alacritty
+# geary -- Email had no owner (§7's responsibility table names
+# Documents/Media/Browser/Images but nothing for mail). Official
+# (extra, confirmed live: `pacman -Si geary` -> repository extra,
+# 1:46.0-9), no AUR needed. Honest tradeoff, not glossed over: it pulls
+# in a real slice of the GNOME stack as hard dependencies
+# (gnome-online-accounts, folks, libhandy, webkit2gtk-4.1, gtk3) --
+# 2.63 MiB download / ~12 MiB installed itself, but several of those
+# shared libs may be new pulls on a machine with nothing else GTK3/GNOME-
+# accounts-based installed yet. Accepted because there's no smaller
+# credible GTK/X11-native mail client with comparable IMAP/OAuth
+# account support -- the realistic alternative is a much heavier full
+# MUA (Evolution) or a terminal client (neomutt, aerc) that doesn't fit
+# "GUI email client" as actually asked for. No dwm keybinding: launched
+# like Firefox/pcmanfm normally would be if they didn't already have
+# dedicated MODKEY+w/e bindings -- through the dmenu launcher
+# (MODKEY+p), not a dedicated hotkey, since it's not used constantly
+# enough to earn one (§73).
+geary

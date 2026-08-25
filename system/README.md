@@ -43,7 +43,25 @@ that handles `.config`/`.local`.
   outbound), the real gap for a machine that runs sshd and had no
   firewall at all. Applied and verified live with a background
   auto-revert safety net (flush the ruleset after 90s unless cancelled)
-  so a mistake couldn't have caused a permanent SSH lockout.
+  so a mistake couldn't have caused a permanent SSH lockout. Used to
+  carry an `iifname "tailscale0"` rule for Tailscale (not `iif`,
+  deliberately — `iif` resolves the interface to a kernel ifindex at
+  ruleset-*load* time and aborts the whole load if the interface
+  doesn't exist yet, which is exactly what happened every boot before
+  `tailscaled` had brought the interface up); that rule is gone now
+  that Tailscale's been replaced by NetBird (`packages/aur`), which
+  needs no inbound rule at all in this file — see
+  `docs/architecture.md`'s "Firewall" section for the full history and
+  why NetBird's case is different.
+- `pacman/` — `pacman.conf` deployed to `/etc/pacman.conf`: a copy of
+  Arch's own stock file (kept diffable against a fresh install, same
+  reasoning as the Suckless `config.h` files staying close to
+  `config.def.h`) with `ILoveCandy`/`VerbosePkgLists` uncommented and
+  `[multilib]` enabled — see the header comment in the file itself for
+  the full reasoning. `/etc/pacman.d/mirrorlist` is deliberately *not*
+  tracked here — `spacbr mirrors` (reflector) rewrites it, the same
+  "don't track a file this repo doesn't control the content of"
+  reasoning already applied to `.config/libfm/libfm.conf`.
 
 Don't add a file here speculatively. If a real
 need shows up (a specific device needing an Xorg quirk, a service

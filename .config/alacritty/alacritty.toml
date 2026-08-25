@@ -1,4 +1,4 @@
-# eightharsh's alacritty.toml -- denshichrome palette, matching st.
+# eightharsh's alacritty.toml -- eightchrome palette, matching st.
 #
 # st stays the primary terminal ($TERMINAL, MODKEY+T, everything else
 # in this repo) -- this exists as an available alternative, not a

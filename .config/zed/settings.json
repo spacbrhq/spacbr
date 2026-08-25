@@ -6,7 +6,7 @@
   // running modal keybindings would defeat the reason it exists
   // alongside nvim rather than instead of it).
   "cli_default_open_behavior": "existing_window",
-  "theme": "Denshichrome",
+  "theme": "Eightchrome",
   "vim_mode": false,
   "buffer_font_family": "Hack",
   "buffer_font_size": 14,

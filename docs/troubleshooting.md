@@ -210,6 +210,23 @@ for that mimetype in `mimeapps.list` rather than assuming the regex
 line covers it — exact entries are what mimeapps.list actually gives
 override priority to.
 
+## "sudo not found" or "not in the sudoers file" right at the start of install
+
+`install.sh`/`update.sh`/`repair.sh` all check for this upfront
+(`require_sudo` in `install/functions/detect.sh`) and stop with
+remediation instructions before touching anything — you shouldn't see
+this fail silently or confusingly partway through. It happens on a
+genuinely minimal, manually-installed Arch system (`pacstrap /mnt base
+linux linux-firmware` per the Arch wiki's manual install guide): the
+`base` group doesn't include `sudo` at all, and nothing sets up a
+wheel-group user automatically the way `archinstall`'s guided flow
+does. Fix, as root: `pacman -S sudo && usermod -aG wheel <user> &&
+EDITOR=nano visudo` (uncomment `%wheel ALL=(ALL:ALL) ALL`), then log
+back in as that user and re-run the installer. Don't run the installer
+as root itself, even to work around this — `useradd -m -G wheel -s
+/bin/bash <user>` first; the whole deploy model assumes a real user's
+`$HOME`.
+
 ## Installer/update/repair fails partway through
 
 - Nothing is destructive by default: `deploy_tree` (in

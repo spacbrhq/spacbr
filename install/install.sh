@@ -20,22 +20,27 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 info "SPACBR installer — $SPACBR_HOME"
 
 require_platform
+require_sudo
 
 if [ "${1:-}" != "--yes" ]; then
     printf '\nThis will:\n'
-    printf '  - install packages from packages/{base,x11,desktop,hardware}\n'
+    printf '  - deploy system/pacman/pacman.conf to /etc/pacman.conf (multilib enabled, ParallelDownloads=5, ILoveCandy/VerbosePkgLists) and re-sync repo databases if the repo list changed\n'
+    printf '  - install packages from packages/{base,x11,desktop,hardware}, CPU microcode (intel-ucode/amd-ucode, skipped in a VM), and GPU drivers for any detected Intel/AMD hardware\n'
     printf '  - deploy .config, .local/bin, .local/share, .local/src into %s\n' "$HOME"
     printf '  - build and install dwm, dmenu, st, dwmblocks, slock\n'
     printf '  - enable NetworkManager, bluetooth, and nftables\n'
     printf '  - enable a firewall (nftables): deny all inbound except SSH and ping, unrestricted outbound -- see system/nftables/nftables.conf\n'
     printf '  - set up snapper (if root is btrfs): automatic snapshots before/after every pacman transaction, plus periodic timeline snapshots\n'
     printf '  - enable mpd.socket (user-level, starts mpd on first connection) for the rmpc music client\n'
+    printf '  - enable netbird@main.service and syncthing.service (neither joins/configures anything -- netbird up and Syncthing'\''s web UI are yours to do)\n'
     printf '  - install a polkit rule so wheel-group reboot/suspend/poweroff (the power menu'\''s Reboot/Suspend/Shutdown) do not require a password\n'
     printf '  - set your login shell to zsh if it is not already (needed for .zshrc'\''s tty1 auto-startx)\n'
+    printf '  - enable paccache.timer and reflector.timer (periodic package-cache trim and mirrorlist refresh), and fstrim.timer if root is SSD/NVMe and not btrfs\n'
     printf '  - back up any existing files that differ, never delete anything\n\n'
     confirm "Continue?" || die "aborted"
 fi
 
+deploy_pacman_conf
 install_all_packages
 deploy_dotfiles
 reload_user_units
@@ -47,8 +52,9 @@ deploy_polkit_rules
 deploy_modules_load
 setup_snapper
 setup_mpd
-setup_tailscale
+setup_netbird
 setup_syncthing
+setup_maintenance_timers
 set_default_shell
 
 info "Validating installation"

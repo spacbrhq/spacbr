@@ -107,9 +107,30 @@ toggle_speaker_headphones() {
     return 1
 }
 
-case "$(printf '%s\n' "Volume up" "Volume down" "Mute toggle" "Output device" "Input device" "Toggle speaker/headphones" | dmenu -p "audio")" in
-    "Volume up")                   "$(dirname "$0")/volume" up ;;
-    "Volume down")                 "$(dirname "$0")/volume" down ;;
+# Current level shown live in the menu labels below -- same reasoning
+# as .local/bin/brightness's menu: picking "Volume up" blind, with no
+# idea what level you're starting from, is worse than seeing it.
+current_vol="$("$(dirname "$0")/volume" get 2>/dev/null)"
+[ -z "$current_vol" ] && current_vol="?"
+
+case "$(printf '%s\n' \
+    "Volume up (currently ${current_vol}%)" \
+    "Volume down (currently ${current_vol}%)" \
+    "Set volume percentage (currently ${current_vol}%)" \
+    "Mute toggle" \
+    "Output device" \
+    "Input device" \
+    "Toggle speaker/headphones" \
+    | dmenu -p "audio")" in
+    "Volume up "*)                  "$(dirname "$0")/volume" up ;;
+    "Volume down "*)                "$(dirname "$0")/volume" down ;;
+    "Set volume percentage"*)
+        pick=$(printf '%s\n' 0 10 20 30 40 50 60 70 80 90 100 | dmenu -p "set volume %")
+        case "$pick" in
+            ''|*[!0-9]*) exit 0 ;;
+            *) "$(dirname "$0")/volume" set "$pick" ;;
+        esac
+        ;;
     "Mute toggle")                 "$(dirname "$0")/volume" mute ;;
     "Output device")              pick_and_set "Sinks:" "Output" ;;
     "Input device")                pick_and_set "Sources:" "Input" ;;

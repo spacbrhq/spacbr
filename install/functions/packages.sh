@@ -73,11 +73,93 @@ install_aur_overrides() {
     done
 }
 
+# install_cpu_microcode -- detects CPU vendor from /proc/cpuinfo and
+# installs the matching official package (intel-ucode/amd-ucode).
+# Can't live as a static packages/* line like everything else: which
+# one is correct depends on runtime hardware, not a fixed list, and
+# installing both unconditionally would be wrong (wastes space, and
+# the wrong one's ucode.img just sits unused).
+#
+# Scope boundary, deliberate: this only installs the package. It does
+# NOT touch bootloader configuration (regenerating grub.cfg, editing
+# systemd-boot loader entries, rebuilding a UKI) -- SPACBR doesn't
+# detect or manage bootloader type anywhere else in this repo, and
+# getting boot configuration wrong risks an unbootable system in a way
+# that's far harder to recover from remotely than anything else this
+# installer touches (contrast with the nftables firewall change, which
+# had a safety net precisely because SSH access could be tested and
+# recovered from). Verified for real on one machine (systemd-boot +
+# UKI/measured boot): `pacman -S intel-ucode` alone was already
+# sufficient there -- `journalctl -k | grep microcode` confirmed it
+# actually loading at boot with zero manual bootloader step needed, so
+# modern kernel-install-based systemd-boot setups appear to wire this
+# in automatically. NOT verified: a plain GRUB setup, where the Arch
+# wiki's own documentation says `grub-mkconfig` needs a manual re-run
+# after installing microcode for the first time -- if `spacbr doctor`'s
+# "microcode loaded" check ever fails despite the package being
+# installed, that's the first thing to check, not a SPACBR bug.
+#
+# Skips entirely inside a VM (systemd-detect-virt, already present --
+# part of systemd, a hard base dependency, no new package needed).
+# Corrected after directly reading archinstall's own installer.py
+# (archlinux/archinstall, _get_microcode()): it checks
+# `SysInfo.is_vm()` before ever attempting microcode, via exactly this
+# same command. A virtual CPU has no real hardware microcode for the
+# hypervisor's vCPU to load -- installing intel-ucode/amd-ucode inside
+# a VM is pointless, not actively harmful, but pointless is enough
+# reason to skip it given this repo's own package philosophy (§39).
+install_cpu_microcode() {
+    local vendor pkg
+    if detect_is_vm; then
+        ok "running in a VM ($(systemd-detect-virt 2>/dev/null)) -- skipping CPU microcode"
+        return 0
+    fi
+    vendor="$(awk -F': ' '/vendor_id/{print $2; exit}' /proc/cpuinfo 2>/dev/null)"
+    case "$vendor" in
+        GenuineIntel) pkg=intel-ucode ;;
+        AuthenticAMD) pkg=amd-ucode ;;
+        *) warn "unrecognized CPU vendor '$vendor' -- skipping microcode package"; return 0 ;;
+    esac
+    sudo pacman -S --needed --noconfirm "$pkg"
+    ok "$pkg installed"
+}
+
+# install_gpu_drivers -- detects GPU vendor(s) via `lspci` (pciutils,
+# packages/base) and installs the matching official mesa/Vulkan
+# packages. Checks Intel and AMD independently, not a case/either-or
+# switch: a hybrid-graphics laptop can genuinely have both, and
+# skipping one because the other matched first would silently leave a
+# real GPU without a driver. NVIDIA deliberately not handled here --
+# not requested, and NVIDIA's own driver situation (proprietary vs.
+# nouveau vs. nvidia-open) is enough of a real decision that it
+# shouldn't be silently auto-selected the way Intel/AMD's
+# unambiguous open-source stack can be.
+install_gpu_drivers() {
+    local gpu_info pkgs=""
+    command -v lspci >/dev/null 2>&1 || { warn "lspci not found (pciutils) -- skipping GPU driver detection"; return 0; }
+    gpu_info="$(lspci -k 2>/dev/null | grep -iE 'vga|3d|display')"
+    if echo "$gpu_info" | grep -qi intel; then
+        pkgs="$pkgs mesa vulkan-intel intel-media-driver"
+    fi
+    if echo "$gpu_info" | grep -qiE 'advanced micro devices|amd|ati '; then
+        pkgs="$pkgs mesa vulkan-radeon libva-mesa-driver"
+    fi
+    if [ -z "$pkgs" ]; then
+        ok "no Intel/AMD GPU detected -- skipping driver install"
+        return 0
+    fi
+    # shellcheck disable=SC2086
+    sudo pacman -S --needed --noconfirm $pkgs
+    ok "GPU drivers installed for detected hardware"
+}
+
 install_all_packages() {
     require_cmd pacman
     for pkgset in base x11 desktop hardware; do
         install_package_set "$pkgset"
     done
+    install_cpu_microcode
+    install_gpu_drivers
 
     # Non-fatal: AUR content is supplementary, never anything the base
     # desktop depends on to function (§43). install_aur_overrides

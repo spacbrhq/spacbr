@@ -10,7 +10,7 @@
 -- treesitter and a hand-rolled statusline -- is preserved in git
 -- history if worth bringing back deliberately later.
 --
--- Colors match .config/vim/vimrc's denshichrome palette exactly (same
+-- Colors match .config/vim/vimrc's eightchrome palette exactly (same
 -- guibg=NONE approach -- proven fine there, so the theory that this
 -- pattern itself caused the "shows nothing" report doesn't hold up).
 
@@ -38,7 +38,7 @@ vim.opt.splitright     = true
 vim.opt.splitbelow     = true
 vim.opt.termguicolors  = true
 
--- COLORS -- denshichrome, same palette/approach as .config/vim/vimrc.
+-- COLORS -- eightchrome, same palette/approach as .config/vim/vimrc.
 vim.cmd("syntax on")
 vim.cmd("highlight clear")
 

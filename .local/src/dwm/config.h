@@ -21,6 +21,7 @@
 #define MIRRORCTL "~/.local/bin/mirrors"
 #define RECORDCTL "~/.local/bin/record"
 #define VOLUMECTL "~/.local/bin/volume"
+#define BRIGHTNESSCTL "~/.local/bin/brightness"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -34,7 +35,7 @@ static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
 static const char *fonts[]          = { "Hack:size=10" };
 static const char dmenufont[]       = "Hack:size=10";
-/* denshichrome palette — must match .config/xresources's dwm.* keys
+/* eightchrome palette (by eightharsh) — must match .config/xresources's dwm.* keys
  * exactly: loadxrdb() overwrites these at runtime, but the compiled
  * defaults should already match so there's no flash of the wrong
  * theme before Xresources loads (or if it's ever missing). */
@@ -135,10 +136,15 @@ static const Key keys[] = {
      * DDC/CI over the cable (confirmed via `ddcutil detect`), so
      * ddcutil controls its real hardware brightness (VCP feature
      * 0x10) instead. brightnessctl is kept in packages/hardware for
-     * any machine that *does* have a real backlight. */
-    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD("ddcutil setvcp 10 + 5") },
-    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD("ddcutil setvcp 10 - 5") },
+     * any machine that *does* have a real backlight.
+     *
+     * brightness script wraps ddcutil with a notification, same
+     * reasoning as VOLUMECTL right above -- a raw `ddcutil setvcp`
+     * call here changed the level correctly but gave zero feedback. */
+    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD(BRIGHTNESSCTL " up") },
+    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD(BRIGHTNESSCTL " down") },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
+	{ MODKEY|ShiftMask,             XK_b,      spawn,          SHCMD(BRIGHTNESSCTL " menu") },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
 	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },

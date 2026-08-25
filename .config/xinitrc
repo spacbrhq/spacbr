@@ -82,6 +82,17 @@ hsetroot -fill "$(cat "$statedir/wallpaper" 2>/dev/null || echo "$HOME/.local/sh
 # driven, no polling daemon) and also catches logind-triggered suspend
 # (e.g. lid close), not just the power menu's explicit lock-before-suspend.
 xset s 900 900
+# DPMS (actual monitor power-down, separate from X's own screen-blank
+# above) was left at whatever the Xorg/driver default happens to be --
+# verified for real on this machine that default was 30/30/30 seconds,
+# not off. That meant the monitor itself went fully dark within ~30s of
+# inactivity while the screensaver/lock above still waited the full 15
+# minutes -- a real, unintended mismatch against the documented 15-
+# minute idle-lock policy, not a security issue (it still locks
+# eventually) but a confusing "why does my screen keep going black"
+# experience. Aligned to the same 900s across all three DPMS states.
+xset +dpms
+xset dpms 900 900 900
 xss-lock -- slock &
 
 exec dbus-launch dwm

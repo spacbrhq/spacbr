@@ -29,6 +29,7 @@ SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 info "SPACBR repair — source: $SOURCE_DIR"
 require_platform
+require_sudo
 
 info "Diagnosing"
 run_all_checks || true
@@ -41,9 +42,23 @@ run_all_checks || true
 # DOCTOR_FAILED at 0 and repair reported "Nothing to repair" while
 # actually doing nothing, contradicting this script's own documented
 # ability to restore missing .local/bin content.
+#
+# deploy_self here too, not just in update.sh -- a real bug, found for
+# real: without it, `spacbr repair /path/to/newer/clone` refreshed
+# dotfiles but left $SPACBR_SELF's own install/functions/*.sh,
+# packages/*, and system/* permanently on whatever was deployed by the
+# last `spacbr install`/`spacbr update`, no matter how new a source
+# directory you pointed repair at. Since `spacbr repair` (via the CLI
+# shim) always execs the *deployed* repair.sh, a fix landing in
+# functions/*.sh never reached the copy that was actually running --
+# caught when a call to a function added after the last deploy_self
+# (reload_user_units, added in an earlier session) failed with
+# "command not found" against a stale deployed configs.sh, even though
+# the source clone passed to repair had it all along.
 if [ "$SOURCE_DIR" != "$SPACBR_SELF" ]; then
     deploy_dotfiles "$SOURCE_DIR"
     reload_user_units
+    deploy_self "$SOURCE_DIR"
 elif [ "$DOCTOR_FAILED" -ne 0 ]; then
     warn "No known-good source given — can fix packages/binaries/services,"
     warn "but not dotfile content. For that: spacbr repair /path/to/spacbr"
@@ -55,6 +70,7 @@ if [ "$DOCTOR_FAILED" -eq 0 ]; then
 fi
 
 warn "Failures found above — attempting repair"
+deploy_pacman_conf "$SOURCE_DIR"
 install_all_packages
 build_and_install_suckless
 deploy_nftables "$SOURCE_DIR"
@@ -63,8 +79,13 @@ deploy_polkit_rules "$SOURCE_DIR"
 deploy_modules_load "$SOURCE_DIR"
 setup_snapper
 setup_mpd
-setup_tailscale
+setup_netbird
 setup_syncthing
+setup_maintenance_timers
 
 info "Re-checking"
-run_all_checks && ok "Repair complete" || warn "Some checks still fail — see above"
+if run_all_checks; then
+    ok "Repair complete"
+else
+    warn "Some checks still fail — see above"
+fi

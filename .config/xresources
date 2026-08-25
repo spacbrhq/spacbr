@@ -6,7 +6,7 @@
  * dmenucmd on purpose), so this stays the one place the palette lives
  * for it, instead of two places that could drift apart. */
 
-/* !! denshichrome: */
+/* !! eightchrome (by eightharsh): */
 *.background: #2f343f
 *.foreground: #e1e3e7
 *.color0: #2f343f

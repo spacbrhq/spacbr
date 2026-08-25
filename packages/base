@@ -39,9 +39,27 @@ fontconfig
 freetype2
 ttf-hack
 # Hack has no emoji/wide-Unicode glyphs — Noto fills that gap for
-# browsers/documents without pulling in the much larger CJK set.
+# browsers/documents. noto-fonts-cjk included deliberately (not the
+# default "skip the large CJK set" choice) -- matches a real reference
+# archinstall config (user_configuration.json) generated for this
+# project's own test machine, and lines up with the mirror selection
+# (system/pacman -- Japan/South Korea) already assuming CJK content is
+# a real, not hypothetical, use case here.
 noto-fonts
 noto-fonts-emoji
+noto-fonts-cjk
+# Liberation (metric-compatible Arial/Times New Roman/Courier New
+# substitutes) and DejaVu -- the two other broadly-expected fallback
+# families for documents/web content that specify a font Hack/Noto
+# don't cover.
+ttf-liberation
+ttf-dejavu
+
+# pciutils (lspci) -- needed by install_gpu_drivers() in packages.sh
+# to detect which GPU vendor(s) are actually present. Portable, not
+# hardware-specific itself (it's the detection tool), so base rather
+# than packages/hardware.
+pciutils
 
 # Fetch/sync/transfer — curl is already assumed by
 # .config/firefox/firefox.sh; wget and rsync are the other two
@@ -78,10 +96,10 @@ tmux
 nnn
 fastfetch
 
-# Local network file transfer and cross-device sync -- real,
-# expressed needs, not speculative. Neither is desktop-specific (both
-# work headless), so base rather than packages/desktop.
-tailscale
+# Cross-device sync -- a real, expressed need, not speculative. Not
+# desktop-specific (works headless), so base rather than
+# packages/desktop. The mesh-VPN entry that used to sit next to this
+# (tailscale) moved to packages/aur -- see netbird there for why.
 syncthing
 
 # Mirror-list maintenance for pacman itself.

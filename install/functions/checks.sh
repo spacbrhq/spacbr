@@ -21,6 +21,13 @@ run_all_checks() {
     run_check "x86_64"              "detect_x86_64" "SPACBR only supports x86_64"
     run_check "Xorg present"        "command -v Xorg || command -v X" "pacman -S xorg-server"
 
+    info "Package management"
+    # Readable without sudo -n gymnastics (unlike nftables.conf/the
+    # polkit rule): /etc/pacman.conf is world-readable 644, so a plain
+    # cmp works for every user, not just one with a cached credential.
+    run_check "pacman.conf deployed" "cmp -s /etc/pacman.conf \"\$SPACBR_HOME/system/pacman/pacman.conf\" 2>/dev/null" "spacbr repair (or spacbr install) to deploy system/pacman/pacman.conf"
+    run_check "multilib enabled"     "pacman-conf --repo-list 2>/dev/null | grep -qx multilib" "spacbr repair (or spacbr install) to deploy system/pacman/pacman.conf, which enables [multilib]"
+
     info "Suckless components"
     run_check "dwm"                 "command -v dwm" "cd .local/src/dwm && make && make install"
     run_check "dmenu"               "command -v dmenu" "cd .local/src/dmenu && make && make install"
@@ -103,6 +110,37 @@ run_all_checks() {
     # informationally like the bluetooth-hardware-absent check above.
     run_check "ddcutil"             "command -v ddcutil" "pacman -S ddcutil (only needed for external-monitor brightness via DDC/CI)"
     run_check "i2c-dev loaded"      "lsmod | grep -q i2c_dev" "spacbr repair (deploys system/modules-load.d), or: sudo modprobe i2c-dev"
+    # Skipped entirely in a VM, same as install_cpu_microcode itself --
+    # a virtual CPU has no real hardware microcode to load, so neither
+    # check applies there, the same "not applicable" spirit as the
+    # bluetooth-hardware-absent check above.
+    if ! detect_is_vm; then
+        # Vendor-conditional: the "wrong" package for this CPU isn't a
+        # failure to report, it's simply not applicable.
+        run_check "CPU microcode package" "case \"\$(awk -F': ' '/vendor_id/{print \$2; exit}' /proc/cpuinfo)\" in GenuineIntel) pacman -Qi intel-ucode >/dev/null 2>&1 ;; AuthenticAMD) pacman -Qi amd-ucode >/dev/null 2>&1 ;; *) true ;; esac" "spacbr repair (runs install_cpu_microcode)"
+        # Package-installed is necessary but not sufficient -- this
+        # checks it's actually loading at boot, not just sitting in
+        # /boot unused (see install_cpu_microcode's comment on the
+        # GRUB caveat this would catch).
+        run_check "CPU microcode loaded" "journalctl -k -b 0 --no-pager 2>/dev/null | grep -qi microcode" "package installed but not loading at boot -- on GRUB, try: sudo grub-mkconfig -o /boot/grub/grub.cfg"
+    fi
+    # Vendor-conditional like the CPU microcode check above -- checked
+    # independently, not either-or, since a hybrid laptop can have both.
+    if command -v lspci >/dev/null 2>&1; then
+        _gpu_info="$(lspci -k 2>/dev/null | grep -iE 'vga|3d|display')"
+        if echo "$_gpu_info" | grep -qi intel; then
+            run_check "Intel GPU driver (mesa)" "pacman -Qi vulkan-intel >/dev/null 2>&1" "spacbr repair (runs install_gpu_drivers)"
+        fi
+        if echo "$_gpu_info" | grep -qiE 'advanced micro devices|amd|ati '; then
+            run_check "AMD GPU driver (mesa)" "pacman -Qi vulkan-radeon >/dev/null 2>&1" "spacbr repair (runs install_gpu_drivers)"
+        fi
+    fi
+    # btrfs excluded even on SSD/NVMe -- see detect_root_btrfs's
+    # comment in detect.sh for why (async discard is the kernel default
+    # for btrfs since 6.2, confirmed against archinstall's own source).
+    if ! detect_root_btrfs && detect_root_nonrotational; then
+        run_check "fstrim.timer enabled" "systemctl is-enabled --quiet fstrim.timer" "spacbr repair (runs setup_maintenance_timers)"
+    fi
 
     info "Session extras"
     run_check "clipmenu"            "command -v clipmenu" "pacman -S clipmenu"
@@ -148,8 +186,10 @@ run_all_checks() {
     run_check "fzf"       "command -v fzf" "pacman -S fzf"
     run_check "nnn"       "command -v nnn" "pacman -S nnn"
     run_check "alacritty" "command -v alacritty" "pacman -S alacritty"
-    run_check "tailscale" "command -v tailscale" "pacman -S tailscale"
-    run_check "tailscaled enabled" "systemctl is-enabled --quiet tailscaled.service" "spacbr repair (runs setup_tailscale) -- still needs 'tailscale up' yourself to join a tailnet"
+    run_check "paccache.timer enabled"   "systemctl is-enabled --quiet paccache.timer" "spacbr repair (runs setup_maintenance_timers)"
+    run_check "reflector.timer enabled"  "systemctl is-enabled --quiet reflector.timer" "spacbr repair (runs setup_maintenance_timers)"
+    run_check "netbird" "command -v netbird" "paru -S netbird"
+    run_check "netbird enabled" "systemctl is-enabled --quiet netbird@main.service" "spacbr repair (runs setup_netbird) -- still needs 'netbird up' yourself to join a network"
     run_check "syncthing" "command -v syncthing" "pacman -S syncthing"
     run_check "syncthing.service enabled" "systemctl --user is-enabled --quiet syncthing.service" "spacbr repair (runs setup_syncthing)"
     run_check "localsend" "command -v localsend" "paru -S localsend"

@@ -23,6 +23,7 @@ spacbr — SPACBR management CLI
   spacbr network      open nmtui (scan/connect/disconnect/saved networks)
   spacbr dns          DNS server picker (DHCP/Cloudflare/Google/Quad9/custom)
   spacbr audio        select output/input device, volume up/down/mute
+  spacbr brightness    up/down/set <pct>/get, or a dmenu menu with no args
   spacbr bluetooth     scan/connect/disconnect/trust/remove devices
   spacbr display      xrandr layout menu
   spacbr wallpaper     set/next/previous/random wallpaper
@@ -44,6 +45,7 @@ case "${1:-}" in
     network)    exec "${TERMINAL:-st}" -e nmtui ;;
     dns)        shift; exec "$HOME/.local/bin/dns" "$@" ;;
     audio)      shift; exec "$HOME/.local/bin/audio" "$@" ;;
+    brightness) shift; exec "$HOME/.local/bin/brightness" "${@:-menu}" ;;
     bluetooth)  shift; exec "$HOME/.local/bin/bluetooth" "$@" ;;
     display)    shift; exec "$HOME/.local/bin/display" "$@" ;;
     wallpaper)  shift; exec "$HOME/.local/bin/wallpaper" "$@" ;;

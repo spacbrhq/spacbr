@@ -20,8 +20,15 @@ notify() {
         notify-send -t 1500 -h string:x-dunst-stack-tag:spacbr-volume "Volume" "$1"
 }
 
+# raw_pct: bare number (for `get`/scripting/menu labels). pct: the
+# same with a trailing % (for notify text) -- kept separate so `get`
+# stays parseable the same way .local/bin/brightness's `get` is,
+# without changing the existing notification wording.
+raw_pct() {
+    wpctl get-volume "$1" | awk '{printf "%d", $2*100}'
+}
 pct() {
-    wpctl get-volume "$1" | awk '{printf "%d%%", $2*100}'
+    printf '%s%%' "$(raw_pct "$1")"
 }
 
 case "${1:-}" in
@@ -33,6 +40,16 @@ case "${1:-}" in
         wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
         wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "$(pct @DEFAULT_AUDIO_SINK@)"
         ;;
+    set)
+        case "$2" in
+            ''|*[!0-9]*) echo "usage: volume set <0-100>" >&2; exit 1 ;;
+            *)
+                v="$2"; [ "$v" -gt 100 ] && v=100
+                wpctl set-volume @DEFAULT_AUDIO_SINK@ "${v}%"
+                wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "$(pct @DEFAULT_AUDIO_SINK@)"
+                ;;
+        esac
+        ;;
     mute)
         wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
         wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "Unmuted ($(pct @DEFAULT_AUDIO_SINK@))"
@@ -41,8 +58,11 @@ case "${1:-}" in
         wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
         wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED && notify "Microphone muted" || notify "Microphone unmuted"
         ;;
+    get)
+        raw_pct @DEFAULT_AUDIO_SINK@
+        ;;
     *)
-        echo "usage: volume up|down|mute|mic-mute" >&2
+        echo "usage: volume up|down|set <0-100>|mute|mic-mute|get" >&2
         exit 1
         ;;
 esac
