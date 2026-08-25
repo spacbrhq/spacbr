@@ -8,6 +8,74 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Fifth real bug: sudo's cached credential expires mid AUR-build (2026-08-25)
+
+Same live-fire run, further along: `install/install.sh` reached
+`install_aur_helper()`, bootstrapped `paru` from source successfully
+(a genuinely long `cargo build --release` with LTO), then tried to
+build the `packages/aur` entries (`localsend`, `netbird`,
+`mpdris2-rs`) — `localsend` built and installed fine, but `netbird`
+and `mpdris2-rs` (both also sizeable Rust builds) both failed with
+`sudo: 3 incorrect password attempts`. `require_sudo()` only calls
+`sudo -v` once, at the very start of the script — by the time paru's
+internal `sudo pacman -U` ran for these packages, enough wall-clock
+time had passed (paru bootstrap + 299 packages + one full AUR build)
+that sudo's cached timestamp had expired, and the resulting
+mid-build password re-prompt is buried inside `cargo`/`makepkg`
+output, easy to miss even watching the terminal — a real user
+stepping away during a long install, not just this session's own SSH
+automation, could hit the exact same failure. Fixed by having
+`require_sudo()` (`detect.sh`, shared by `install.sh`/`update.sh`/
+`repair.sh`) start a background `sudo -n true` refresher every 60
+seconds, killed via `trap ... EXIT` when the script exits — the
+standard pattern for a script that needs sudo for longer than the
+default timestamp timeout.
+
+### Fourth real bug: first-login bootstrap marker went missing (2026-08-25)
+
+After fixing the Limine bug above and getting a real boot, `ssh
+eightharsh@<host>` landed on a bare bash prompt with no sign the
+first-login bootstrap had run — `~/.spacbr-first-boot` simply didn't
+exist on disk, while `~/.bash_profile` (written moments earlier in
+the same script run, same mount, same `sync` + `umount -R`) was
+present and correct. Re-read the exact `touch`/`chown` sequence in
+`live-install.sh` and everything after it that touches
+`/home/$USERNAME` — nothing in the script explains it; `set -eu`
+would have killed the run before its own `ok "first-login bootstrap
+ready"` line if `touch` itself had failed, and nothing later in the
+script touches that path again. Root cause unconfirmed. Rather than
+keep guessing, added a read-back verification right after
+`touch`+`chown` (`[ -f ... ] || die ...`, matching the existing
+sudoers-verification pattern in the same file) so a repeat of this —
+whatever actually causes it — fails loudly at Phase 1 instead of
+silently leaving a user at a bare shell with no indication anything
+was supposed to happen. Recreating the marker by hand and logging in
+again confirmed the *mechanism* itself is correct: `.bash_profile`
+fired, consumed the marker, and started `install/install.sh`
+automatically, exactly as designed.
+
+### Third real bug: Limine config written before its own UKIs exist (2026-08-25)
+
+Rebooted into the fresh install for the first time this run and hit
+Limine's own boot screen reporting "config file contains no valid
+entries" — a clean Phase 1 run had produced a genuinely unbootable
+disk. Cause: `live-install.sh` wrote `limine.conf` *before* calling
+`mkinitcpio -P` to actually build the UKIs it references — each
+entry was gated on `[ -f ".../arch-$kernel.efi" ]`, which was false
+for every kernel at that point in the script, so the loop's `continue`
+skipped every entry and the file ended up as just a `timeout: 5` line
+with nothing else. Confirmed on the actual disk: `limine.conf` was
+11 bytes, while both UKIs existed fine on the ESP — the UKI *build*
+step itself had always worked, only the config referencing it was
+wrong. Fixed for the test machine by booting the live ISO again,
+mounting the existing partitions (no reinstall needed — the disk was
+otherwise fine), and rewriting `limine.conf` by hand once the UKIs
+were confirmed present. Fixed in the script by moving the entire
+"install Limine, write limine.conf" block to *after* the UKI build +
+existence-check block, and added a second guard — `grep -q
+'^/Arch Linux' limine.conf || die ...` — so a config with zero
+entries can never again be silently written as if it succeeded.
+
 ### Second real bug found on the same live-fire run: git clone hangs on credentials (2026-08-25)
 
 Continuing the same actual live run (after fixing the `stty` crash):

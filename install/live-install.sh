@@ -432,6 +432,16 @@ fi
 PROFILE_EOF
 touch "/mnt/home/$USERNAME/.spacbr-first-boot"
 arch-chroot /mnt chown "$USERNAME:$USERNAME" "/home/$USERNAME/.bash_profile" "/home/$USERNAME/.spacbr-first-boot"
+sync
+# Read the marker back rather than trusting touch's exit status alone --
+# found for real that this file went missing on the actual installed
+# system despite this section completing without error (same mount,
+# same unmount as .bash_profile, which DID persist correctly), root
+# cause unconfirmed. Whatever caused it, a silent missing marker means
+# .bash_profile's "if" is simply false forever and the user gets a
+# bare shell on first login with no indication anything was supposed
+# to happen -- so verify it landed and fail loudly here instead.
+[ -f "/mnt/home/$USERNAME/.spacbr-first-boot" ] || die "wrote /home/$USERNAME/.spacbr-first-boot but it's not there on read-back -- the first-login bootstrap would silently never fire. Stopping before declaring success."
 ok "first-login bootstrap ready"
 
 info "Configuring zram swap..."
@@ -526,11 +536,27 @@ EOF
     ok "$kernel.preset configured (UKI -> /boot/EFI/Linux/arch-$kernel.efi)"
 done
 
+info "Building Unified Kernel Images (mkinitcpio -P)..."
+arch-chroot /mnt mkinitcpio -P
+for kernel in $KERNELS; do
+    [ -f "/mnt/boot/EFI/Linux/arch-$kernel.efi" ] || die "mkinitcpio finished but /boot/EFI/Linux/arch-$kernel.efi wasn't created -- something's wrong with the $kernel preset. Stopping before declaring success on a system that can't actually boot $kernel."
+done
+ok "UKIs built for: $KERNELS"
+
 # ---------------------------------------------------------------------
 # Limine -- installed to the removable EFI path (EFI/BOOT/BOOTX64.EFI),
 # not a machine-specific NVRAM boot entry. Sequence and config format
 # follow archinstall's own _add_limine_bootloader() (archlinux/
 # archinstall, installer.py) exactly for the removable+UEFI+UKI case.
+#
+# This runs AFTER the UKIs are built above, not before: limine.conf's
+# entries are gated on each arch-$kernel.efi actually existing, and an
+# earlier version of this script wrote that config before mkinitcpio
+# had run -- every existence check failed, "continue" skipped every
+# entry, and the result was a limine.conf with a timeout line and zero
+# boot entries. Confirmed for real on the test machine: Limine's own
+# boot screen reported "config file contains no valid entries" after a
+# clean-looking install run. Keep this block after the UKI build.
 # ---------------------------------------------------------------------
 
 info "Installing Limine (removable EFI path)..."
@@ -549,6 +575,9 @@ cp /mnt/usr/share/limine/BOOTX64.EFI /mnt/boot/EFI/BOOT/
 } > /mnt/boot/EFI/BOOT/limine.conf
 # UKIs embed their own cmdline (from /etc/kernel/cmdline above) --
 # Limine's config doesn't need to repeat it for protocol: efi entries.
+if ! grep -q '^/Arch Linux' /mnt/boot/EFI/BOOT/limine.conf; then
+    die "limine.conf has no boot entries -- the UKIs above exist but none matched. Stopping before declaring success on a system that can't boot."
+fi
 
 # Pacman hook: re-deploy the Limine EFI binaries after every `limine`
 # package upgrade, same as archinstall's own generated hook -- without
@@ -568,13 +597,6 @@ When = PostTransaction
 Exec = /bin/sh -c "/usr/bin/cp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/ && { [ -f /usr/share/limine/BOOTIA32.EFI ] && /usr/bin/cp /usr/share/limine/BOOTIA32.EFI /boot/EFI/BOOT/ || true; }"
 EOF
 ok "Limine installed to /boot/EFI/BOOT (removable path)"
-
-info "Building Unified Kernel Images (mkinitcpio -P)..."
-arch-chroot /mnt mkinitcpio -P
-for kernel in $KERNELS; do
-    [ -f "/mnt/boot/EFI/Linux/arch-$kernel.efi" ] || die "mkinitcpio finished but /boot/EFI/Linux/arch-$kernel.efi wasn't created -- something's wrong with the $kernel preset. Stopping before declaring success on a system that can't actually boot $kernel."
-done
-ok "UKIs built for: $KERNELS"
 
 # ---------------------------------------------------------------------
 # Clone SPACBR into the new user's home -- runuser, not sudo: root

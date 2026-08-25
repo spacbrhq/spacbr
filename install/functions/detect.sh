@@ -76,4 +76,16 @@ require_sudo() {
     command -v sudo >/dev/null 2>&1 || die "sudo not found. As root: pacman -S sudo && usermod -aG wheel \$USER && EDITOR=nano visudo (uncomment '%wheel ALL=(ALL:ALL) ALL'), then log out and back in and re-run this."
     sudo -v || die "sudo didn't accept your credentials. Confirm your user is actually in the wheel group (groups \$USER) and that sudoers has '%wheel ALL=(ALL:ALL) ALL' uncommented (EDITOR=nano visudo)."
     ok "sudo access confirmed"
+
+    # Keep the cached credential warm for the rest of the run. Found for
+    # real: a paru AUR build (299 packages plus building paru itself,
+    # then netbird/mpdris2-rs from source) easily outlasts sudo's
+    # default timestamp_timeout, and the resulting mid-build password
+    # re-prompt is buried in cargo/makepkg output -- easy to miss even
+    # watching the terminal, and paru gives up after 3 failed attempts,
+    # silently failing just that package instead of stopping the script.
+    # Refreshed in the background every minute, killed on exit.
+    ( while true; do sleep 60; sudo -n true 2>/dev/null; done ) &
+    SUDO_KEEPALIVE_PID=$!
+    trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null' EXIT
 }
