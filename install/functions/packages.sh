@@ -64,6 +64,22 @@ install_aur_overrides() {
         info "Building $name from local override"
         tmpdir=$(mktemp -d)
         cp -r "$dir." "$tmpdir/"
+
+        # Import any PGP keys the PKGBUILD's validpgpkeys expects --
+        # found for real that this was missing: makepkg checks source
+        # signatures against the *building user's own* gpg keyring
+        # (~/.gnupg), not pacman's system one, and a fresh user account
+        # has nothing imported at all. paru does this automatically for
+        # plain AUR packages; this override path calls makepkg directly
+        # and needs the same step. Best-effort across two keyservers --
+        # if both fail, let makepkg's own error be what's reported
+        # rather than fail before even attempting the build.
+        for key in $(sed -n '/^validpgpkeys=/,/)/p' "$tmpdir/PKGBUILD" | grep -oE '[A-F0-9]{40}'); do
+            gpg --keyserver keyserver.ubuntu.com --recv-keys "$key" >/dev/null 2>&1 || \
+            gpg --keyserver keys.openpgp.org --recv-keys "$key" >/dev/null 2>&1 || \
+            warn "couldn't fetch PGP key $key for $name from either keyserver -- build may fail signature verification"
+        done
+
         if ( cd "$tmpdir" && makepkg -si --noconfirm ); then
             ok "$name installed (local override)"
         else

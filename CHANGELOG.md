@@ -8,6 +8,29 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Sixth real bug: arc-gtk-theme's override build has no PGP key imported (2026-08-25)
+
+Found while investigating the same live run's `spacbr repair` output:
+`GTK theme installed` still failed even after everything else was
+green. The actual build log showed why —
+`install_aur_overrides()`'s `makepkg -si` for `arc-gtk-theme` failed
+with `gpg: ... FAILED (unknown public key FAEDBC4FB5AA3B17)`. A
+different root cause than the earlier `libnotify` mirror saga: this
+isn't pacman's system keyring at all, it's `makepkg` checking the
+PKGBUILD's `validpgpkeys` against the *building user's own* `~/.gnupg`
+keyring, which a fresh user account has never had anything imported
+into. `paru` handles this automatically for plain AUR packages; this
+override path calls `makepkg` directly and never got the same step.
+Fixed by parsing `validpgpkeys` out of the PKGBUILD and importing each
+key (tried against two keyservers) before building. Also fixed the
+check's own remediation text, which had drifted out of date in two
+ways: it described `arc-gtk-theme` as coming straight from the AUR
+(it's been `packages/aur-overrides/arc-gtk-theme`, a SPACBR-maintained
+fork, since the AUR original was found to fail outright — see that
+PKGBUILD's own header), and told the user to "install an AUR helper
+(paru)" as if one were missing, when paru was already present and
+working the whole time.
+
 ### First full end-to-end validation of the two-phase system (2026-08-25)
 
 After the fifth real bug's fix (sudo keep-alive) was pushed and pulled
