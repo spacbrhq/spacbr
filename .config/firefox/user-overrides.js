@@ -45,3 +45,14 @@ user_pref("webgl.disabled", false);
 // Disable resistFingerprinting (enable for more privacy)
 user_pref("privacy.resistFingerprinting", false);
 
+// SPACBR eightchrome chrome theming (chrome/userChrome.css, deployed
+// by firefox.sh into this profile's chrome/ dir). Off by default in
+// Firefox since 69 -- without this, that stylesheet is never loaded
+// at all, no error, just silently ignored. GTK_THEME=Arc-Dark only
+// themes genuinely native GTK bits (file/print dialogs, context
+// menus) -- Firefox's own tab bar/toolbar/urlbar have used their own
+// theming system since the Proton redesign (89+), not native GTK
+// widgets, so this is the only way to actually get eightchrome's
+// colors into the browser chrome itself.
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+

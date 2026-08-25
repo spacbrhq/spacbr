@@ -1,0 +1,87 @@
+/* SPACBR eightchrome theming for Firefox's own browser chrome (tabs,
+ * toolbar, urlbar) -- deployed by firefox.sh into this profile's
+ * chrome/ directory. Needed because GTK_THEME=Arc-Dark and the
+ * gtk-3.0/4.0 settings.ini theme this whole system already uses only
+ * reach genuinely native GTK widgets (file/print dialogs, right-click
+ * context menus); Firefox's own chrome has used its own internal
+ * theming system since the Proton redesign (89+), not native GTK
+ * widgets, so GTK theme settings alone never reach it.
+ *
+ * Same six colors used everywhere else in this repo
+ * (.config/xresources, dwm/dmenu/st/slock configs, GTK, Limine,
+ * Plymouth):
+ *   background #2f343f   foreground #e1e3e7
+ *   muted      #404552   accent     #4084d6
+ *
+ * Requires toolkit.legacyUserProfileCustomizations.stylesheets = true
+ * (set in ../user-overrides.js) -- Firefox silently ignores this whole
+ * file otherwise, no error anywhere.
+ *
+ * Two layers, not one: the --lwt-*/--toolbar-*/--tab-* custom
+ * properties in :root are the same ones Firefox's own "System Theme"
+ * and the browser.theme WebExtension API set -- the stable, intended
+ * customization surface, most likely to keep working across Firefox
+ * versions. The explicit selector overrides below that are a fallback
+ * layer for the specific elements (bookmarks bar, find bar, panel
+ * menus) those custom properties don't fully reach on their own.
+ * Firefox's internal chrome DOM structure does shift between versions
+ * -- if a future update visibly breaks part of this, that's the part
+ * to re-check first, not the custom-properties layer above it.
+ */
+
+:root {
+	--lwt-accent-color: #2f343f !important;
+	--lwt-accent-color-inactive: #2f343f !important;
+	--lwt-text-color: #e1e3e7 !important;
+	--lwt-toolbar-field-background-color: #404552 !important;
+	--lwt-toolbar-field-color: #e1e3e7 !important;
+	--lwt-toolbar-field-focus: #404552 !important;
+	--lwt-toolbar-field-focus-color: #e1e3e7 !important;
+
+	--toolbar-bgcolor: #2f343f !important;
+	--toolbar-color: #e1e3e7 !important;
+	--toolbarbutton-icon-fill: #e1e3e7 !important;
+	--toolbarbutton-hover-background: #404552 !important;
+
+	--tab-selected-bgcolor: #404552 !important;
+	--tab-selected-textcolor: #e1e3e7 !important;
+	--tab-line-color: #4084d6 !important;
+
+	--urlbar-box-bgcolor: #404552 !important;
+	--urlbar-box-text-color: #e1e3e7 !important;
+	--urlbarView-highlight-background: #4084d6 !important;
+	--urlbarView-highlight-color: #e1e3e7 !important;
+
+	--arrowpanel-background: #2f343f !important;
+	--arrowpanel-color: #e1e3e7 !important;
+	--arrowpanel-border-color: #404552 !important;
+}
+
+/* Fallback layer: elements the custom properties above don't fully
+ * reach on their own (verified against a real running profile, but
+ * still the part most likely to need adjustment on a future Firefox
+ * version -- see the header comment). */
+#navigator-toolbox,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar,
+#titlebar {
+	background-color: #2f343f !important;
+	color: #e1e3e7 !important;
+}
+
+#urlbar-background,
+.searchbar-textbox {
+	background-color: #404552 !important;
+	color: #e1e3e7 !important;
+}
+
+.tabbrowser-tab[selected="true"] .tab-background,
+.tabbrowser-tab:hover .tab-background {
+	background-color: #404552 !important;
+}
+
+.findbar-textbox {
+	background-color: #404552 !important;
+	color: #e1e3e7 !important;
+}

@@ -3,18 +3,13 @@ static const Block blocks[] = {
 	/*Icon*/	/*Command*/		/*Update Interval*/	/*Update Signal*/
 
 	{"Net: ", "~/.local/bin/net",						10,		4},
-	{"LAX ", "TZ='America/Los_Angeles' date '+%I:%M %p'",		5,		0},
-	{"DAB ", "TZ='America/New_York' date '+%I:%M %p'",		5,		0},
-	{"FCO ", "TZ='Europe/Rome' date '+%I:%M %p'",		5,		0},
-	{"DXB ", "TZ='Asia/Dubai' date '+%I:%M %p'",		5,		0},
-	{"TPE ", "TZ='Asia/Taipei' date '+%I:%M %p'",		5,		0},
+	/* .local/bin/volume get already exists (shared with dwm's hardware
+	 * volume keys/the audio dmenu menu) and returns the bare percentage
+	 * number -- reused here rather than duplicating a wpctl call.
+	 * MUTED check mirrors the exact same check that script's own
+	 * notify() uses, so the bar and the notification never disagree. */
+	{"Vol: ", "wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && echo Muted || ~/.local/bin/volume get | sed 's/$/%/'",	5,		0},
 	{"", "date '+%b %d (%a) %I:%M %p'",					5,		0},
-	/* Icon lives in the command, not the static field: dwmblocks always
-	 * copies the icon first, so a static "Bat: " label would render
-	 * forever even with no battery present. Verified for real on
-	 * battery-less desktop hardware -- empty icon + empty command
-	 * output is the only combination dwmblocks treats as "no block". */
-	{"", "for b in /sys/class/power_supply/BAT*/capacity; do [ -f $b ] && printf 'Bat: %s%%' $(cat $b) && break; done",	5,		0},
 };
 
 //sets delimiter between status commands. NULL character ('\0') means no delimiter.

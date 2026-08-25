@@ -45,6 +45,16 @@ userjs="$pdir/user.js"
 # Apply Arkenfox and the overrides
 cat "$arkenfox" "$overrides" > "$userjs"
 
+# Chrome-level theming (tabs/toolbar/urlbar) -- see chrome/userChrome.css's
+# own header for why GTK_THEME alone can't reach this. Requires
+# toolkit.legacyUserProfileCustomizations.stylesheets=true, set in
+# user-overrides.js above (already applied to userjs by this point).
+chromesrc="$(dirname "$0")/chrome/userChrome.css"
+if [ -f "$chromesrc" ]; then
+	mkdir -p "$pdir/chrome"
+	cp "$chromesrc" "$pdir/chrome/userChrome.css"
+fi
+
 # Install extensions
 addonlist="ublock-origin decentraleyes istilldontcareaboutcookies new-window-without-toolbar tridactyl-vim"
 addontmp="$(mktemp -d)"
