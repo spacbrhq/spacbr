@@ -268,7 +268,7 @@ fun spacbr_display_password_callback(prompt, bullets)
     # password (the root LUKS2 volume, see docs/architecture.md "Boot &
     # authentication"), so a single fixed, calm label is accurate for
     # every real case, not a guess that happens to fit only this one.
-    spacbr_prompt_text = "Enter password to unlock system";
+    spacbr_prompt_text = "Unlock system";
 
     # Stars, not the filled-circle bullets this used to draw -- asterisk
     # (*) specifically, not a fancier Unicode star (☆/✦/etc.): checked
