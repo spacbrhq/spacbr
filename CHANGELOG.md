@@ -8,6 +8,129 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Plymouth boot/reboot/shutdown splash: redesign and real-hardware bug fixes (2026-08-26)
+
+Extensive real-hardware iteration on `system/plymouth/spacbr/spacbr.script`,
+each round driven by an actual reboot and a real photo of the physical
+screen, not guesswork:
+
+- The wallpaper never actually loaded, ever, since the theme was first
+  built: Plymouth's `Image()` loader is PNG-only (confirmed against its
+  source), and the theme was pointing it at a `.jpg`. Re-exported as PNG.
+- Replaced the progress bar (a row of repeated block-glyph characters,
+  which read as a strip of separate ticks and only advanced in
+  1/40th-sized steps) with a continuous bar built by scaling a solid
+  color swatch — real, continuous motion instead of a discrete row.
+- Password prompt and stars are now one combined `Image.Text()` call
+  with Pango's own `align: "center"` instead of two independently
+  positioned images — the previous two-image approach had no shared
+  reference frame between the two lines no matter how carefully their
+  positions/sizes were matched by hand.
+- The fade-in was tied to Plymouth's `progress` percentage, which is
+  elapsed-time-vs-a-*cached*-duration-estimate — fine at boot, but on
+  reboot/shutdown that estimate is unreliable enough that the splash
+  stayed washed-out and near-invisible for an entire real shutdown.
+  Switched to `duration` (real elapsed seconds, confirmed from
+  Plymouth's own source), which reaches full opacity reliably in every
+  mode.
+- Added a mode-aware status caption ("Starting up" / "Restarting" /
+  "Shutting down", via `Plymouth.GetMode()`) after reboot/shutdown was
+  reported as visually indistinguishable from a stuck update screen.
+  Reboot/shutdown are also deliberately dimmed (capped opacity) as a
+  second signal that they're transient/ending states, and no longer
+  show a progress bar at all — a percentage there was never going to
+  represent anything real.
+- A wrong LUKS password gave zero feedback (retry looked identical to
+  a first attempt). Fixed using a real, sourced signal from Plymouth's
+  daemon (submitting removes the pending request and `display_normal`
+  fires when the queue is empty, which plain backspacking never
+  triggers) to show "Incorrect password, try again" only after an
+  actual failed submission.
+- That same "elapsed-time-vs-cached-estimate" unreliability also made
+  the boot percentage hit "100%" while still sitting at the unlock
+  prompt (a long password-typing pause exceeded the cached total), then
+  jumping or briefly dropping backward once resumed. Fixed by hiding
+  the bar entirely while the prompt is active and rebaselining progress
+  to resume cleanly at 0% afterward, rather than showing a number that
+  lied, jumped, or went backward.
+
+### Repo-wide bug audit: a real notification-bus split, plus several script correctness bugs (2026-08-26)
+
+A focused audit of the installer, `spacbr` CLI, every dmenu contextual
+script, the session startup chain, and the Plymouth script, checking
+concretely against CLAUDE.md's own "keyboard -> dmenu -> action, one
+visual language" model rather than general code review.
+
+**Most severe finding**: `.config/xinitrc` launched dwm via
+`dbus-launch dwm`. `dbus-launch` unconditionally spawns its *own*
+private D-Bus bus and points dwm's whole process tree at it, instead
+of the real systemd/pam_systemd session bus already available (this
+system logs in through a genuine systemd user session, confirmed via
+`loginctl`). Checked live: dwm's own process was on
+`/tmp/dbus-XXXXXX`; dunst (D-Bus-activated) was on the real
+`/run/user/$UID/bus`. Every `notify-send` call from anything dwm ever
+spawned — every dmenu script, every keybinding — had been silently
+addressed to a bus dunst was never listening on, for the entire
+session. This went undetected because testing `notify-send` over SSH
+doesn't inherit dwm's environment and reaches the correct bus by
+auto-discovery instead — a real keybinding-triggered notification and
+an SSH-triggered one were never actually taking the same path. Fixed
+by dropping `dbus-launch` entirely; confirmed live afterward that dwm
+and dunst share the same bus address.
+
+**Other real bugs fixed in the same pass**:
+- `display` assumed a laptop panel (eDP/LVDS) always exists; on a
+  desktop with only external monitors (this project's own test
+  machine), every multi-output action silently ran against an empty
+  output name, then unconditionally reported "success" anyway. Now
+  picks any two connected outputs and only reports success when
+  xrandr's own exit status agrees.
+- `record`'s region-select didn't actually abort on cancel (`set --`'s
+  exit status was checked instead of `slop`'s), and had no dependency
+  check for xdotool/slop at all, unlike screenshot's equivalent check
+  for the same tools.
+- `bluetooth` spliced device names unescaped into an awk regex (a name
+  with parens/dots broke the match silently), and "Disconnect"/
+  "Remove"/toggle-power only ever notified on success, unlike
+  "Connect", which notified on both outcomes.
+- `dns` interpolated the active connection name (derived from the
+  SSID) into a `sh -c` string instead of passing it as a real
+  positional argument — an SSID containing a quote could break the
+  quoting.
+- `wallpaper` had no feedback path at all; an empty/missing backgrounds
+  directory made every subcommand silently do nothing.
+- `screenshot` hard-required notify-send (exit if missing) while every
+  sibling script treats it as optional, and a cancelled/failed capture
+  exited the whole script under `set -e` with zero feedback.
+- `volume up` had no ceiling (wpctl's relative `%+` step can exceed
+  100% indefinitely) while `down` naturally floors at 0% and `set`
+  already capped its own input at 100 — fixed with wpctl's own
+  `-l 1.0` limit flag.
+- `brightness`, run with no arguments (e.g. launched straight off PATH
+  via dwm's own app launcher, not just the dedicated keybinding),
+  silently printed a usage error and exited instead of opening its
+  menu — the one script in this repo that bundles both a low-level
+  control tool and its own interactive menu, and the only one that
+  didn't default sensibly when called bare. Fixed to default to
+  `menu`, matching the convenience `spacbr brightness` already had at
+  the CLI-wrapper level.
+- `audio`'s menu was missing a mic-mute entry despite dwm's config.h
+  binding a hardware key for it (the only volume/mute action without a
+  matching menu item), used a different notification style than
+  `volume` for the same kind of feedback, mixed noun-first and
+  verb-first wording for its toggle actions in the same list, and
+  repeated "(currently X%)" identically on three menu lines instead of
+  showing it once in the dmenu prompt. `brightness`'s menu had the
+  exact same triplicated-text issue.
+- `spacbr --help`'s command list was misaligned by one column for
+  roughly half its entries (measured precisely, not eyeballed) —
+  realigned to one consistent column.
+- `dwm/config.h`'s keybindings table mixed tab-indented lines (dwm's
+  own convention) with 4-space-indented ones, plus a few lines using
+  tabs for internal column alignment on top of that — purely cosmetic
+  (confirmed whitespace-only and that it still compiles clean), but
+  meant the table only actually lined up at one specific tab width.
+
 ### Real boot-loop risk found and fixed in the new autologin flow (2026-08-25)
 
 Bug-hunt pass over the LUKS2/autologin rewrite just below, specifically
