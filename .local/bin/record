@@ -1,17 +1,23 @@
 #!/bin/sh
-# dmenu-driven screen recording via ffmpeg (x11grab + pulse audio --
-# both already SPACBR dependencies, no new package needed). Toggle
-# behavior: run it once to start (picks what to record and whether to
-# include audio via two small dmenu prompts), run it again while
-# recording to stop and save -- no menu needed for that, there's only
-# one sensible action.
+# dmenu-driven screen/audio recording via ffmpeg (x11grab + pulse audio
+# -- both already SPACBR dependencies, no new package needed).
+#
+# One unified menu -- Full screen/Region/Window/Audio only/Stop
+# recording all shown together every time, not a menu that
+# context-switches to a completely different set of options depending
+# on whether something's already running. Real, reported point of
+# confusion with the earlier design: "Stop recording" only existed in
+# a menu that appeared *after* something was already recording, so it
+# was never discoverable by looking at the normal menu -- a person
+# could reasonably conclude the option didn't exist at all.
 #
 # SIGINT, not SIGKILL/SIGTERM: ffmpeg needs to see it to write a valid
-# moov atom and finalize the mp4 cleanly. A killed-outright recording
-# is usually an unplayable, truncated file.
+# moov atom and finalize the mp4 (or audio container) cleanly. A
+# killed-outright recording is usually an unplayable, truncated file.
 
-OUTDIR="$HOME/Videos"
-mkdir -p "$OUTDIR"
+VIDEODIR="$HOME/Videos"
+AUDIODIR="$HOME/Music"
+mkdir -p "$VIDEODIR" "$AUDIODIR"
 PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.pid"
 LOGFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.log"
 FILEFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.file"
@@ -19,27 +25,50 @@ FILEFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.file"
 . "$HOME/.local/share/spacbr/notify.sh"
 notify() { spacbr_notify "Record" "$1"; }
 
-# Already recording: show the stop option in the menu itself, rather
-# than silently stopping on a bare re-invocation -- Escape cancels
-# without touching the running recording.
-if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-    choice=$(printf '%s\n' "Stop recording" | dmenu -p "record")
-    if [ "$choice" = "Stop recording" ]; then
-        kill -INT "$(cat "$PIDFILE")"
-        rm -f "$PIDFILE"
-        # Named file, not just the directory -- matching screenshot's
-        # own notification, which names the actual file it saved.
-        saved="$(cat "$FILEFILE" 2>/dev/null)"
-        rm -f "$FILEFILE"
-        notify "Recording stopped and saved to ${saved:-$OUTDIR}"
+is_recording() {
+    [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+}
+
+stop_recording() {
+    kill -INT "$(cat "$PIDFILE")"
+    rm -f "$PIDFILE"
+    # Named file, not just the directory -- matching screenshot's own
+    # notification, which names the actual file it saved.
+    saved="$(cat "$FILEFILE" 2>/dev/null)"
+    rm -f "$FILEFILE"
+    notify "Recording stopped and saved to ${saved:-$VIDEODIR}"
+}
+
+target=$(printf '%s\n' "Full screen" "Region" "Window" "Audio only" "Stop recording" | dmenu -p "record")
+[ -z "$target" ] && exit 0
+
+if [ "$target" = "Stop recording" ]; then
+    if is_recording; then
+        stop_recording
+    else
+        notify "Not currently recording"
     fi
     exit 0
 fi
 
-target=$(printf '%s\n' "Full screen" "Region" "Window" | dmenu -p "record")
-[ -z "$target" ] && exit 0
+# Picking a start option while something's already running would
+# otherwise spawn a second, overlapping ffmpeg and silently overwrite
+# PIDFILE/FILEFILE out from under the first one -- refuse clearly
+# instead, matching this project's "no silent failures" convention.
+if is_recording; then
+    notify "Already recording -- stop it first"
+    exit 0
+fi
 
-audio=$(printf '%s\n' "No audio" "Microphone" "System audio" | dmenu -p "audio")
+# "No audio" only makes sense when there's a video track to pair it
+# with -- recording audio-only with no audio input is nonsensical, so
+# that mode gets its own two-choice prompt instead of the three-choice
+# one video targets use.
+if [ "$target" = "Audio only" ]; then
+    audio=$(printf '%s\n' "Microphone" "System audio" | dmenu -p "audio source")
+else
+    audio=$(printf '%s\n' "No audio" "Microphone" "System audio" | dmenu -p "audio")
+fi
 [ -z "$audio" ] && exit 0
 
 # xdotool/slop are both in packages/desktop, so this should never
@@ -52,7 +81,9 @@ case "$target" in
     "Full screen"|"Window") need=xdotool ;;
     "Region")                need=slop ;;
 esac
-command -v "$need" >/dev/null 2>&1 || { notify "Missing: $need"; exit 1; }
+if [ -n "$need" ]; then
+    command -v "$need" >/dev/null 2>&1 || { notify "Missing: $need"; exit 1; }
+fi
 
 case "$target" in
     "Full screen")
@@ -92,13 +123,19 @@ case "$audio" in
         ;;
 esac
 
-file="$OUTDIR/$(date +%Y%m%d_%H%M%S).mp4"
-printf '%s\n' "$file" > "$FILEFILE"
-
-# shellcheck disable=SC2086
-ffmpeg -y -f x11grab -framerate 30 $video_opts $audio_opts \
-    -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
-    ${audio_opts:+-c:a aac} "$file" >"$LOGFILE" 2>&1 &
+if [ "$target" = "Audio only" ]; then
+    file="$AUDIODIR/$(date +%Y%m%d_%H%M%S).m4a"
+    printf '%s\n' "$file" > "$FILEFILE"
+    # shellcheck disable=SC2086
+    ffmpeg -y $audio_opts -c:a aac "$file" >"$LOGFILE" 2>&1 &
+else
+    file="$VIDEODIR/$(date +%Y%m%d_%H%M%S).mp4"
+    printf '%s\n' "$file" > "$FILEFILE"
+    # shellcheck disable=SC2086
+    ffmpeg -y -f x11grab -framerate 30 $video_opts $audio_opts \
+        -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
+        ${audio_opts:+-c:a aac} "$file" >"$LOGFILE" 2>&1 &
+fi
 echo $! > "$PIDFILE"
 disown
 

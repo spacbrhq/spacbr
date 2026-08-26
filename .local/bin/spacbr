@@ -28,7 +28,7 @@ spacbr — SPACBR management CLI
   spacbr display     xrandr layout menu
   spacbr wallpaper   set/next/previous/random wallpaper
   spacbr screenshot  full/window/region/color screenshot
-  spacbr record      full/region/window screen recording, with/without audio
+  spacbr record      full/region/window screen recording, or audio-only
   spacbr mirrors     refresh pacman mirrorlist via reflector
   spacbr power       lock/logout/suspend/reboot/shutdown menu
 EOF
