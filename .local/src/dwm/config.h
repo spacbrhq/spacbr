@@ -22,6 +22,7 @@
 #define RECORDCTL "~/.local/bin/record"
 #define VOLUMECTL "~/.local/bin/volume"
 #define BRIGHTNESSCTL "~/.local/bin/brightness"
+#define HELPCTL "~/.local/bin/keys"
 
 /* appearance */
 static const unsigned int borderpx  = 0;        /* border pixel of windows */
@@ -96,6 +97,7 @@ static const char *termcmd[]  = { "st", NULL };
 static const Key keys[] = {
 	/* modifier                     key        function        argument */
 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
+	{ MODKEY,                       XK_slash,  spawn,          SHCMD(HELPCTL) },
 	{ MODKEY,                       XK_t,      spawn,          SHCMD(TERMINAL) },
 	{ MODKEY,                       XK_w,      spawn,          SHCMD(BROWSER) },
 	{ MODKEY,                       XK_e,      spawn,          SHCMD(EXPLORER) },

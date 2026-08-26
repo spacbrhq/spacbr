@@ -9,6 +9,7 @@ and that one ever disagree, the config wins.
 | Key | Action |
 |---|---|
 | `MODKEY+p` | dmenu launcher |
+| `MODKEY+/` | Show this keybindings reference (also `spacbr keys`) |
 | `MODKEY+t` | Terminal (st) |
 | `MODKEY+w` | Browser (Firefox) |
 | `MODKEY+e` | File manager (pcmanfm) |
@@ -28,7 +29,7 @@ and that one ever disagree, the config wins.
 | `MODKEY+Shift+N` | DNS server picker (DHCP/Cloudflare/Google/Quad9/custom) |
 | `MODKEY+Shift+M` | Pacman mirrorlist refresh (reflector, worldwide or by country) |
 | `MODKEY+Shift+C` | Color picker (region select, hex value to clipboard + notification) |
-| `MODKEY+Shift+R` | Screen recording — full/region/window, with/without audio. Run again while recording to stop and save |
+| `MODKEY+Shift+R` | Recording menu — full/region/window/audio-only, plus Pause/Resume/Stop while recording is active |
 | `XF86 Display` | Display layout menu (xrandr: auto/extend/mirror/external/internal) |
 | `XF86 Bluetooth` | Bluetooth menu (power/scan/connect/disconnect/remove) |
 

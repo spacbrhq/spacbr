@@ -8,6 +8,43 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### In-session keybindings reference: MODKEY+/ and `spacbr keys` (2026-08-26)
+
+SPACBR's whole interaction model is "keyboard shortcut -> dmenu ->
+action" (CLAUDE.md section 74), which only works once a new user
+already knows the shortcuts -- and the only place they were ever
+written down was `docs/keybindings.md` on GitHub, not anything
+reachable from the desktop itself.
+
+Added `.local/bin/keys`, a small script that opens
+`docs/keybindings.md` from its deployed location under
+`$XDG_DATA_HOME/spacbr/docs/` (not a path relative to the script
+itself -- `.local/bin/` and `docs/` land in two different XDG
+locations). It reuses the terminal it's already running in when
+stdout is a tty (so `spacbr keys` works over plain SSH, no X needed),
+and only spawns a new `$TERMINAL` window when there isn't one -- i.e.
+when launched from dwm's new `MODKEY+/` binding, which has no
+controlling tty of its own. Wired up three ways: the `MODKEY+/`
+keybinding in `config.h` (rebuilt and verified with zero warnings
+against the real machine's X11 headers), `spacbr keys` in the CLI, and
+a mention in the one-time first-boot welcome notification in
+`.config/xinitrc` (previously only mentioned `MODKEY+p`/`MODKEY+t`).
+
+Also fixed `docs/keybindings.md`'s stale description of
+`MODKEY+Shift+R` (record) -- still described the old toggle-based
+design ("run again while recording to stop and save") from before
+this session's unified always-visible menu with Pause/Resume and
+Audio-only.
+
+Verified live: rebuilt dwm from the modified `config.h` on the real
+machine (clean build, zero warnings), confirmed the doctor check
+suite shows no new regressions, and exercised both branches of
+`keys`' terminal-detection logic directly (a real pty via `script`
+for the inline-pager path; a fake `$TERMINAL` for the spawn path).
+The new dwm binary is deployed but not force-restarted into the
+already-running live session -- it takes effect on the next relogin,
+same as any other dwm rebuild.
+
 ### Boot->desktop transition, part 2: recolor the tty1 flash to eightchrome (2026-08-26)
 
 Follow-up after ruling out extending Plymouth's own lifetime (see the

@@ -1,0 +1,33 @@
+#!/bin/sh
+# Opens SPACBR's keybindings reference (docs/keybindings.md). Bound to
+# MODKEY+/ in dwm's config.h, and reachable as `spacbr keys` from a
+# terminal -- dwm's whole interaction model is "keyboard shortcut ->
+# dmenu -> action", which only works once you already know the
+# keyboard shortcuts, and the only place that was ever written down
+# was a file on GitHub nobody sitting at the actual desktop would
+# think to go read.
+#
+# Reads from the deployed copy under XDG_DATA_HOME (installed there by
+# install/functions/configs.sh's deploy_self), not a path relative to
+# this script -- .local/bin/ and docs/ land in two different XDG
+# locations, not siblings on disk.
+set -eu
+
+DOCFILE="${XDG_DATA_HOME:-$HOME/.local/share}/spacbr/docs/keybindings.md"
+
+if [ ! -f "$DOCFILE" ]; then
+    echo "keys: $DOCFILE not found -- run 'spacbr update' to (re)deploy it" >&2
+    command -v notify-send >/dev/null 2>&1 && \
+        notify-send "Keybindings" "Reference not found -- run 'spacbr update' to deploy it"
+    exit 1
+fi
+
+# Reuses the terminal it's already running in when there is one (so
+# `spacbr keys` works over plain SSH, no X required). Only spawns a
+# new terminal window when there isn't one -- i.e. launched from dwm's
+# MODKEY+/ binding, which has no controlling tty of its own.
+if [ -t 1 ]; then
+    exec "${PAGER:-less}" "$DOCFILE"
+else
+    exec "${TERMINAL:-st}" -e "${PAGER:-less}" "$DOCFILE"
+fi

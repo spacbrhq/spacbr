@@ -142,7 +142,7 @@ if [ -f "$statedir/welcome-pending" ]; then
 	rm -f "$statedir/welcome-pending"
 	command -v notify-send >/dev/null 2>&1 && \
 		notify-send -t 8000 -h string:x-dunst-stack-tag:spacbr-welcome \
-			"SPACBR" "MODKEY+p opens the launcher, MODKEY+t opens a terminal." &
+			"SPACBR" "MODKEY+p opens the launcher, MODKEY+t opens a terminal, MODKEY+/ shows all keybindings." &
 fi
 
 # Not exec'd (unlike every other line here) specifically so this
