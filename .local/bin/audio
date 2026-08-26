@@ -127,14 +127,14 @@ case "$(printf '%s\n' \
     "Volume up (currently ${current_vol}%)" \
     "Volume down (currently ${current_vol}%)" \
     "Set volume percentage (currently ${current_vol}%)" \
-    "Mute toggle" \
-    "Microphone mute toggle" \
+    "Toggle mute" \
+    "Toggle microphone mute" \
     "Output device" \
     "Input device" \
     "Toggle speaker/headphones" \
     | dmenu -p "audio")" in
-    "Volume up "*)                  "$(dirname "$0")/volume" up ;;
-    "Volume down "*)                "$(dirname "$0")/volume" down ;;
+    "Volume up "*)             "$(dirname "$0")/volume" up ;;
+    "Volume down "*)           "$(dirname "$0")/volume" down ;;
     "Set volume percentage"*)
         pick=$(printf '%s\n' 0 10 20 30 40 50 60 70 80 90 100 | dmenu -p "set volume %")
         case "$pick" in
@@ -142,10 +142,10 @@ case "$(printf '%s\n' \
             *) "$(dirname "$0")/volume" set "$pick" ;;
         esac
         ;;
-    "Mute toggle")                 "$(dirname "$0")/volume" mute ;;
-    "Microphone mute toggle")      "$(dirname "$0")/volume" mic-mute ;;
-    "Output device")              pick_and_set "Sinks:" "Output" ;;
-    "Input device")                pick_and_set "Sources:" "Input" ;;
-    "Toggle speaker/headphones")   toggle_speaker_headphones ;;
+    "Toggle mute")             "$(dirname "$0")/volume" mute ;;
+    "Toggle microphone mute")  "$(dirname "$0")/volume" mic-mute ;;
+    "Output device")           pick_and_set "Sinks:" "Output" ;;
+    "Input device")            pick_and_set "Sources:" "Input" ;;
+    "Toggle speaker/headphones") toggle_speaker_headphones ;;
     *) exit 0 ;;
 esac
