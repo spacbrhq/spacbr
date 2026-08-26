@@ -90,9 +90,10 @@ background_sprite.SetY(Window.GetHeight() / 2 - scaled_background_image.GetHeigh
 background_sprite.SetZ(-10000);
 
 title_size = Math.Int(Window.GetHeight() * 0.12);
-bar_size = Math.Int(Window.GetHeight() * 0.016);
+bar_label_size = Math.Int(Window.GetHeight() * 0.016);
 prompt_size = Math.Int(Window.GetHeight() * 0.022);
-bar_cells = 40;
+bar_height = Math.Int(Window.GetHeight() * 0.012);
+bar_width = Window.GetWidth() * 0.30;
 
 # wordmark: foreground #e1e3e7 (not accent -- the accent is spent on
 # the progress rule below, not repeated on the identity too), Rajdhani
@@ -104,14 +105,32 @@ wordmark_sprite.SetY(Window.GetHeight() * 0.22 - wordmark_image.GetHeight() / 2)
 wordmark_sprite.SetZ(1);
 wordmark_sprite.SetOpacity(0);
 
-# progress rule: full-block glyphs (█), Hack Bold -- a real, visible bar
-# rather than the low-eighth-block (▁) hairline this used to be (too
-# thin to read as an actual progress bar, more like a stray
-# underline). Track (foreground at low opacity -- still a real, visible
-# rail now that it's a full block, not just barely-there) is always
-# shown once faded in; fill (accent) draws over it left to right as
-# boot progresses, same glyph so it looks like one rule being colored
-# in rather than two separate bars.
+# progress rule: a real continuous bar, not a row of repeated block
+# glyphs like this used to be. A row of characters (however wide the
+# glyph) always has real inter-character tracking/kerning gaps between
+# cells, and could only ever step forward in whole-cell increments
+# (1/40ths) instead of moving continuously with actual boot progress
+# -- both together read as a strip of separate ticks/segments, not one
+# bar, which is the exact complaint this replaces.
+#
+# Built the same way script themes have always had to fake a solid
+# rectangle (there is no native "draw rect" primitive here): render one
+# glyph once per color via Image.Text, then Image.Scale it to whatever
+# pixel size is needed. That is the same primitive an earlier password-
+# field attempt used and dropped -- but the two are not the same case.
+# That attempt needed a *hollow bordered* box and stretched a tiny
+# source by ~15-20x in *both* directions at once, which is what turned
+# the AA edge of the source glyph into a visible glow across the whole
+# shape. A progress-bar fill is a *solid* rectangle -- exactly what a
+# stretched flat glyph already looks like -- and the source glyph here
+# is rendered at bar_height itself, so the only real stretch is
+# horizontal (from one character's width up to bar_width); the vertical
+# scale factor stays ~1:1, which is what actually keeps the earlier
+# glow artifact from reappearing.
+#
+# Track and fill are two separately-colored swatches (foreground at low
+# opacity, accent at full), each rendered once and reused via .Scale()
+# every tick instead of re-running Image.Text on every frame.
 #
 # The bar and its percentage readout are centered as ONE fixed group,
 # computed once here -- not recentered every tick against just the bar
@@ -124,18 +143,15 @@ wordmark_sprite.SetOpacity(0);
 # neither the bar nor the readout shifts sideways as the percentage
 # grows from one digit to three -- same "nothing should visibly jump
 # around" principle the password field below applies too.
-track_text = "";
-for (i = 0; i < bar_cells; i++)
-{
-    track_text = track_text + "█";
-}
-track_image = Image.Text(track_text, 0.882, 0.890, 0.906, 0.16, "Hack Bold " + bar_size);
-percent_reserve_image = Image.Text("100%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_size);
+track_swatch = Image.Text("█", 0.882, 0.890, 0.906, 0.16, "Hack Bold " + bar_height);
+fill_swatch = Image.Text("█", 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_height);
+percent_reserve_image = Image.Text("100%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_label_size);
 progress_gap = Window.GetWidth() * 0.014;
-progress_group_width = track_image.GetWidth() + progress_gap + percent_reserve_image.GetWidth();
+progress_group_width = bar_width + progress_gap + percent_reserve_image.GetWidth();
 track_x = Window.GetWidth() / 2 - progress_group_width / 2;
 track_y = wordmark_sprite.GetY() + wordmark_image.GetHeight() + Window.GetHeight() * 0.055;
-percent_x = track_x + track_image.GetWidth() + progress_gap;
+percent_x = track_x + bar_width + progress_gap;
+track_image = track_swatch.Scale(bar_width, bar_height);
 track_sprite = Sprite(track_image);
 track_sprite.SetX(track_x);
 track_sprite.SetY(track_y);
@@ -213,17 +229,16 @@ fun spacbr_boot_progress_callback(duration, progress)
     track_sprite.SetOpacity(fade);
     percent_sprite.SetOpacity(fade);
 
-    filled = Math.Int(progress * bar_cells);
-    if (filled > bar_cells)
+    fill_width = Math.Int(bar_width * progress);
+    if (fill_width > bar_width)
       {
-        filled = bar_cells;
+        fill_width = bar_width;
       }
-    fill_text = "";
-    for (i = 0; i < filled; i++)
+    if (fill_width < 1)
       {
-        fill_text = fill_text + "█";
+        fill_width = 1;
       }
-    fill_image = Image.Text(fill_text, 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_size);
+    fill_image = fill_swatch.Scale(fill_width, bar_height);
     fill_sprite.SetImage(fill_image);
 
     percent = Math.Int(progress * 100);
@@ -231,7 +246,7 @@ fun spacbr_boot_progress_callback(duration, progress)
       {
         percent = 100;
       }
-    percent_image = Image.Text(percent + "%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_size);
+    percent_image = Image.Text(percent + "%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_label_size);
     percent_sprite.SetImage(percent_image);
     percent_sprite.SetY(track_y + (track_image.GetHeight() - percent_image.GetHeight()) / 2);
 }
@@ -245,6 +260,16 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 # that fixed point grows.
 fun spacbr_display_password_callback(prompt, bullets)
 {
+    # Ignore the raw prompt text systemd-ask-password-plymouth actually
+    # sends (something like "Please enter passphrase for disk ... to
+    # unlock:") -- that string is written for a terminal-based prompt,
+    # not this theme, and looks out of place next to everything else
+    # here. This theme has exactly one thing that ever asks for a
+    # password (the root LUKS2 volume, see docs/architecture.md "Boot &
+    # authentication"), so a single fixed, calm label is accurate for
+    # every real case, not a guess that happens to fit only this one.
+    spacbr_prompt_text = "Enter password to unlock system";
+
     # Stars, not the filled-circle bullets this used to draw -- asterisk
     # (*) specifically, not a fancier Unicode star (☆/✦/etc.): checked
     # directly against the real Hack-Bold.ttf this theme uses, and none
@@ -263,7 +288,7 @@ fun spacbr_display_password_callback(prompt, bullets)
     # is what actually keeps both lines on the same left edge, instead
     # of two separately-measured images that were never guaranteed to
     # share one.
-    combined_text = prompt + "\n" + stars_text;
+    combined_text = spacbr_prompt_text + "\n" + stars_text;
     combined_image = Image.Text(combined_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
     password_text_sprite.SetImage(combined_image);
     password_text_sprite.SetX(input_x);
