@@ -26,8 +26,15 @@ fi
 # `spacbr keys` works over plain SSH, no X required). Only spawns a
 # new terminal window when there isn't one -- i.e. launched from dwm's
 # MODKEY+/ binding, which has no controlling tty of its own.
+#
+# Defaults to `more`, not `less`: `more` ships in util-linux (present
+# on every Arch install, base or not); `less` is a separate package
+# SPACBR never actually installs, confirmed missing on the real test
+# machine (neither `less` nor its usual man-db dependency was
+# present) -- `st -e less ...` silently closed on launch because `st`
+# couldn't exec a binary that doesn't exist. $PAGER still wins if set.
 if [ -t 1 ]; then
-    exec "${PAGER:-less}" "$DOCFILE"
+    exec "${PAGER:-more}" "$DOCFILE"
 else
-    exec "${TERMINAL:-st}" -e "${PAGER:-less}" "$DOCFILE"
+    exec "${TERMINAL:-st}" -e "${PAGER:-more}" "$DOCFILE"
 fi

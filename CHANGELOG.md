@@ -45,6 +45,19 @@ The new dwm binary is deployed but not force-restarted into the
 already-running live session -- it takes effect on the next relogin,
 same as any other dwm rebuild.
 
+**Follow-up fix, same day**: the user reported `MODKEY+/` doing
+nothing after relogin. Reproduced directly: `st -e less <file>` closed
+immediately with "child exited with status 1" because `less` isn't
+installed on the real machine at all -- confirmed via `pacman -Qi
+less` (not found) and `pacman -Qi man-db` (also not found, `less`'s
+usual pulled-in-via dependency). Switched the default pager to `more`,
+which ships in `util-linux` and is therefore present on every Arch
+install regardless of what else is installed -- zero new package
+dependency, `$PAGER` still overrides for anyone who does have `less`.
+Re-verified live: `st -e more <file>` now opens and stays open (was
+confirmed via a real spawned window through `xdotool`, then cleaned
+up), and the inline-tty path still works via `script`.
+
 ### Boot->desktop transition, part 2: recolor the tty1 flash to eightchrome (2026-08-26)
 
 Follow-up after ruling out extending Plymouth's own lifetime (see the
