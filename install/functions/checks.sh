@@ -82,6 +82,21 @@ run_all_checks() {
     run_check "dunst auto-restart"  "[ \"\$(systemctl --user show dunst.service -p Restart --value 2>/dev/null)\" = on-failure ]" "spacbr repair (deploys .config/systemd/user/dunst.service.d/override.conf), then systemctl --user daemon-reload"
     run_check "picom"               "command -v picom" "pacman -S picom"
     run_check "xss-lock"            "command -v xss-lock" "pacman -S xss-lock"
+    # Real, severe bug found and fixed once already: dwm used to launch
+    # via `dbus-launch dwm`, which spawns its *own* private bus and
+    # points dwm's entire process tree at it instead of the real
+    # systemd session bus dunst is D-Bus-activated on. Every
+    # notify-send call from anything dwm ever spawns -- every dmenu
+    # script, every keybinding -- silently went to a bus dunst was
+    # never listening on. Testing notify-send over SSH never caught
+    # this, since an SSH shell doesn't inherit dwm's environment and
+    # finds the correct bus by auto-discovery instead. Only meaningful
+    # with a real X session actually running (pgrep dwm) -- skipped
+    # entirely otherwise, same "not applicable" shape as the
+    # bluetooth-hardware-absent check below.
+    if pgrep -x dwm >/dev/null 2>&1; then
+        run_check "dwm on the real D-Bus session bus" "dwm_pid=\$(pgrep -x dwm | head -1); dwm_bus=\$(tr '\\0' '\\n' < /proc/\$dwm_pid/environ 2>/dev/null | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p'); real_bus=\$(systemctl --user show-environment 2>/dev/null | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p'); [ -n \"\$dwm_bus\" ] && [ \"\$dwm_bus\" = \"\$real_bus\" ]" "dwm is on a different D-Bus bus than systemd's real session bus -- notifications from dmenu scripts/keybindings will silently go nowhere. Check .config/xinitrc launches plain 'dwm', not 'dbus-launch dwm'; then log out and back in."
+    fi
 
     info "Networking / audio / bluetooth"
     run_check "NetworkManager"      "command -v nmcli" "pacman -S networkmanager"
