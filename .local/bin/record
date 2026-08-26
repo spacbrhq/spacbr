@@ -2,14 +2,14 @@
 # dmenu-driven screen/audio recording via ffmpeg (x11grab + pulse audio
 # -- both already SPACBR dependencies, no new package needed).
 #
-# One unified menu -- Full screen/Region/Window/Audio only/Stop
-# recording all shown together every time, not a menu that
-# context-switches to a completely different set of options depending
-# on whether something's already running. Real, reported point of
-# confusion with the earlier design: "Stop recording" only existed in
-# a menu that appeared *after* something was already recording, so it
-# was never discoverable by looking at the normal menu -- a person
-# could reasonably conclude the option didn't exist at all.
+# One unified menu -- Full screen/Region/Window/Audio only/Pause
+# recording/Resume recording/Stop recording all shown together every
+# time, not a menu that context-switches to a completely different set
+# of options depending on whether something's already running. Real,
+# reported point of confusion with the earlier design: "Stop recording"
+# only existed in a menu that appeared *after* something was already
+# recording, so it was never discoverable by looking at the normal menu
+# -- a person could reasonably conclude the option didn't exist at all.
 #
 # SIGINT, not SIGKILL/SIGTERM: ffmpeg needs to see it to write a valid
 # moov atom and finalize the mp4 (or audio container) cleanly. A
@@ -29,8 +29,30 @@ is_recording() {
     [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
 }
 
+# Paused state is read directly from the OS (ps's own stat field, "T"
+# for stopped-by-signal), not tracked in a separate flag file -- a
+# second piece of state to keep in sync with reality is exactly the
+# kind of thing that drifts and lies. Only meaningful when actually
+# recording; a dead/nonexistent PID is never "paused".
+is_paused() {
+    is_recording || return 1
+    case "$(ps -o stat= -p "$(cat "$PIDFILE")" 2>/dev/null)" in
+        T*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 stop_recording() {
-    kill -INT "$(cat "$PIDFILE")"
+    pid="$(cat "$PIDFILE")"
+    # SIGCONT first, unconditionally, before SIGINT: a stopped
+    # (SIGSTOP'd) process doesn't process *any* signal, including the
+    # SIGINT below, until it's resumed -- stopping while paused would
+    # otherwise leave ffmpeg wedged in T state forever, with the file
+    # never finalized, while this script had already deleted PIDFILE
+    # and moved on as if it succeeded. Harmless no-op if it wasn't
+    # actually paused.
+    kill -CONT "$pid" 2>/dev/null
+    kill -INT "$pid"
     rm -f "$PIDFILE"
     # Named file, not just the directory -- matching screenshot's own
     # notification, which names the actual file it saved.
@@ -39,17 +61,56 @@ stop_recording() {
     notify "Recording stopped and saved to ${saved:-$VIDEODIR}"
 }
 
-target=$(printf '%s\n' "Full screen" "Region" "Window" "Audio only" "Stop recording" | dmenu -p "record")
+# SIGSTOP/SIGCONT, not a "real" ffmpeg pause feature (it has none for
+# x11grab) -- this is the standard, documented trick: a stopped process
+# reads no frames and advances no timestamps, so resuming later just
+# continues the output with no gap, no frozen frame, and no audio
+# backlog to catch up on (PulseAudio drops what it can't buffer while
+# nothing's reading). Pauses the whole process, video and audio
+# together, atomically.
+pause_recording() {
+    kill -STOP "$(cat "$PIDFILE")"
+    notify "Recording paused"
+}
+
+resume_recording() {
+    kill -CONT "$(cat "$PIDFILE")"
+    notify "Recording resumed"
+}
+
+target=$(printf '%s\n' "Full screen" "Region" "Window" "Audio only" "Pause recording" "Resume recording" "Stop recording" | dmenu -p "record")
 [ -z "$target" ] && exit 0
 
-if [ "$target" = "Stop recording" ]; then
-    if is_recording; then
-        stop_recording
-    else
-        notify "Not currently recording"
-    fi
-    exit 0
-fi
+case "$target" in
+    "Stop recording")
+        if is_recording; then
+            stop_recording
+        else
+            notify "Not currently recording"
+        fi
+        exit 0
+        ;;
+    "Pause recording")
+        if is_paused; then
+            notify "Already paused"
+        elif is_recording; then
+            pause_recording
+        else
+            notify "Not currently recording"
+        fi
+        exit 0
+        ;;
+    "Resume recording")
+        if is_paused; then
+            resume_recording
+        elif is_recording; then
+            notify "Not paused"
+        else
+            notify "Not currently recording"
+        fi
+        exit 0
+        ;;
+esac
 
 # Picking a start option while something's already running would
 # otherwise spawn a second, overlapping ffmpeg and silently overwrite
