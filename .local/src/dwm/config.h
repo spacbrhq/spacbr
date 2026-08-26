@@ -97,52 +97,52 @@ static const Key keys[] = {
 	/* modifier                     key        function        argument */
 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
 	{ MODKEY,                       XK_t,      spawn,          SHCMD(TERMINAL) },
-    { MODKEY,                       XK_w,      spawn,          SHCMD(BROWSER) },
-    { MODKEY,                       XK_e,      spawn,          SHCMD(EXPLORER) },
-    { MODKEY,                       XK_o,      spawn,          SHCMD(PASSMENU) },
-    { MODKEY,                       XK_c,      spawn,          SHCMD(CLIPMENU) },
-    { 0,                            XK_Print,  spawn,          SHCMD(SCREENSHOT) },
-    { MODKEY|ShiftMask,             XK_r,      spawn,          SHCMD(RECORDCTL) },
-	{ 0, 			 XF86XK_Display,		   spawn,	   	   SHCMD(DISPLAYCTL) },
+	{ MODKEY,                       XK_w,      spawn,          SHCMD(BROWSER) },
+	{ MODKEY,                       XK_e,      spawn,          SHCMD(EXPLORER) },
+	{ MODKEY,                       XK_o,      spawn,          SHCMD(PASSMENU) },
+	{ MODKEY,                       XK_c,      spawn,          SHCMD(CLIPMENU) },
+	{ 0,                            XK_Print,  spawn,          SHCMD(SCREENSHOT) },
+	{ MODKEY|ShiftMask,             XK_r,      spawn,          SHCMD(RECORDCTL) },
+	{ 0,             XF86XK_Display,           spawn,          SHCMD(DISPLAYCTL) },
 	{ MODKEY|ShiftMask,             XK_l,      spawn,          SHCMD(LOCKSCREEN) },
-	{ 0, 			 XF86XK_ScreenSaver,	   spawn,	       SHCMD(LOCKSCREEN) },
+	{ 0,             XF86XK_ScreenSaver,       spawn,          SHCMD(LOCKSCREEN) },
 	{ MODKEY|ShiftMask,             XK_p,      spawn,          SHCMD(POWERMENU) },
-	{ 0, 			 XF86XK_PowerOff,		   spawn,	       SHCMD(POWERMENU) },
+	{ 0,             XF86XK_PowerOff,          spawn,          SHCMD(POWERMENU) },
 	{ MODKEY|ShiftMask,             XK_a,      spawn,          SHCMD(AUDIOCTL) },
 	{ MODKEY|ShiftMask,             XK_w,      spawn,          SHCMD(WALLPAPERCTL) },
 	{ MODKEY|ShiftMask,             XK_n,      spawn,          SHCMD(DNSCTL) },
 	{ MODKEY|ShiftMask,             XK_m,      spawn,          SHCMD(MIRRORCTL) },
 	{ MODKEY|ShiftMask,             XK_c,      spawn,          SHCMD("screenshot color") },
-	{ 0, 			 XF86XK_Bluetooth,		   spawn,	       SHCMD(BLUETOOTHCTL) },
-    /* volume script wraps wpctl with a notification -- verified for
-     * real that wpctl alone changed the level correctly but gave zero
-     * feedback (no OSD, no notification), which read as "the keys
-     * don't work" even though they did. */
-    { 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD(VOLUMECTL " down") },
-    { 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD(VOLUMECTL " up") },
-    { 0,             XF86XK_AudioMute,         spawn,          SHCMD(VOLUMECTL " mute") },
-	{ 0,             XF86XK_AudioMicMute,	   spawn,	       SHCMD(VOLUMECTL " mic-mute") },
-    { 0,             XF86XK_AudioPlay,        spawn,          SHCMD("playerctl play-pause") },
-    { 0,             XF86XK_AudioNext,        spawn,          SHCMD("playerctl next") },
-    { 0,             XF86XK_AudioPrev,        spawn,          SHCMD("playerctl previous") },
-    /* ddcutil, not brightnessctl: verified for real that this machine
-     * (a desktop with an external monitor, no laptop panel) has zero
-     * `backlight`-class devices at all -- brightnessctl's default
-     * device-autoselect used to fall through to an unrelated keyboard
-     * "kana" indicator LED instead of failing cleanly, and scoping it
-     * to the backlight class (the previous fix) just made it fail
-     * cleanly instead of controlling anything, since there's no
-     * backlight device to scope to. This monitor genuinely supports
-     * DDC/CI over the cable (confirmed via `ddcutil detect`), so
-     * ddcutil controls its real hardware brightness (VCP feature
-     * 0x10) instead. brightnessctl is kept in packages/hardware for
-     * any machine that *does* have a real backlight.
-     *
-     * brightness script wraps ddcutil with a notification, same
-     * reasoning as VOLUMECTL right above -- a raw `ddcutil setvcp`
-     * call here changed the level correctly but gave zero feedback. */
-    { 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD(BRIGHTNESSCTL " up") },
-    { 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD(BRIGHTNESSCTL " down") },
+	{ 0,             XF86XK_Bluetooth,         spawn,          SHCMD(BLUETOOTHCTL) },
+	/* volume script wraps wpctl with a notification -- verified for
+	 * real that wpctl alone changed the level correctly but gave zero
+	 * feedback (no OSD, no notification), which read as "the keys
+	 * don't work" even though they did. */
+	{ 0,             XF86XK_AudioLowerVolume,  spawn,          SHCMD(VOLUMECTL " down") },
+	{ 0,             XF86XK_AudioRaiseVolume,  spawn,          SHCMD(VOLUMECTL " up") },
+	{ 0,             XF86XK_AudioMute,         spawn,          SHCMD(VOLUMECTL " mute") },
+	{ 0,             XF86XK_AudioMicMute,      spawn,          SHCMD(VOLUMECTL " mic-mute") },
+	{ 0,             XF86XK_AudioPlay,         spawn,          SHCMD("playerctl play-pause") },
+	{ 0,             XF86XK_AudioNext,         spawn,          SHCMD("playerctl next") },
+	{ 0,             XF86XK_AudioPrev,         spawn,          SHCMD("playerctl previous") },
+	/* ddcutil, not brightnessctl: verified for real that this machine
+	 * (a desktop with an external monitor, no laptop panel) has zero
+	 * `backlight`-class devices at all -- brightnessctl's default
+	 * device-autoselect used to fall through to an unrelated keyboard
+	 * "kana" indicator LED instead of failing cleanly, and scoping it
+	 * to the backlight class (the previous fix) just made it fail
+	 * cleanly instead of controlling anything, since there's no
+	 * backlight device to scope to. This monitor genuinely supports
+	 * DDC/CI over the cable (confirmed via `ddcutil detect`), so
+	 * ddcutil controls its real hardware brightness (VCP feature
+	 * 0x10) instead. brightnessctl is kept in packages/hardware for
+	 * any machine that *does* have a real backlight.
+	 *
+	 * brightness script wraps ddcutil with a notification, same
+	 * reasoning as VOLUMECTL right above -- a raw `ddcutil setvcp`
+	 * call here changed the level correctly but gave zero feedback. */
+	{ 0,             XF86XK_MonBrightnessUp,   spawn,          SHCMD(BRIGHTNESSCTL " up") },
+	{ 0,             XF86XK_MonBrightnessDown, spawn,          SHCMD(BRIGHTNESSCTL " down") },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY|ShiftMask,             XK_b,      spawn,          SHCMD(BRIGHTNESSCTL " menu") },
 	{ MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
