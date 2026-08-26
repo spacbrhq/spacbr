@@ -7,6 +7,18 @@ statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
 statefile="$statedir/wallpaper"
 mkdir -p "$statedir"
 
+# No success notification anywhere below -- the wallpaper visibly
+# changing is its own feedback (same reasoning as power's lock/logout/
+# reboot). This is only for the one case where nothing else on screen
+# would ever tell you something went wrong: an empty/missing bgdir (a
+# real case on a fresh install before backgrounds are deployed, or the
+# directory just being emptied) previously made every subcommand
+# silently do nothing -- `apply` bailing out on a nonexistent file with
+# a bare `return 1` and no other feedback path anywhere in this script.
+notify() {
+    command -v notify-send >/dev/null 2>&1 && notify-send "Wallpaper" "$1"
+}
+
 list() {
     # ! -name '.*' excludes macOS AppleDouble sidecar files (._foo.jpg):
     # found for real after scp'ing backgrounds from a Mac, they matched
@@ -20,7 +32,10 @@ current() {
 }
 
 apply() {
-    [ -f "$1" ] || return 1
+    if [ ! -f "$1" ]; then
+        notify "No wallpaper found in $bgdir"
+        return 1
+    fi
     hsetroot -fill "$1"
     printf '%s\n' "$1" > "$statefile"
 }

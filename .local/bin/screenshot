@@ -2,8 +2,15 @@
 set -euo pipefail
 export DISPLAY="${DISPLAY:-:0}"
 
-# Dependencies check
-for cmd in xclip import notify-send; do command -v "$cmd" &>/dev/null || { echo "Missing: $cmd" >&2; exit 1; }; done
+# Dependencies check -- notify-send deliberately excluded: it's
+# supplementary feedback, not something this script's actual job
+# (capturing and saving an image) depends on, and every other SPACBR
+# script treats it as optional (`command -v notify-send && notify-send
+# ...`) rather than a hard requirement. Requiring it here was the one
+# inconsistent exception -- a machine without dunst/notify-send
+# installed could still use every other dmenu script, just without
+# notifications, but this one would refuse to take a screenshot at all.
+for cmd in xclip import; do command -v "$cmd" &>/dev/null || { echo "Missing: $cmd" >&2; exit 1; }; done
 
 OUTDIR="${2:-$HOME/Screenshots}"; mkdir -p "$OUTDIR"
 FILE="$OUTDIR/$(date +%Y%m%d_%H%M%S).png"
@@ -41,11 +48,11 @@ post(){
     # reason that had nothing to do with whether the screenshot itself
     # worked.
     xclip -selection clipboard -t image/png -i "$FILE" || true
-    notify-send -i "$FILE" "Screenshot: $(basename "$FILE")"
+    command -v notify-send &>/dev/null && notify-send -i "$FILE" "Screenshot: $(basename "$FILE")"
 }
 
-colorpicker(){ 
-    command -v magick &>/dev/null || { notify-send "Missing: magick"; exit 1; }
+colorpicker(){
+    command -v magick &>/dev/null || { echo "Missing: magick" >&2; exit 1; }
     if command -v slop &>/dev/null; then
         geom="$(slop --tolerance=0)" || exit 1
         import -window root -crop "$geom" "$TMP"
@@ -53,20 +60,37 @@ colorpicker(){
         import "$TMP"
     fi
     hex=$(magick "$TMP" -scale 1x1\! -format "#%[hex:p{0,0}]" info: 2>/dev/null || echo "#??????")
-    echo "$hex" | xclip -selection clipboard -i && notify-send -i "$TMP" "Color: $hex"
+    # || true -- same reasoning as post()'s xclip call: under this
+    # script's `set -e`, a bare pipeline as the last statement means a
+    # transient xclip failure would abort the script right here,
+    # skipping the notification below for a reason unrelated to whether
+    # the color was actually picked.
+    echo "$hex" | xclip -selection clipboard -i || true
+    command -v notify-send &>/dev/null && notify-send -i "$TMP" "Color: $hex"
 }
 
-capture_full(){ 
-    import -window root "$FILE" && post
+# capture_failed -- same class of bug already found and fixed once in
+# record's slop-cancel case: `import ... && post` under `set -e` meant
+# a cancelled/failed selection (e.g. Escape during the rubber-band
+# region pick) exited the whole script right there with zero feedback
+# anywhere. Every capture path now falls back to this on failure
+# instead of silently doing nothing.
+capture_failed(){
+    command -v notify-send &>/dev/null && notify-send "Screenshot cancelled or failed"
+    exit 1
 }
 
-capture_window(){ 
+capture_full(){
+    import -window root "$FILE" && post || capture_failed
+}
+
+capture_window(){
     command -v xdotool &>/dev/null || { echo "Missing: xdotool" >&2; exit 1; }
-    import -window "$(xdotool getwindowfocus -f)" "$FILE" && post
+    import -window "$(xdotool getwindowfocus -f)" "$FILE" && post || capture_failed
 }
 
-capture_selection(){ 
-    import "$FILE" && post
+capture_selection(){
+    import "$FILE" && post || capture_failed
 }
 
 main(){ 

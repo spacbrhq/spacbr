@@ -57,17 +57,20 @@ change() {
 }
 
 menu() {
+    # Current level shown once, in the dmenu prompt -- not repeated
+    # identically on all three lines (same fix applied to audio's
+    # menu, which had the exact same "(currently X%)" x3 redundancy).
     current="$(pct)"
     [ -z "$current" ] && current="?"
     choice=$(printf '%s\n' \
-        "Up (currently ${current}%)" \
-        "Down (currently ${current}%)" \
-        "Set percentage (currently ${current}%)" \
-        | dmenu -p "brightness")
+        "Up" \
+        "Down" \
+        "Set percentage" \
+        | dmenu -p "brightness (${current}%)")
     case "$choice" in
-        "Up "*)   change "+ 5" ;;
-        "Down "*) change "- 5" ;;
-        "Set percentage"*)
+        "Up")   change "+ 5" ;;
+        "Down") change "- 5" ;;
+        "Set percentage")
             pick=$(printf '%s\n' 0 10 20 30 40 50 60 70 80 90 100 | dmenu -p "set brightness %")
             case "$pick" in
                 ''|*[!0-9]*) exit 0 ;;
