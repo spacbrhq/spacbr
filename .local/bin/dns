@@ -28,12 +28,33 @@ iface="$(ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="
 conn="$(nmcli -t -f NAME,DEVICE connection show --active | awk -F: -v d="$iface" '$2==d {print $1; exit}')"
 [ -z "$conn" ] && { notify "No active connection on $iface"; exit 1; }
 
+# $conn (and the DNS strings) are passed as real positional arguments
+# to the inner sh -c, not interpolated into the command string -- $conn
+# comes from the connection's own NAME, which for Wi-Fi is derived from
+# the SSID, and an SSID containing a single quote (not unusual: "Sarah's
+# iPhone") broke out of the previous '$conn'-in-a-string quoting. This
+# way no value's content can affect how the command is parsed,
+# regardless of what characters it contains.
 apply() {
-    "$TERMINAL" -e sh -c "sudo nmcli connection modify '$conn' ipv4.ignore-auto-dns yes ipv4.dns '$1' ipv6.ignore-auto-dns yes ipv6.dns '$2' && sudo nmcli connection up '$conn' && echo 'DNS set to $3 on $conn.' || echo 'Failed.'; printf '\nPress Enter to close.'; read _"
+    "$TERMINAL" -e sh -c '
+        sudo nmcli connection modify "$1" ipv4.ignore-auto-dns yes ipv4.dns "$2" ipv6.ignore-auto-dns yes ipv6.dns "$3" &&
+        sudo nmcli connection up "$1" &&
+        echo "DNS set to $4 on $1." ||
+        echo "Failed."
+        printf "\nPress Enter to close."
+        read _
+    ' dns "$conn" "$1" "$2" "$3"
 }
 
 reset_auto() {
-    "$TERMINAL" -e sh -c "sudo nmcli connection modify '$conn' ipv4.ignore-auto-dns no ipv4.dns '' ipv6.ignore-auto-dns no ipv6.dns '' && sudo nmcli connection up '$conn' && echo 'Back to automatic (DHCP) DNS on $conn.' || echo 'Failed.'; printf '\nPress Enter to close.'; read _"
+    "$TERMINAL" -e sh -c '
+        sudo nmcli connection modify "$1" ipv4.ignore-auto-dns no ipv4.dns "" ipv6.ignore-auto-dns no ipv6.dns "" &&
+        sudo nmcli connection up "$1" &&
+        echo "Back to automatic (DHCP) DNS on $1." ||
+        echo "Failed."
+        printf "\nPress Enter to close."
+        read _
+    ' dns "$conn"
 }
 
 choice=$(printf '%s\n' "Automatic (DHCP)" "Cloudflare" "Google" "Quad9" "Custom..." | dmenu -p "dns")

@@ -32,7 +32,16 @@ post(){
             -annotate +20+20 "${WATERMARK_TEXT:-$(date '+%Y-%m-%d %H:%M')}" \
             "$FILE"
     }
-    xclip -selection clipboard -t image/png -i "$FILE" && notify-send -i "$FILE" "Screenshot: $(basename "$FILE")"
+    # Notify unconditionally on the save, which already succeeded by
+    # this point -- not gated behind the clipboard copy. Under this
+    # script's `set -e`, `xclip ... && notify-send ...` meant a
+    # transient xclip failure didn't just skip the notification, it
+    # silently aborted the whole script right there, so CLAUDE.md's own
+    # "capture -> save -> notification" flow lost its last step for a
+    # reason that had nothing to do with whether the screenshot itself
+    # worked.
+    xclip -selection clipboard -t image/png -i "$FILE" || true
+    notify-send -i "$FILE" "Screenshot: $(basename "$FILE")"
 }
 
 colorpicker(){ 

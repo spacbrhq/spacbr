@@ -2,7 +2,7 @@
 # set/next/previous/random wallpaper over hsetroot.
 # Usage: wallpaper [set|next|previous|random]   (no arg = dmenu picker)
 
-bgdir="$XDG_DATA_HOME/backgrounds"
+bgdir="${XDG_DATA_HOME:-$HOME/.local/share}/backgrounds"
 statedir="${XDG_STATE_HOME:-$HOME/.local/state}/spacbr"
 statefile="$statedir/wallpaper"
 mkdir -p "$statedir"

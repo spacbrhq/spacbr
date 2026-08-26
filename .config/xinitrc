@@ -159,4 +159,21 @@ fi
 # shouldn't rely on every backgrounded helper handling a dead X
 # connection gracefully to avoid leaking a runaway process.
 trap 'kill $(jobs -p) 2>/dev/null' EXIT
-dbus-launch dwm
+# NOT `dbus-launch dwm` -- confirmed live this was a real, serious bug,
+# not a leftover no-op: dbus-launch always spawns its *own* private bus
+# and points DBUS_SESSION_BUS_ADDRESS at it for dwm's entire process
+# tree, regardless of the correct systemd session bus already available
+# (this session logs in through a real systemd/pam_systemd user session
+# -- `loginctl` confirms it -- which already sets DBUS_SESSION_BUS_ADDRESS
+# to the genuine bus at /run/user/$UID/bus, the exact one D-Bus-activated
+# dunst is reachable on). Checked dwm's actual running environment
+# against dunst's: dwm was on /tmp/dbus-XXXXXX, dunst was on
+# /run/user/1000/bus -- two different buses entirely. Every notify-send
+# call made by anything dwm spawns (every dmenu script, every
+# keybinding) was silently addressed to a bus dunst was never listening
+# on. This went undetected all session because testing notify-send over
+# SSH doesn't inherit dwm's environment at all, and falls back to the
+# correct bus by auto-discovery instead -- a real-keybinding-triggered
+# notification and an SSH-triggered one were never actually taking the
+# same path.
+dwm

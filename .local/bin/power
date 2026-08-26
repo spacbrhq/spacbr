@@ -22,7 +22,10 @@ case "$choice" in
         exec slock
         ;;
     Logout)
-        confirm "Logout" && pkill -TERM -u "$USER" dwm
+        # -x for an exact process-name match -- without it, pkill matches
+        # by substring, and "dwmblocks" contains "dwm" as a substring
+        # (same real bug already found and fixed once in firefox.sh).
+        confirm "Logout" && pkill -x -TERM -u "$USER" dwm
         ;;
     Suspend)
         confirm "Suspend" && { slock & systemctl suspend; }

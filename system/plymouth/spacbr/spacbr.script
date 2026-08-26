@@ -319,6 +319,23 @@ password_text_sprite.SetOpacity(0);
 spacbr_last_progress = 0;
 spacbr_progress_baseline = 0;
 spacbr_password_active = 0;
+# Wrong-password feedback -- a real gap this theme had until now: a
+# retry prompt looked identical to the first attempt, with no way to
+# tell a mistyped passphrase from a fresh boot. Confirmed against
+# Plymouth's own source (daemon/plymouthd-interaction.c's
+# plymouthd_interaction_update_display) that submitting (Enter) removes
+# the current entry_trigger from its list, and display_normal fires
+# unconditionally whenever that list is empty -- meaning there's a
+# real, distinguishable gap between "submitted" and "re-prompted after
+# a failed unlock" that plain backspacing during active typing never
+# produces (the same trigger just shrinks its buffer in place, the list
+# is never emptied). spacbr_had_input tracks whether anything was
+# actually typed this round; spacbr_retry is set in
+# spacbr_display_normal_callback only when that gap follows real input,
+# so a person backspacing to reconsider what they typed never gets
+# falsely told they were wrong.
+spacbr_had_input = 0;
+spacbr_retry = 0;
 
 # Wordmark and track fade in fast, driven by real elapsed time
 # (duration), not the progress fraction -- confirmed for real that this
@@ -432,6 +449,10 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 fun spacbr_display_password_callback(prompt, bullets)
 {
     spacbr_password_active = 1;
+    if (bullets > 0)
+      {
+        spacbr_had_input = 1;
+      }
 
     # Ignore the raw prompt text systemd-ask-password-plymouth actually
     # sends (something like "Please enter passphrase for disk ... to
@@ -440,8 +461,18 @@ fun spacbr_display_password_callback(prompt, bullets)
     # here. This theme has exactly one thing that ever asks for a
     # password (the root LUKS2 volume, see docs/architecture.md "Boot &
     # authentication"), so a single fixed, calm label is accurate for
-    # every real case, not a guess that happens to fit only this one.
-    spacbr_prompt_text = "Unlock system";
+    # every real case, not a guess that happens to fit only this one --
+    # except spacbr_retry (set in spacbr_display_normal_callback), which
+    # means this specific prompt is a re-ask following a real failed
+    # attempt, not the first one.
+    if (spacbr_retry == 1)
+      {
+        spacbr_prompt_text = "Incorrect password, try again";
+      }
+    else
+      {
+        spacbr_prompt_text = "Unlock system";
+      }
 
     # Stars, not the filled-circle bullets this used to draw -- asterisk
     # (*) specifically, not a fancier Unicode star (☆/✦/etc.): checked
@@ -475,6 +506,11 @@ Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
 # to special-case "was a dialog even showing".
 fun spacbr_display_normal_callback()
 {
+    if (spacbr_had_input == 1)
+      {
+        spacbr_retry = 1;
+      }
+    spacbr_had_input = 0;
     spacbr_password_active = 0;
     spacbr_progress_baseline = spacbr_last_progress;
     password_text_sprite.SetOpacity(0);

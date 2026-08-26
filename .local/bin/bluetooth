@@ -18,7 +18,17 @@ pick_device() {
     list=$(bluetoothctl devices)
     name=$(printf '%s\n' "$list" | sed -E 's/^Device [0-9A-F:]+ //' | dmenu -p "$1")
     [ -z "$name" ] && return 1
-    printf '%s\n' "$list" | awk -v n="$name" '$0 ~ ("Device [0-9A-F:]+ " n "$") {print $2; exit}'
+    # Exact string comparison (awk's ==), not a regex match against a
+    # pattern built from the device's own name -- a real device name
+    # containing regex metacharacters (parens, dots, '+', all common:
+    # "Bose QC35 (LE)", "JBL Flip 5.1") broke the old `~` match
+    # silently, so picking that device from the list resolved to no
+    # MAC address at all.
+    printf '%s\n' "$list" | awk -v n="$name" '{
+        mac = $2
+        sub(/^Device [0-9A-F:]+ /, "")
+        if ($0 == n) { print mac; exit }
+    }'
 }
 
 toggle_power() {

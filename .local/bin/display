@@ -2,45 +2,71 @@
 # dmenu-driven display management over xrandr.
 # Replaces the arandr GUI dependency with the keyboard -> dmenu -> action model.
 
-internal="$(xrandr --query | awk '/ connected/ && /^(eDP|LVDS)/ {print $1; exit}')"
-external="$(xrandr --query | awk -v skip="$internal" '/ connected/ && $1 != skip {print $1; exit}')"
+# No "internal"/"external" (eDP/LVDS) assumption -- this project's own
+# reference test machine is a desktop with no laptop panel at all, so
+# picking outputs by name pattern silently matched nothing there, and
+# every multi-output action below quietly ran against an empty output
+# name. Just take the first two CONNECTED outputs in whatever order
+# xrandr reports them; that works whether it's a laptop (panel first)
+# or a desktop with two monitors.
+primary="$(xrandr --query | awk '/ connected/ {print $1; exit}')"
+secondary="$(xrandr --query | awk -v skip="$primary" '/ connected/ && $1 != skip {print $1; exit}')"
 
 notify() {
     command -v notify-send >/dev/null 2>&1 && notify-send "Display" "$1"
 }
 
+# Only reports success if xrandr actually succeeded -- it rejects a
+# bad/empty output name with a nonzero exit and no visible error on a
+# graphical session, so notifying unconditionally previously showed a
+# false "success" toast while nothing had actually changed.
+run() {
+    if xrandr "$@"; then
+        notify "$choice"
+    else
+        notify "Failed: $choice"
+    fi
+}
+
 choice=$(printf '%s\n' \
     "Detect / Auto" \
-    "Extend (external right of internal)" \
+    "Extend (secondary right of primary)" \
     "Mirror" \
-    "External only" \
-    "Internal only" \
+    "Secondary only" \
+    "Primary only" \
     | dmenu -p "display")
 
 case "$choice" in
     "Detect / Auto")
-        xrandr --auto
+        run --auto
         ;;
-    "Extend (external right of internal)")
-        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
-        xrandr --output "$internal" --auto --output "$external" --auto --right-of "$internal"
+    "Extend (secondary right of primary)")
+        if [ -z "$primary" ] || [ -z "$secondary" ]; then
+            notify "Need two connected displays"
+            exit 1
+        fi
+        run --output "$primary" --auto --output "$secondary" --auto --right-of "$primary"
         ;;
     "Mirror")
-        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
-        xrandr --output "$internal" --auto --output "$external" --auto --same-as "$internal"
+        if [ -z "$primary" ] || [ -z "$secondary" ]; then
+            notify "Need two connected displays"
+            exit 1
+        fi
+        run --output "$primary" --auto --output "$secondary" --auto --same-as "$primary"
         ;;
-    "External only")
-        [ -z "$external" ] && { notify "No external display detected"; exit 1; }
-        xrandr --output "$internal" --off --output "$external" --auto
+    "Secondary only")
+        [ -z "$secondary" ] && { notify "No secondary display detected"; exit 1; }
+        run --output "$secondary" --auto --output "$primary" --off
         ;;
-    "Internal only")
-        [ -z "$internal" ] && { notify "No internal display detected"; exit 1; }
-        xrandr --output "$internal" --auto
-        [ -n "$external" ] && xrandr --output "$external" --off
+    "Primary only")
+        [ -z "$primary" ] && { notify "No display detected"; exit 1; }
+        if [ -n "$secondary" ]; then
+            run --output "$primary" --auto --output "$secondary" --off
+        else
+            run --output "$primary" --auto
+        fi
         ;;
     *)
         exit 0
         ;;
 esac
-
-notify "$choice"

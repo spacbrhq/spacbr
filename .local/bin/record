@@ -44,7 +44,13 @@ case "$target" in
         video_opts="-video_size $1x$2 -i $DISPLAY"
         ;;
     "Region")
-        set -- $(slop -f "%x %y %w %h" 2>/dev/null) || exit 1
+        # Check slop's own exit status directly (via the assignment),
+        # not `set --`'s -- `set --` on an empty/cancelled slop output
+        # still succeeds, so cancelling the region picker (Escape or a
+        # right-click) previously fell through into a broken ffmpeg
+        # call with $3/$4 unset instead of just backing out.
+        coords="$(slop -f "%x %y %w %h" 2>/dev/null)" || exit 1
+        set -- $coords
         video_opts="-video_size ${3}x${4} -i ${DISPLAY}+${1},${2}"
         ;;
     "Window")

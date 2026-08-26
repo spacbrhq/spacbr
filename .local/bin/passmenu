@@ -25,7 +25,6 @@ password=$(printf '%s\n' "${password_files[@]}" | "$dmenu" "-i" "$@")
 [[ -n $password ]] || exit
 
 # pass-otp (packages/desktop) makes OTP entries work below
-echo "Determining whether the password is an OTP code"
 pass show "$password" | grep "otpauth://" 2>/dev/null && otp=1
 
 if [[ $typeit -eq 0 ]]; then
