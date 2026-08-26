@@ -8,6 +8,33 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### record: unified menu (Stop always present), new Audio-only mode (2026-08-26)
+
+Real, reported confusion, not a bug: "Stop recording" only ever
+appeared in a menu shown *after* a recording was already active --
+looking at the normal record menu (Full screen/Region/Window) while
+nothing was running, there was no way to discover the option existed
+at all. Confirmed this by testing the old toggle-menu design directly
+against the user's own real, still-running recording (found live via
+`pgrep` while investigating) -- the detection logic itself was correct
+the whole time; the actual problem was the menu never showing all the
+options together in the first place.
+
+Unified into one menu that always lists every option (Full screen/
+Region/Window/Audio only/Stop recording) regardless of current state.
+Picking Stop with nothing running now notifies "Not currently
+recording" instead of not being offered at all; picking a start option
+while already recording is now refused with a clear notification
+instead of silently spawning a second, overlapping ffmpeg that would
+clobber the first one's state files.
+
+Added Audio-only: records just an audio track (no video input at all)
+to `~/Music/<timestamp>.m4a`, with its own two-choice audio-source
+prompt (Microphone/System audio -- "No audio" doesn't apply to an
+audio-only recording). Verified live end-to-end: a real ffmpeg
+audio-only process, a real .m4a file, and a stop notification naming
+the exact saved file.
+
 ### Shared notify() helper and shellcheck CI, plus a few more real bugs from the same audit (2026-08-26)
 
 Two follow-ups suggested after the bug-audit pass below, both
