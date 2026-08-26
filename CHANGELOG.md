@@ -8,6 +8,58 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Shared notify() helper and shellcheck CI, plus a few more real bugs from the same audit (2026-08-26)
+
+Two follow-ups suggested after the bug-audit pass below, both
+implemented and verified rather than left as ideas:
+
+- New `.local/share/spacbr/notify.sh`, a shared `spacbr_notify()`
+  sourced by every dmenu script instead of each one re-implementing
+  its own 2-3 line notify-send wrapper by hand -- exactly that
+  duplication is what let audio and volume drift apart earlier in this
+  same session (different notify-send flags for the same kind of
+  feedback) before being fixed by hand. Covers the three real shapes
+  found in use across the codebase: plain, icon-based (screenshot),
+  and OSD-style (volume/brightness/audio -- 1.5s, replaces the
+  previous notification under a per-subsystem stack tag instead of
+  stacking). Migrated all ten scripts that notify. Verified live after
+  deploying: plain, OSD, and icon-based notifications all landed
+  correctly through the shared helper.
+- Ran shellcheck against every shell script in the repo (correct
+  dialect per each file's real shebang) and worked through every
+  finding. One real bug: `cmd && notify "ok" || notify "failed"`
+  (15 occurrences across bluetooth/volume/screenshot) is not
+  if-then-else -- fixed once, at the source, by making
+  `spacbr_notify()` always return 0 regardless of notify-send's own
+  exit status, so a notification's delivery outcome can never flip
+  what a caller believes actually happened. Also fixed a silently
+  non-resolving `# shellcheck source=` directive in install.sh.
+  Annotated every remaining finding that turned out to be a deliberate,
+  verified-safe pattern (record's intentional word-splits, dns's
+  intentionally single-quoted inner-shell heredocs, run_check's
+  printed-not-evaluated label text) instead of just suppressing the
+  tool. New `.github/workflows/shellcheck.yml` runs this on every push/
+  PR touching a shell script going forward.
+
+Also found and fixed while reading through bluetooth/record again for
+the same class of issue as the audit below:
+- `bluetooth`: "Connect" notified on both success and failure;
+  "Disconnect"/"Remove"/toggle-power only ever notified on success --
+  a real bluetoothctl failure on those specific actions produced zero
+  feedback. Added the matching failure notifications.
+- `record`: xdotool (Full screen/Window) and slop (Region) had no
+  dependency check at all, unlike screenshot's check for the exact
+  same tools -- a missing one fed empty coordinates straight into a
+  broken ffmpeg call instead of failing with a clear message. Also,
+  the stop notification named only the output directory, not the
+  actual saved file, unlike screenshot's; now tracks and names it.
+- `spacbr doctor`: added a check that would have caught the D-Bus
+  bus-split bug below automatically -- compares dwm's actual
+  DBUS_SESSION_BUS_ADDRESS against systemd --user's real session bus,
+  skipped entirely when dwm isn't running. Verified live (passes on
+  the fixed system; the underlying comparison correctly fails on a
+  deliberately mismatched value).
+
 ### Plymouth boot/reboot/shutdown splash: redesign and real-hardware bug fixes (2026-08-26)
 
 Extensive real-hardware iteration on `system/plymouth/spacbr/spacbr.script`,
