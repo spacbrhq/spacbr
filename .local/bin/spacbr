@@ -12,25 +12,25 @@ usage() {
     cat <<EOF
 spacbr — SPACBR management CLI
 
-  spacbr install      run the installer
-  spacbr update       re-apply SPACBR from its current source tree
-  spacbr repair       diagnose and fix common problems
-  spacbr uninstall    remove SPACBR-deployed files (packages/data untouched)
-  spacbr doctor       run diagnostics only, no changes
-  spacbr info         show system/version summary
-  spacbr version      print the installed SPACBR version
+  spacbr install     run the installer
+  spacbr update      re-apply SPACBR from its current source tree
+  spacbr repair      diagnose and fix common problems
+  spacbr uninstall   remove SPACBR-deployed files (packages/data untouched)
+  spacbr doctor      run diagnostics only, no changes
+  spacbr info        show system/version summary
+  spacbr version     print the installed SPACBR version
 
-  spacbr network      open nmtui (scan/connect/disconnect/saved networks)
-  spacbr dns          DNS server picker (DHCP/Cloudflare/Google/Quad9/custom)
-  spacbr audio        select output/input device, volume up/down/mute
-  spacbr brightness    up/down/set <pct>/get, or a dmenu menu with no args
-  spacbr bluetooth     scan/connect/disconnect/trust/remove devices
-  spacbr display      xrandr layout menu
-  spacbr wallpaper     set/next/previous/random wallpaper
-  spacbr screenshot    full/window/region/color screenshot
-  spacbr record        full/region/window screen recording, with/without audio
-  spacbr mirrors       refresh pacman mirrorlist via reflector
-  spacbr power         lock/logout/suspend/reboot/shutdown menu
+  spacbr network     open nmtui (scan/connect/disconnect/saved networks)
+  spacbr dns         DNS server picker (DHCP/Cloudflare/Google/Quad9/custom)
+  spacbr audio       select output/input device, volume up/down/mute
+  spacbr brightness  up/down/set <pct>/get, or a dmenu menu with no args
+  spacbr bluetooth   scan/connect/disconnect/trust/remove devices
+  spacbr display     xrandr layout menu
+  spacbr wallpaper   set/next/previous/random wallpaper
+  spacbr screenshot  full/window/region/color screenshot
+  spacbr record      full/region/window screen recording, with/without audio
+  spacbr mirrors     refresh pacman mirrorlist via reflector
+  spacbr power       lock/logout/suspend/reboot/shutdown menu
 EOF
 }
 
