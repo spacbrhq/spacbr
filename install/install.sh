@@ -7,7 +7,7 @@
 set -eu
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# shellcheck source=functions/common.sh
+# shellcheck source=install/functions/common.sh
 . "$ROOT/install/functions/common.sh"
 . "$ROOT/install/functions/detect.sh"
 . "$ROOT/install/functions/packages.sh"

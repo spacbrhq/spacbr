@@ -35,6 +35,7 @@ conn="$(nmcli -t -f NAME,DEVICE connection show --active | awk -F: -v d="$iface"
 # way no value's content can affect how the command is parsed,
 # regardless of what characters it contains.
 apply() {
+    # shellcheck disable=SC2016 # single-quoted on purpose -- $1/$2/$3/$4 below are meant to expand in the *inner* sh -c, not this outer script
     "$TERMINAL" -e sh -c '
         sudo nmcli connection modify "$1" ipv4.ignore-auto-dns yes ipv4.dns "$2" ipv6.ignore-auto-dns yes ipv6.dns "$3" &&
         sudo nmcli connection up "$1" &&
@@ -46,6 +47,7 @@ apply() {
 }
 
 reset_auto() {
+    # shellcheck disable=SC2016 # single-quoted on purpose -- see apply()'s comment above
     "$TERMINAL" -e sh -c '
         sudo nmcli connection modify "$1" ipv4.ignore-auto-dns no ipv4.dns "" ipv6.ignore-auto-dns no ipv6.dns "" &&
         sudo nmcli connection up "$1" &&

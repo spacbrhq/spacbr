@@ -1,5 +1,7 @@
 # Diagnostic checks shared by `spacbr doctor` and `spacbr info`.
 # Sourced, not executed directly. Requires common.sh, detect.sh.
+#
+# shellcheck disable=SC2088 # file-wide: run_check's 1st/3rd args below are printed labels/remediation text, never evaluated as shell -- a literal "~" in them is intentional, readable display text, not a real tilde-expansion bug.
 
 DOCTOR_FAILED=0
 

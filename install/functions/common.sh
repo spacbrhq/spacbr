@@ -10,13 +10,17 @@ XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
+# shellcheck disable=SC2034 # used by sibling install/functions/*.sh files that source this one, not within this file itself
 SPACBR_HOME="$(cd "$(dirname "$0")/.." && pwd)"
 SPACBR_STATE="$XDG_STATE_HOME/spacbr"
+# shellcheck disable=SC2034
 SPACBR_MANIFEST="$SPACBR_STATE/manifest"
+# shellcheck disable=SC2034
 SPACBR_SELF="$XDG_DATA_HOME/spacbr"
 
 mkdir -p "$SPACBR_STATE"
 
+# shellcheck disable=SC2034
 BACKUP_DIR="$SPACBR_STATE/backups/$(date +%Y%m%d-%H%M%S)"
 
 # True-color eightchrome (by eightharsh), not generic 16-color ANSI --

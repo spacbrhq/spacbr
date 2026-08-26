@@ -51,6 +51,14 @@ spacbr_notify() {
 
     command -v notify-send >/dev/null 2>&1 || return 0
 
+    # Always returns 0, regardless of notify-send's own exit status
+    # (shellcheck SC2015 flagged this correctly, repeatedly, across
+    # every caller: `cmd && notify "ok" || notify "failed"` is not
+    # if-then-else -- if notify-send itself hiccups on the success
+    # branch, "failed" fires right after, misreporting a real success.
+    # A notification's own delivery outcome should never be able to
+    # flip what a caller believes happened; fixed once here instead of
+    # patching every individual call site.
     if [ -n "$icon" ] && [ -n "$tag" ]; then
         notify-send -i "$icon" -t 1500 -h "string:x-dunst-stack-tag:$tag" "$1" "$2"
     elif [ -n "$icon" ]; then
@@ -60,4 +68,5 @@ spacbr_notify() {
     else
         notify-send "$1" "$2"
     fi
+    return 0
 }

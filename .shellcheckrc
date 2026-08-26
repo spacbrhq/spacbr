@@ -1,0 +1,37 @@
+# Repo-wide shellcheck configuration. See CLAUDE.md's script design
+# section (SS38) and the shellcheck CI workflow
+# (.github/workflows/shellcheck.yml) that reads this file.
+#
+# Only two blanket disables, both deliberate and evidence-based, not a
+# way to silence noise wholesale -- every other finding gets a targeted
+# inline `# shellcheck disable=SCxxxx` comment at the specific line
+# instead, so a *new*, unrelated instance of the same warning class
+# elsewhere still gets caught.
+
+# SC3xxx: "In POSIX sh, X is undefined" (local, disown, [[ ]], arrays,
+# etc.). CLAUDE.md SS2 is explicit: SPACBR only ever targets Arch
+# Linux, and Arch's /bin/sh is bash, not dash -- these constructs work
+# correctly on every machine this project will ever run on. This
+# project's own scripts already rely on `local` throughout
+# (install/functions/*.sh's whole "why `local` matters here" pattern)
+# specifically because it works on the one shell this project targets;
+# treating strict cross-implementation POSIX portability as a bug here
+# would be flagging an already-made, working, documented decision.
+disable=SC3010
+disable=SC3014
+disable=SC3020
+disable=SC3030
+disable=SC3040
+disable=SC3043
+disable=SC3044
+
+# SC2015: "A && B || C is not if-then-else." True in general, but
+# every real instance of this pattern in this codebase is
+# `cmd && spacbr_notify ... || spacbr_notify ...` (or a script's own
+# thin wrapper around it), and spacbr_notify's own contract
+# (.local/share/spacbr/notify.sh) guarantees it always returns 0
+# regardless of notify-send's own exit status -- fixed there once,
+# specifically so this pattern is safe everywhere it's used, instead
+# of rewriting every call site into a more verbose if/fi for no
+# behavioral difference.
+disable=SC2015
