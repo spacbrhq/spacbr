@@ -63,9 +63,9 @@ Window.SetBackgroundBottomColor(0.184, 0.204, 0.247);
 # is PNG-only, built directly against libpng, with no JPEG support
 # anywhere in Plymouth's source tree at all. Image("wallpaper.jpg") was
 # silently failing every single boot; everything else on screen (text,
-# the bar, the password rule) is built from Image.Text, which
-# don't depend on this file loading at all, so nothing else hinted
-# anything was wrong. This was never actually caught until someone
+# the bar, the password prompt) is built from Image.Text, which doesn't
+# depend on this file loading at all, so nothing else hinted anything
+# was wrong. This was never actually caught until someone
 # looked at the real screen for the first time -- every earlier
 # "verified" pass only checked the file's presence/checksum inside the
 # built UKI, never whether Plymouth could actually decode it. Limine's
@@ -157,50 +157,27 @@ percent_sprite.SetX(percent_x);
 percent_sprite.SetZ(2);
 percent_sprite.SetOpacity(0);
 
-# Password field: an underline rule, not a boxed field. A real bordered
-# box was tried first (two rectangles built by scaling a single "█"
-# glyph up via Image.Scale) and dropped after actually seeing it on
-# screen -- it rendered as one flat glowing block, not a bordered
-# field, and there was no reliable way to tell from a photo whether
-# that was a real rendering bug in that untested stretch-one-glyph-way
-# -up technique or just camera blur exaggerating an already-too-thin
-# border. Rather than keep guessing at border thickness, this rebuilds
-# the field using the *same* technique the progress bar above already
-# proves works correctly on this real hardware: a row of repeated
-# glyphs at their natural size, never scaled/stretched. A clean
-# underline is a legitimate, common input-field convention on its own
-# (not a downgrade), and it reuses this theme's own established visual
-# language -- the boot progress rule and the password rule now read as
-# one consistent idea, not two different widget styles.
-#
-# Fixed once here and never touched again, same reasoning as before:
-# rule_width/rule_x/rule_y don't change. Only the stars above the rule
-# grow, left-aligned from a fixed start point -- exactly how a real
-# password field's text behaves, still true even without a box drawn
-# around it.
-rule_width = Window.GetWidth() * 0.30;
-rule_x = Window.GetWidth() / 2 - rule_width / 2;
-rule_y = Window.GetHeight() * 0.50;
-rule_cells = 46;
-
-password_rule_text = "";
-for (i = 0; i < rule_cells; i++)
-  {
-    password_rule_text = password_rule_text + "─";
-  }
-password_rule_image = Image.Text(password_rule_text, 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_size);
-password_rule_sprite = Sprite(password_rule_image);
-password_rule_sprite.SetX(rule_x);
-password_rule_sprite.SetY(rule_y);
-password_rule_sprite.SetZ(2);
-password_rule_sprite.SetOpacity(0);
+# Password area: no drawn rule/box at all -- tried both (a bordered
+# box, then an underline rule) and dropped both after actually seeing
+# them on screen. The box rendered as one flat glowing block instead of
+# a bordered field; the underline read as a *second progress bar* right
+# next to the real one, since it reused the same block/line-glyph
+# language at a similar size and position -- confusing, not polished,
+# confirmed directly from real photos of the physical screen, not a
+# guess either time. Just the label and the stars, correctly aligned,
+# is the actual fix: real misalignment, also confirmed from the same
+# photos -- the label was centered against the whole window while the
+# stars were left-aligned from a different fixed point, so the two
+# lines never lined up on the same edge. Both now share one fixed
+# anchor (input_x/input_y) instead.
+input_width = Window.GetWidth() * 0.34;
+input_x = Window.GetWidth() / 2 - input_width / 2;
+input_y = Window.GetHeight() * 0.44;
 
 # password prompt: hidden (opacity 0) until Plymouth actually asks for
 # one (LUKS, a TPM passphrase, anything using systemd-ask-password) --
 # most SPACBR installs never trigger this, but the theme should not
-# fall back to something broken/unstyled on the installs that do. A
-# label above the rule, stars sitting just above it, same layout every
-# real password prompt already uses.
+# fall back to something broken/unstyled on the installs that do.
 password_prompt_sprite = Sprite();
 password_prompt_sprite.SetZ(3);
 password_prompt_sprite.SetOpacity(0);
@@ -251,20 +228,22 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 # count changes, not just once) -- cheap enough (a handful of small
 # Image.Text calls) that redrawing from scratch each time is simpler
 # and safer than trying to diff against the previous bullet count.
-# Only the stars_image actually resizes; the rule, and where both the
-# label and the stars start from, never do.
+# Only the stars_image actually resizes; input_x/input_y, and where
+# both lines start from, never do.
 fun spacbr_display_password_callback(prompt, bullets)
 {
-    password_rule_sprite.SetOpacity(1);
-
-    # Label sits above the rule -- recomputed every call like before,
-    # but harmless: Plymouth passes the same prompt string for the
-    # whole time one password is being entered, so this yields the
-    # exact same position every time, not a visible shift.
+    # Label -- recomputed every call like before, but harmless:
+    # Plymouth passes the same prompt string for the whole time one
+    # password is being entered, so this yields the exact same
+    # position every time, not a visible shift. Left-aligned at
+    # input_x, same as the stars below it -- not centered against the
+    # window, which was the actual misalignment: two lines centered/
+    # left-aligned against two different references never line up on
+    # the same edge.
     prompt_image = Image.Text(prompt, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
     password_prompt_sprite.SetImage(prompt_image);
-    password_prompt_sprite.SetX(Window.GetWidth() / 2 - prompt_image.GetWidth() / 2);
-    password_prompt_sprite.SetY(rule_y - prompt_image.GetHeight() - Window.GetHeight() * 0.035);
+    password_prompt_sprite.SetX(input_x);
+    password_prompt_sprite.SetY(input_y);
     password_prompt_sprite.SetOpacity(1);
 
     # Stars, not the filled-circle bullets this used to draw -- asterisk
@@ -275,14 +254,13 @@ fun spacbr_display_password_callback(prompt, bullets)
     # plain ASCII asterisk -- guaranteed present, and a real star shape
     # on its own -- is the safe choice, not a fallback compromise.
     #
-    # Left-aligned starting at the rule's own left edge and growing
-    # rightward, not centered against the window -- same "text grows
-    # from a fixed point, nothing about the layout itself moves"
-    # behavior every real OS password field already has. Sized up from
-    # the prompt label (star_size, not prompt_size) since an asterisk
-    # reads smaller/lighter than a solid circle at the same point size;
-    # extra inter-character spacing for the same reason. Sits just
-    # above the rule, like text resting on an underline.
+    # Left-aligned at the same input_x as the label above it, growing
+    # rightward -- same "text grows from a fixed point, nothing about
+    # the layout itself moves" behavior every real OS password field
+    # already has. Sized up from the prompt label (star_size, not
+    # prompt_size) since an asterisk reads smaller/lighter than a solid
+    # circle at the same point size; extra inter-character spacing for
+    # the same reason.
     stars_text = "";
     for (i = 0; i < bullets; i++)
       {
@@ -290,8 +268,8 @@ fun spacbr_display_password_callback(prompt, bullets)
       }
     stars_image = Image.Text(stars_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + star_size);
     password_stars_sprite.SetImage(stars_image);
-    password_stars_sprite.SetX(rule_x);
-    password_stars_sprite.SetY(rule_y - stars_image.GetHeight() - Window.GetHeight() * 0.008);
+    password_stars_sprite.SetX(input_x);
+    password_stars_sprite.SetY(input_y + prompt_image.GetHeight() + Window.GetHeight() * 0.02);
     password_stars_sprite.SetOpacity(1);
 }
 Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
@@ -303,7 +281,6 @@ fun spacbr_display_normal_callback()
 {
     password_prompt_sprite.SetOpacity(0);
     password_stars_sprite.SetOpacity(0);
-    password_rule_sprite.SetOpacity(0);
 }
 Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
 
@@ -315,6 +292,5 @@ fun spacbr_quit_callback()
     percent_sprite.SetOpacity(0);
     password_prompt_sprite.SetOpacity(0);
     password_stars_sprite.SetOpacity(0);
-    password_rule_sprite.SetOpacity(0);
 }
 Plymouth.SetQuitFunction(spacbr_quit_callback);
