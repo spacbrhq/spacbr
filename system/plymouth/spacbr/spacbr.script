@@ -178,24 +178,26 @@ input_y = Window.GetHeight() * 0.44;
 # one (LUKS, a TPM passphrase, anything using systemd-ask-password) --
 # most SPACBR installs never trigger this, but the theme should not
 # fall back to something broken/unstyled on the installs that do.
-password_prompt_sprite = Sprite();
-password_prompt_sprite.SetZ(3);
-password_prompt_sprite.SetOpacity(0);
-password_stars_sprite = Sprite();
-password_stars_sprite.SetZ(4);
-password_stars_sprite.SetOpacity(0);
-# Same size as the prompt label, not larger -- confirmed for real from
-# photos that sizing the stars up (star_size used to be prompt_size *
-# 1.2) was the actual cause of the persistent left-edge misalignment:
-# both text images were positioned at the identical sprite X
-# (input_x), but a different font *size* between the two can carry a
-# different left-side-bearing (the gap between an image's own left
-# edge and where a glyph's ink actually starts), which shows up as a
-# visual offset even when the sprite positions themselves are pixel-
-# identical. Matching the size removes that source of drift outright,
-# rather than trying to guess/tune a manual offset to compensate for a
-# font metric this script has no way to query directly.
-star_size = prompt_size;
+#
+# ONE sprite for both lines, not two -- the real, dynamic fix for the
+# alignment problem that survived two earlier attempts (a shared
+# input_x, then matching the two images' font sizes). Confirmed from
+# Plymouth's own source (script-lib-image.c's Image.Text, backed by
+# ply-label.c -> a real Pango layout, pango_layout_set_text) that two
+# *separate* Image.Text calls each get their own image individually
+# measured and cropped to that call's own content -- there was never a
+# shared reference frame for "same sprite X" to mean "same visual
+# start" against, no matter how carefully the inputs were matched.
+# Pango natively lays out an embedded "\n" as a real multi-line
+# paragraph with one alignment mode applied consistently across every
+# line in that single layout -- so building the prompt and the stars
+# as one two-line string in one Image.Text call, instead of two
+# independent calls, is what actually guarantees they share a left
+# edge, dynamically, for whatever the real text/font turns out to be --
+# not a hardcoded position or size chosen to match this one string.
+password_text_sprite = Sprite();
+password_text_sprite.SetZ(3);
+password_text_sprite.SetOpacity(0);
 
 # Wordmark and track fade in fast (first ~15% of Plymouth's boot-
 # duration estimate), then the fill rule tracks real boot progress for
@@ -236,27 +238,13 @@ fun spacbr_boot_progress_callback(duration, progress)
 Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 
 # Rebuilt on every keystroke (Plymouth calls this each time the typed
-# count changes, not just once) -- cheap enough (a handful of small
-# Image.Text calls) that redrawing from scratch each time is simpler
-# and safer than trying to diff against the previous bullet count.
-# Only the stars_image actually resizes; input_x/input_y, and where
-# both lines start from, never do.
+# count changes, not just once) -- cheap enough (one small Image.Text
+# call) that redrawing the whole two-line block from scratch each time
+# is simpler and safer than trying to diff against the previous bullet
+# count. input_x/input_y themselves never move; only the text drawn at
+# that fixed point grows.
 fun spacbr_display_password_callback(prompt, bullets)
 {
-    # Label -- recomputed every call like before, but harmless:
-    # Plymouth passes the same prompt string for the whole time one
-    # password is being entered, so this yields the exact same
-    # position every time, not a visible shift. Left-aligned at
-    # input_x, same as the stars below it -- not centered against the
-    # window, which was the actual misalignment: two lines centered/
-    # left-aligned against two different references never line up on
-    # the same edge.
-    prompt_image = Image.Text(prompt, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
-    password_prompt_sprite.SetImage(prompt_image);
-    password_prompt_sprite.SetX(input_x);
-    password_prompt_sprite.SetY(input_y);
-    password_prompt_sprite.SetOpacity(1);
-
     # Stars, not the filled-circle bullets this used to draw -- asterisk
     # (*) specifically, not a fancier Unicode star (☆/✦/etc.): checked
     # directly against the real Hack-Bold.ttf this theme uses, and none
@@ -264,25 +252,23 @@ fun spacbr_display_password_callback(prompt, bullets)
     # "unstyled box" look this was meant to move away from, so the
     # plain ASCII asterisk -- guaranteed present, and a real star shape
     # on its own -- is the safe choice, not a fallback compromise.
-    #
-    # Left-aligned at the same input_x as the label above it, growing
-    # rightward -- same "text grows from a fixed point, nothing about
-    # the layout itself moves" behavior every real OS password field
-    # already has. Same size as the prompt label (star_size ==
-    # prompt_size, see above -- a real, different-font-size alignment
-    # bug, not just a smaller star, is why this isn't sized up anymore);
-    # extra inter-character spacing to help an asterisk read clearly at
-    # this size instead of solving that with a bigger font.
     stars_text = "";
     for (i = 0; i < bullets; i++)
       {
         stars_text = stars_text + "*  ";
       }
-    stars_image = Image.Text(stars_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + star_size);
-    password_stars_sprite.SetImage(stars_image);
-    password_stars_sprite.SetX(input_x);
-    password_stars_sprite.SetY(input_y + prompt_image.GetHeight() + Window.GetHeight() * 0.02);
-    password_stars_sprite.SetOpacity(1);
+
+    # One label, two lines (prompt, then stars, joined by a real
+    # newline) -- see the note above password_text_sprite for why this
+    # is what actually keeps both lines on the same left edge, instead
+    # of two separately-measured images that were never guaranteed to
+    # share one.
+    combined_text = prompt + "\n" + stars_text;
+    combined_image = Image.Text(combined_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
+    password_text_sprite.SetImage(combined_image);
+    password_text_sprite.SetX(input_x);
+    password_text_sprite.SetY(input_y);
+    password_text_sprite.SetOpacity(1);
 }
 Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
 
@@ -291,8 +277,7 @@ Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
 # to special-case "was a dialog even showing".
 fun spacbr_display_normal_callback()
 {
-    password_prompt_sprite.SetOpacity(0);
-    password_stars_sprite.SetOpacity(0);
+    password_text_sprite.SetOpacity(0);
 }
 Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
 
@@ -302,7 +287,6 @@ fun spacbr_quit_callback()
     track_sprite.SetOpacity(0);
     fill_sprite.SetOpacity(0);
     percent_sprite.SetOpacity(0);
-    password_prompt_sprite.SetOpacity(0);
-    password_stars_sprite.SetOpacity(0);
+    password_text_sprite.SetOpacity(0);
 }
 Plymouth.SetQuitFunction(spacbr_quit_callback);
