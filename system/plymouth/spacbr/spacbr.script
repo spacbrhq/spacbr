@@ -184,7 +184,18 @@ password_prompt_sprite.SetOpacity(0);
 password_stars_sprite = Sprite();
 password_stars_sprite.SetZ(4);
 password_stars_sprite.SetOpacity(0);
-star_size = Math.Int(prompt_size * 1.2);
+# Same size as the prompt label, not larger -- confirmed for real from
+# photos that sizing the stars up (star_size used to be prompt_size *
+# 1.2) was the actual cause of the persistent left-edge misalignment:
+# both text images were positioned at the identical sprite X
+# (input_x), but a different font *size* between the two can carry a
+# different left-side-bearing (the gap between an image's own left
+# edge and where a glyph's ink actually starts), which shows up as a
+# visual offset even when the sprite positions themselves are pixel-
+# identical. Matching the size removes that source of drift outright,
+# rather than trying to guess/tune a manual offset to compensate for a
+# font metric this script has no way to query directly.
+star_size = prompt_size;
 
 # Wordmark and track fade in fast (first ~15% of Plymouth's boot-
 # duration estimate), then the fill rule tracks real boot progress for
@@ -257,10 +268,11 @@ fun spacbr_display_password_callback(prompt, bullets)
     # Left-aligned at the same input_x as the label above it, growing
     # rightward -- same "text grows from a fixed point, nothing about
     # the layout itself moves" behavior every real OS password field
-    # already has. Sized up from the prompt label (star_size, not
-    # prompt_size) since an asterisk reads smaller/lighter than a solid
-    # circle at the same point size; extra inter-character spacing for
-    # the same reason.
+    # already has. Same size as the prompt label (star_size ==
+    # prompt_size, see above -- a real, different-font-size alignment
+    # bug, not just a smaller star, is why this isn't sized up anymore);
+    # extra inter-character spacing to help an asterisk read clearly at
+    # this size instead of solving that with a bigger font.
     stars_text = "";
     for (i = 0; i < bullets; i++)
       {
