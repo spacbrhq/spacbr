@@ -133,6 +133,39 @@ else
   {
     status_text = "Updating";
   }
+# Reboot/shutdown deliberately never reach full brightness like boot
+# does -- boot is the "main" state (you're arriving at your desktop),
+# reboot/shutdown are transient/ending states, and dimming them is a
+# second, independent signal (on top of the status caption) that this
+# isn't the same thing as booting up.
+if (spacbr_mode == "reboot")
+  {
+    max_fade = 0.6;
+  }
+else if (spacbr_mode == "shutdown")
+  {
+    max_fade = 0.6;
+  }
+else
+  {
+    max_fade = 1;
+  }
+# The progress bar itself only ever showed up during boot -- reboot/
+# shutdown don't do real, trackable work in the sense a percentage can
+# honestly represent (see spacbr_boot_progress_callback below for why
+# `progress` is unreliable even at boot), so rather than show a bar
+# that doesn't mean anything there, it's just not shown at all outside
+# boot. Gated once here instead of deleting the track/fill/percent
+# sprites and their layout math -- they're built unconditionally below
+# and simply never made visible when this is 0.
+if (spacbr_mode == "boot")
+  {
+    spacbr_show_bar = 1;
+  }
+else
+  {
+    spacbr_show_bar = 0;
+  }
 # Foreground at reduced alpha (0.7), not a separate color -- reads as
 # secondary/supporting text under the wordmark without needing another
 # swatch of the palette. Reuses bar_label_size (already sized for a
@@ -204,6 +237,7 @@ fill_sprite = Sprite();
 fill_sprite.SetX(track_x);
 fill_sprite.SetY(track_y);
 fill_sprite.SetZ(2);
+fill_sprite.SetOpacity(0);
 
 # percentage readout -- own sprite, reused the same way fill_sprite is.
 # X is fixed (percent_x, above); Y is set once the real image exists
@@ -257,6 +291,34 @@ input_y = Window.GetHeight() * 0.44;
 password_text_sprite = Sprite();
 password_text_sprite.SetZ(3);
 password_text_sprite.SetOpacity(0);
+# Set while the password prompt is up (see spacbr_display_password/
+# normal_callback below) -- spacbr_boot_progress_callback checks this
+# to freeze the fill bar/percent readout instead of updating them
+# while it's true. Real, reported bug: `progress` is elapsed-real-time
+# divided by a *cached* estimated total duration (same unreliable
+# metric already worked around for the fade-in above), and typing a
+# LUKS passphrase is a human-paced wait with no fixed length -- taking
+# more than a few seconds to type it is enough for that elapsed time to
+# exceed the whole cached estimate, showing "100%" while the real disk
+# hasn't even been unlocked yet, before nearly all of the actual boot
+# work has had a chance to happen.
+#
+# Freezing the *display* doesn't freeze the underlying value -- it kept
+# climbing in the background the whole time (confirmed for real: a
+# short wait at the prompt froze the readout at 4%, then it jumped
+# straight to 44% the instant the password was submitted). Unfreezing
+# onto the raw value just reveals that backlog all at once instead of
+# hiding it. spacbr_last_progress tracks the raw value every tick (even
+# while frozen, just not displayed); spacbr_progress_baseline is set to
+# whatever that raw value is the moment the prompt dismisses, and
+# everything shown afterward is remapped as "share of the *remaining*
+# raw range" -- (progress - baseline) / (1 - baseline) -- so the
+# display always resumes at 0% and climbs from there, dynamically,
+# regardless of how long the password screen was actually up for, not
+# a guessed fixed offset.
+spacbr_last_progress = 0;
+spacbr_progress_baseline = 0;
+spacbr_password_active = 0;
 
 # Wordmark and track fade in fast, driven by real elapsed time
 # (duration), not the progress fraction -- confirmed for real that this
@@ -281,36 +343,82 @@ password_text_sprite.SetOpacity(0);
 # from "is anything visible yet".
 fun spacbr_boot_progress_callback(duration, progress)
 {
-    fade = duration / 0.6;
-    if (fade > 1)
+    fade = duration / 0.6 * max_fade;
+    if (fade > max_fade)
       {
-        fade = 1;
+        fade = max_fade;
       }
     wordmark_sprite.SetOpacity(fade);
     status_sprite.SetOpacity(fade);
-    track_sprite.SetOpacity(fade);
-    percent_sprite.SetOpacity(fade);
 
-    fill_width = Math.Int(bar_width * progress);
-    if (fill_width > bar_width)
-      {
-        fill_width = bar_width;
-      }
-    if (fill_width < 1)
-      {
-        fill_width = 1;
-      }
-    fill_image = fill_swatch.Scale(fill_width, bar_height);
-    fill_sprite.SetImage(fill_image);
+    spacbr_last_progress = progress;
 
-    percent = Math.Int(progress * 100);
-    if (percent > 100)
+    # Reboot/shutdown: no bar at all (see spacbr_show_bar above) --
+    # everything below stays skipped, leaving track/fill/percent at
+    # their initial opacity 0 for the whole splash.
+    if (spacbr_show_bar == 1)
       {
-        percent = 100;
+        if (spacbr_password_active == 1)
+          {
+            # Hidden, not just frozen, while the password prompt is up
+            # -- confirmed for real that freezing the *displayed*
+            # number wasn't enough: the underlying `progress` value
+            # keeps climbing in the background regardless (it's
+            # elapsed real time against a cached duration estimate,
+            # and typing a passphrase is a human-paced wait), so
+            # unfreezing onto that value either jumped forward
+            # (revealing the backlog all at once) or, once rebased to
+            # start fresh, visibly dropped back down first -- both
+            # read as a broken/backwards progress bar. Not showing it
+            # at all until real progress resumes avoids either failure
+            # mode: nothing to jump from, nothing to drop from.
+            track_sprite.SetOpacity(0);
+            fill_sprite.SetOpacity(0);
+            percent_sprite.SetOpacity(0);
+          }
+        else
+          {
+            track_sprite.SetOpacity(fade);
+            percent_sprite.SetOpacity(fade);
+
+            denom = 1 - spacbr_progress_baseline;
+            if (denom <= 0)
+              {
+                denom = 1;
+              }
+            display_progress = (progress - spacbr_progress_baseline) / denom;
+            if (display_progress < 0)
+              {
+                display_progress = 0;
+              }
+            if (display_progress > 1)
+              {
+                display_progress = 1;
+              }
+
+            fill_width = Math.Int(bar_width * display_progress);
+            if (fill_width > bar_width)
+              {
+                fill_width = bar_width;
+              }
+            if (fill_width < 1)
+              {
+                fill_width = 1;
+              }
+            fill_image = fill_swatch.Scale(fill_width, bar_height);
+            fill_sprite.SetImage(fill_image);
+            fill_sprite.SetOpacity(fade);
+
+            percent = Math.Int(display_progress * 100);
+            if (percent > 100)
+              {
+                percent = 100;
+              }
+            percent_image = Image.Text(percent + "%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_label_size);
+            percent_sprite.SetImage(percent_image);
+            percent_sprite.SetY(track_y + (track_image.GetHeight() - percent_image.GetHeight()) / 2);
+          }
       }
-    percent_image = Image.Text(percent + "%", 0.882, 0.890, 0.906, 1, "Hack Bold " + bar_label_size);
-    percent_sprite.SetImage(percent_image);
-    percent_sprite.SetY(track_y + (track_image.GetHeight() - percent_image.GetHeight()) / 2);
 }
 Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 
@@ -323,6 +431,8 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 # it grows (see the note above password_text_sprite).
 fun spacbr_display_password_callback(prompt, bullets)
 {
+    spacbr_password_active = 1;
+
     # Ignore the raw prompt text systemd-ask-password-plymouth actually
     # sends (something like "Please enter passphrase for disk ... to
     # unlock:") -- that string is written for a terminal-based prompt,
@@ -365,6 +475,8 @@ Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
 # to special-case "was a dialog even showing".
 fun spacbr_display_normal_callback()
 {
+    spacbr_password_active = 0;
+    spacbr_progress_baseline = spacbr_last_progress;
     password_text_sprite.SetOpacity(0);
 }
 Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
