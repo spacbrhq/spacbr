@@ -105,6 +105,46 @@ wordmark_sprite.SetY(Window.GetHeight() * 0.22 - wordmark_image.GetHeight() / 2)
 wordmark_sprite.SetZ(1);
 wordmark_sprite.SetOpacity(0);
 
+# status caption: the one thing that actually says what's happening.
+# The wordmark + bar look identical in every mode (boot, reboot,
+# shutdown) -- without this, a shutdown/reboot looks exactly like a
+# boot or a stuck update screen, which is a real, reported point of
+# confusion (this looked like a Windows-style "installing update,
+# don't turn off" screen at shutdown, not an obvious "shutting down").
+# Plymouth.GetMode() (confirmed against its real source,
+# script-lib-plymouth.c's plymouth_get_mode) returns exactly which one
+# is running, so the caption can just say the true state instead of
+# leaving it to the reader to infer from a generic logo and a bar.
+# Read once at theme start -- the mode can't change mid-splash.
+spacbr_mode = Plymouth.GetMode();
+if (spacbr_mode == "shutdown")
+  {
+    status_text = "Shutting down";
+  }
+else if (spacbr_mode == "reboot")
+  {
+    status_text = "Restarting";
+  }
+else if (spacbr_mode == "boot")
+  {
+    status_text = "Starting up";
+  }
+else
+  {
+    status_text = "Updating";
+  }
+# Foreground at reduced alpha (0.7), not a separate color -- reads as
+# secondary/supporting text under the wordmark without needing another
+# swatch of the palette. Reuses bar_label_size (already sized for a
+# small caption-scale readout next to the bar) rather than inventing a
+# second small-text size for one more label.
+status_image = Image.Text(status_text, 0.882, 0.890, 0.906, 0.7, "Hack Bold " + bar_label_size);
+status_sprite = Sprite(status_image);
+status_sprite.SetX(Window.GetWidth() / 2 - status_image.GetWidth() / 2);
+status_sprite.SetY(wordmark_sprite.GetY() + wordmark_image.GetHeight() + Window.GetHeight() * 0.02);
+status_sprite.SetZ(1);
+status_sprite.SetOpacity(0);
+
 # progress rule: a real continuous bar, not a row of repeated block
 # glyphs like this used to be. A row of characters (however wide the
 # glyph) always has real inter-character tracking/kerning gaps between
@@ -149,7 +189,7 @@ percent_reserve_image = Image.Text("100%", 0.882, 0.890, 0.906, 1, "Hack Bold " 
 progress_gap = Window.GetWidth() * 0.014;
 progress_group_width = bar_width + progress_gap + percent_reserve_image.GetWidth();
 track_x = Window.GetWidth() / 2 - progress_group_width / 2;
-track_y = wordmark_sprite.GetY() + wordmark_image.GetHeight() + Window.GetHeight() * 0.055;
+track_y = status_sprite.GetY() + status_image.GetHeight() + Window.GetHeight() * 0.04;
 percent_x = track_x + bar_width + progress_gap;
 track_image = track_swatch.Scale(bar_width, bar_height);
 track_sprite = Sprite(track_image);
@@ -247,6 +287,7 @@ fun spacbr_boot_progress_callback(duration, progress)
         fade = 1;
       }
     wordmark_sprite.SetOpacity(fade);
+    status_sprite.SetOpacity(fade);
     track_sprite.SetOpacity(fade);
     percent_sprite.SetOpacity(fade);
 
@@ -331,6 +372,7 @@ Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
 fun spacbr_quit_callback()
 {
     wordmark_sprite.SetOpacity(0);
+    status_sprite.SetOpacity(0);
     track_sprite.SetOpacity(0);
     fill_sprite.SetOpacity(0);
     percent_sprite.SetOpacity(0);
