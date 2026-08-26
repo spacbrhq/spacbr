@@ -38,6 +38,18 @@ target=$(printf '%s\n' "Full screen" "Region" "Window" | dmenu -p "record")
 audio=$(printf '%s\n' "No audio" "Microphone" "System audio" | dmenu -p "audio")
 [ -z "$audio" ] && exit 0
 
+# xdotool/slop are both in packages/desktop, so this should never
+# actually fire on a correctly-provisioned install -- but screenshot
+# already checks for the exact same tools before using them the same
+# way (window geometry, region pick), and record silently had no such
+# check at all: a missing xdotool/slop here fed empty coordinates
+# straight into ffmpeg instead of failing with a clear message.
+case "$target" in
+    "Full screen"|"Window") need=xdotool ;;
+    "Region")                need=slop ;;
+esac
+command -v "$need" >/dev/null 2>&1 || { notify "Missing: $need"; exit 1; }
+
 case "$target" in
     "Full screen")
         set -- $(xdotool getdisplaygeometry)

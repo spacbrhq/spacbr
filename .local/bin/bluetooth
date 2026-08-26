@@ -33,9 +33,9 @@ pick_device() {
 
 toggle_power() {
     if bluetoothctl show | grep -q "Powered: yes"; then
-        bluetoothctl power off && notify "Powered off"
+        bluetoothctl power off && notify "Powered off" || notify "Failed to power off"
     else
-        bluetoothctl power on && notify "Powered on"
+        bluetoothctl power on && notify "Powered on" || notify "Failed to power on"
     fi
 }
 
@@ -69,11 +69,11 @@ case "$choice" in
         ;;
     "Disconnect device")
         mac=$(pick_device "disconnect")
-        [ -n "$mac" ] && { bluetoothctl disconnect "$mac" && notify "Disconnected"; }
+        [ -n "$mac" ] && { bluetoothctl disconnect "$mac" && notify "Disconnected" || notify "Disconnect failed"; }
         ;;
     "Remove device")
         mac=$(pick_device "remove")
-        [ -n "$mac" ] && { bluetoothctl remove "$mac" && notify "Removed"; }
+        [ -n "$mac" ] && { bluetoothctl remove "$mac" && notify "Removed" || notify "Remove failed"; }
         ;;
     *)
         exit 0
