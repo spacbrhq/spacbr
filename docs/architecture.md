@@ -960,9 +960,18 @@ UKI generation itself is `mkinitcpio`'s job, following `archinstall`'s
 (`rd.luks.name=<LUKS-UUID>=cryptroot root=/dev/mapper/cryptroot`,
 `sd-encrypt`'s own addressing scheme for the LUKS2 root — see "Boot &
 authentication" above — `rw`, `zswap.enabled=0` — `archinstall`'s own
-comment: zswap should be disabled when using zram — plus `quiet
-splash` so Plymouth's splash isn't fighting kernel boot text for the
-screen), and each kernel's `/etc/mkinitcpio.d/<kernel>.preset`
+comment: zswap should be disabled when using zram —
+`vt.global_cursor_default=0` (confirmed against the real kernel driver
+source, `drivers/tty/vt/vt.c` — a genuine `module_param` on the
+built-in `vt` subsystem) to disable the blinking VT cursor by default,
+since `getty@tty1`'s hard dependency on `plymouth-quit-wait.service`
+(confirmed by testing an override drop-in directly — it does not
+budge) means there's a real, structural, unavoidable brief gap between
+Plymouth quitting and Xorg painting where tty1's raw console is
+visible; this doesn't close that gap, just makes it look calmer when
+it happens — plus `quiet splash` so Plymouth's splash isn't fighting
+kernel boot text for the screen), and each kernel's
+`/etc/mkinitcpio.d/<kernel>.preset`
 sets `default_uki=".../arch-<kernel>.efi"` with no `default_image=` at
 all (UKI only, no redundant plain initramfs). Rather than
 regex-editing the vendor-shipped preset file the way `archinstall`

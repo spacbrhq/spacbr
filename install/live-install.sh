@@ -610,7 +610,19 @@ ok "mkinitcpio HOOKS set: systemd + sd-vconsole + plymouth + sd-encrypt"
 LUKS_UUID="$(cryptsetup luksUUID "$ROOT_PART")"
 [ -n "$LUKS_UUID" ] || die "couldn't read the LUKS UUID for $ROOT_PART -- the boot config would be wrong, stopping before writing it."
 
-KERNEL_CMDLINE="rd.luks.name=$LUKS_UUID=cryptroot root=/dev/mapper/cryptroot rw zswap.enabled=0 quiet splash"
+# vt.global_cursor_default=0: confirmed against the real kernel driver
+# source (drivers/tty/vt/vt.c -- a genuine module_param on the built-in
+# vt subsystem, settable from the cmdline the same way; defaults to 1
+# i.e. cursor visible if not set) -- disables the blinking VT cursor by
+# default on every virtual console. Doesn't close the real, structural
+# gap between Plymouth quitting and Xorg painting (getty@tty1 has a
+# hard After=plymouth-quit-wait.service dependency, confirmed by
+# testing an override drop-in directly -- it does not budge, and
+# forcing the underlying ordering apart risks plymouth-quit-wait
+# blocking forever, since it has no timeout), but it's a real,
+# independent, zero-risk reduction in how that unavoidable brief
+# tty1 flash actually looks.
+KERNEL_CMDLINE="rd.luks.name=$LUKS_UUID=cryptroot root=/dev/mapper/cryptroot rw zswap.enabled=0 vt.global_cursor_default=0 quiet splash"
 mkdir -p /mnt/etc/kernel
 printf '%s\n' "$KERNEL_CMDLINE" > /mnt/etc/kernel/cmdline
 
