@@ -58,6 +58,38 @@ Re-verified live: `st -e more <file>` now opens and stays open (was
 confirmed via a real spawned window through `xdotool`, then cleaned
 up), and the inline-tty path still works via `script`.
 
+**Second follow-up, same day -- the real root cause**: the `less`->
+`more` fix above was necessary but not sufficient. The user reported
+`MODKEY+/` still doing nothing after it shipped. Reproduced by sending
+the actual keypress to the real running dwm process via `xdotool key
+--clearmodifiers super+slash` (confirmed it was hitting a genuinely
+rebuilt binary containing the new keybinding, via `strings` on the
+running exe) and watching for new processes: nothing visible
+appeared, but a `more <file>` process WAS quietly starting up each
+time -- just never inside a terminal window. `readlink
+/proc/<dwm-pid>/fd/{0,1,2}` showed dwm's own stdin/stdout/stderr are
+all `/dev/tty1`, inherited all the way from `startx`'s original
+invocation on that VT. `keys`' `[ -t 1 ]` check is technically correct
+but the wrong question -- it's true for anything dwm spawns, including
+MODKEY+/, because tty1 genuinely is a tty, just not one anyone is
+looking at (the graphical session runs on top of it, not instead of
+it). So every press silently paged the doc into the invisible console
+and sat there forever waiting for keyboard input that could never
+arrive from that console -- confirmed via `ps` that roughly 50 orphaned
+`more` processes had piled up from testing before this was caught and
+killed.
+
+Fixed by checking which *kind* of tty is attached instead of merely
+whether one is: `case "$(tty)" in /dev/pts/*) ... ;; *) spawn a
+terminal ;; esac`. A real terminal emulator (`st`, `alacritty`) or an
+SSH session allocates a pseudo-terminal (`/dev/pts/N`); dwm's
+inherited console tty (`/dev/ttyN`) or no controlling terminal at all
+both fall through to spawning `$TERMINAL`. Re-verified end to end
+against the live session: sent the real keypress to the real dwm
+process again, watched a genuine `st` window titled "more" appear via
+`xdotool search --class St`, and confirmed no processes were left
+running afterward.
+
 ### Boot->desktop transition, part 2: recolor the tty1 flash to eightchrome (2026-08-26)
 
 Follow-up after ruling out extending Plymouth's own lifetime (see the

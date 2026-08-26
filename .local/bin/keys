@@ -22,10 +22,17 @@ if [ ! -f "$DOCFILE" ]; then
     exit 1
 fi
 
-# Reuses the terminal it's already running in when there is one (so
-# `spacbr keys` works over plain SSH, no X required). Only spawns a
-# new terminal window when there isn't one -- i.e. launched from dwm's
-# MODKEY+/ binding, which has no controlling tty of its own.
+# Reuses the terminal it's already running in when there is a real
+# pseudo-terminal attached (an actual terminal window, or an SSH
+# session) -- so `spacbr keys` works over plain SSH, no X required.
+# Deliberately checks for a /dev/pts/* controlling terminal, not just
+# `[ -t 1 ]`: dwm's own stdin/stdout/stderr are inherited all the way
+# from startx's invocation on tty1 (confirmed live via
+# /proc/<dwm-pid>/fd), so anything dwm spawns already has a "tty" by
+# that test even though nobody can see it -- `[ -t 1 ]` alone took the
+# inline-pager branch for MODKEY+/ too, silently paging into the
+# invisible console instead of opening a visible window, and leaked an
+# orphaned `more` stuck waiting for input on every press.
 #
 # Defaults to `more`, not `less`: `more` ships in util-linux (present
 # on every Arch install, base or not); `less` is a separate package
@@ -33,8 +40,7 @@ fi
 # machine (neither `less` nor its usual man-db dependency was
 # present) -- `st -e less ...` silently closed on launch because `st`
 # couldn't exec a binary that doesn't exist. $PAGER still wins if set.
-if [ -t 1 ]; then
-    exec "${PAGER:-more}" "$DOCFILE"
-else
-    exec "${TERMINAL:-st}" -e "${PAGER:-more}" "$DOCFILE"
-fi
+case "$(tty 2>/dev/null)" in
+    /dev/pts/*) exec "${PAGER:-more}" "$DOCFILE" ;;
+    *)          exec "${TERMINAL:-st}" -e "${PAGER:-more}" "$DOCFILE" ;;
+esac
