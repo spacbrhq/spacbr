@@ -33,7 +33,15 @@ pct() {
 
 case "${1:-}" in
     up)
-        wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+        # -l 1.0 caps the result at 100% -- confirmed for real this was
+        # a genuine asymmetry, not just theoretical: `down` naturally
+        # bottoms out at 0% (wpctl won't go negative), but plain "5%+"
+        # has no ceiling at all and happily overshoots into
+        # over-amplification (98% -> 103%, kept climbing from there)
+        # while `volume set` right below already explicitly caps input
+        # at 100 -- one way of raising the volume respected a 0-100%
+        # range and the other didn't.
+        wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
         wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && notify "Muted" || notify "$(pct @DEFAULT_AUDIO_SINK@)"
         ;;
     down)
