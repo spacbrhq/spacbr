@@ -622,7 +622,36 @@ LUKS_UUID="$(cryptsetup luksUUID "$ROOT_PART")"
 # blocking forever, since it has no timeout), but it's a real,
 # independent, zero-risk reduction in how that unavoidable brief
 # tty1 flash actually looks.
-KERNEL_CMDLINE="rd.luks.name=$LUKS_UUID=cryptroot root=/dev/mapper/cryptroot rw zswap.enabled=0 vt.global_cursor_default=0 quiet splash"
+#
+# vt.default_red/grn/blu: same module (drivers/tty/vt/vt.c), also
+# genuine module_param_array declarations, also settable from the
+# cmdline -- confirmed directly from source, not assumed from
+# global_cursor_default's pattern alone. These seed vc_palette for
+# every newly-created VT at the moment the kernel creates it, before
+# any userspace (agetty, this shell, anything) ever runs -- unlike
+# calling setvtrgb(1) later from .zshrc, which was tested directly and
+# found to need a privileged ioctl that the autologin'd user's own
+# process doesn't have (setvtrgb -C /dev/tty1 as that user: "ioctl:
+# Operation not permitted", confirmed live, even though the user owns
+# /dev/tty1 outright -- repainting the palette needs more than device
+# ownership). Setting it at the kernel level sidesteps that permission
+# question entirely and, being the earliest possible point, covers the
+# very first moment tty1 exists, not just from whenever a later shell
+# command runs.
+#
+# Sixteen comma-separated byte values per array, one per VGA/ANSI
+# color index (0-15) -- values here are the kernel's own real defaults
+# (read back from /sys/module/vt/parameters/default_{red,grn,blu} on a
+# real running system, not guessed), with only index 0 ("black")
+# changed: 0,0,0 -> 47,52,63 (0x2f,0x34,0x3f), eightchrome's own
+# background. Every other index is untouched, so normal ANSI colors
+# elsewhere (red/green/etc.) still look the way they always have --
+# only the *background* a blank console shows before anything is
+# drawn on it changes.
+VT_RED="vt.default_red=47,170,0,170,0,170,0,170,85,255,85,255,85,255,85,255"
+VT_GRN="vt.default_grn=52,0,170,85,0,0,170,170,85,85,255,255,85,85,255,255"
+VT_BLU="vt.default_blu=63,0,0,0,170,170,170,170,85,85,85,85,255,255,255,255"
+KERNEL_CMDLINE="rd.luks.name=$LUKS_UUID=cryptroot root=/dev/mapper/cryptroot rw zswap.enabled=0 vt.global_cursor_default=0 $VT_RED $VT_GRN $VT_BLU quiet splash"
 mkdir -p /mnt/etc/kernel
 printf '%s\n' "$KERNEL_CMDLINE" > /mnt/etc/kernel/cmdline
 
