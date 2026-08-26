@@ -2,11 +2,17 @@
 # triples in sync with .config/xresources by hand; Plymouth's script
 # language has no way to read Xresources.
 #
-# Shares wallpaper.jpg with Limine (system/limine/wallpaper.jpg, copied
+# Shares the same photo as Limine (system/limine/wallpaper.jpg), copied
 # here too since Plymouth's Image() loads relative to this theme's own
-# ImageDir, not an arbitrary path) -- same photo, same baked-in
-# eightchrome header panel (see docs/architecture.md's Limine section
-# for how/why that panel was made), so the two screens read as one
+# ImageDir, not an arbitrary path -- but as wallpaper.png, not the same
+# file: Plymouth's own Image() loader is PNG-only (confirmed against
+# its actual source, see the note above the Image() call below), so
+# this copy is re-exported as PNG and downscaled to 1920px wide (the
+# real screen this was tested on is 1600x900 -- Limine's own copy stays
+# at Limine's larger, JPEG size for a different reason, UEFI-side
+# decode margin, not initramfs size). Same baked-in eightchrome header
+# panel either way (see docs/architecture.md's Limine section for how/
+# why that panel was made), so the two screens still read as one
 # continuous experience instead of Limine showing the photo and
 # Plymouth cutting to a flat color. Text below is kept inside roughly
 # the top half of the screen on purpose -- that's where the baked
@@ -49,8 +55,24 @@ Window.SetBackgroundBottomColor(0.184, 0.204, 0.247);
 # background photo, scaled to cover the whole screen (may crop one
 # axis symmetrically if the screen's aspect ratio doesn't match the
 # photo's own ~1.79:1 -- same tolerance already accepted on the Limine
-# side, where "stretched" scaling has the equivalent caveat)
-background_image = Image("wallpaper.jpg");
+# side, where "stretched" scaling has the equivalent caveat).
+#
+# .png, not .jpg -- confirmed for real, the actual root cause of the
+# wallpaper never once showing since this theme was first built:
+# Plymouth's own Image() loader (src/libply-splash-graphics/ply-image.c)
+# is PNG-only, built directly against libpng, with no JPEG support
+# anywhere in Plymouth's source tree at all. Image("wallpaper.jpg") was
+# silently failing every single boot; everything else on screen (text,
+# the bar, the password rule) is built from Image.Text, which
+# don't depend on this file loading at all, so nothing else hinted
+# anything was wrong. This was never actually caught until someone
+# looked at the real screen for the first time -- every earlier
+# "verified" pass only checked the file's presence/checksum inside the
+# built UKI, never whether Plymouth could actually decode it. Limine's
+# own copy (system/limine/wallpaper.jpg) stays JPEG -- confirmed
+# working there already, a different loader, a different constraint
+# (UEFI-side decode speed, not initramfs size).
+background_image = Image("wallpaper.png");
 screen_ratio = Window.GetHeight() / Window.GetWidth();
 background_image_ratio = background_image.GetHeight() / background_image.GetWidth();
 if (screen_ratio > background_image_ratio)
@@ -135,64 +157,50 @@ percent_sprite.SetX(percent_x);
 percent_sprite.SetZ(2);
 percent_sprite.SetOpacity(0);
 
-# Password field: a real bordered box, sized and positioned once here
-# and never touched again -- only the stars drawn inside it change.
-# This is the actual fix for "not polished": the previous version
-# recentered a plain text sprite against the *whole window* on every
-# keystroke, so the entire prompt block visibly shifted sideways as it
-# grew -- placeholder-text behavior, not a designed field. Every real
-# OS password field instead has a fixed-size box with left-aligned
-# characters growing rightward inside it, which is what this now does.
+# Password field: an underline rule, not a boxed field. A real bordered
+# box was tried first (two rectangles built by scaling a single "█"
+# glyph up via Image.Scale) and dropped after actually seeing it on
+# screen -- it rendered as one flat glowing block, not a bordered
+# field, and there was no reliable way to tell from a photo whether
+# that was a real rendering bug in that untested stretch-one-glyph-way
+# -up technique or just camera blur exaggerating an already-too-thin
+# border. Rather than keep guessing at border thickness, this rebuilds
+# the field using the *same* technique the progress bar above already
+# proves works correctly on this real hardware: a row of repeated
+# glyphs at their natural size, never scaled/stretched. A clean
+# underline is a legitimate, common input-field convention on its own
+# (not a downgrade), and it reuses this theme's own established visual
+# language -- the boot progress rule and the password rule now read as
+# one consistent idea, not two different widget styles.
 #
-# Built from the same "stretch one glyph" technique the wallpaper's
-# own cover-scaling already uses (Image.Scale is a generic Image
-# method, confirmed against Plymouth's own script-lib-image.c -- it
-# doesn't care whether the pixels came from Image() or Image.Text()):
-# a single "█" glyph scaled up to the field's exact size becomes a
-# flat color rectangle. Two of them, fill inset by border_px inside a
-# slightly larger accent-colored one, is the border -- there's no
-# native rectangle/border primitive in Plymouth's script API to reach
-# for instead.
-field_width = Window.GetWidth() * 0.30;
-field_height = Window.GetHeight() * 0.065;
-field_x = Window.GetWidth() / 2 - field_width / 2;
-field_y = Window.GetHeight() * 0.47;
-field_pad = field_width * 0.05;
-border_px = Math.Int(Window.GetHeight() * 0.0035);
-if (border_px < 2)
+# Fixed once here and never touched again, same reasoning as before:
+# rule_width/rule_x/rule_y don't change. Only the stars above the rule
+# grow, left-aligned from a fixed start point -- exactly how a real
+# password field's text behaves, still true even without a box drawn
+# around it.
+rule_width = Window.GetWidth() * 0.30;
+rule_x = Window.GetWidth() / 2 - rule_width / 2;
+rule_y = Window.GetHeight() * 0.50;
+rule_cells = 46;
+
+password_rule_text = "";
+for (i = 0; i < rule_cells; i++)
   {
-    border_px = 2;
+    password_rule_text = password_rule_text + "─";
   }
-
-# Border: accent -- same "Quiet Mono: identity stays neutral, accent
-# marks the live/selected thing" principle the progress fill and
-# Limine's own theme already use. This is the one interactive element
-# on screen when it's showing, so it earns the accent.
-field_border_image = Image.Text("█", 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_size);
-field_border_image = field_border_image.Scale(field_width, field_height);
-field_border_sprite = Sprite(field_border_image);
-field_border_sprite.SetX(field_x);
-field_border_sprite.SetY(field_y);
-field_border_sprite.SetZ(2);
-field_border_sprite.SetOpacity(0);
-
-# Fill: muted (#404552 -- the same "selection/panel" tone dwm/dmenu's
-# own eightchrome palette already uses for a raised surface), inset by
-# border_px on every side so the border shows as an even ring.
-field_fill_image = Image.Text("█", 0.251, 0.271, 0.322, 0.92, "Hack Bold " + bar_size);
-field_fill_image = field_fill_image.Scale(field_width - border_px * 2, field_height - border_px * 2);
-field_fill_sprite = Sprite(field_fill_image);
-field_fill_sprite.SetX(field_x + border_px);
-field_fill_sprite.SetY(field_y + border_px);
-field_fill_sprite.SetZ(3);
-field_fill_sprite.SetOpacity(0);
+password_rule_image = Image.Text(password_rule_text, 0.251, 0.518, 0.839, 1, "Hack Bold " + bar_size);
+password_rule_sprite = Sprite(password_rule_image);
+password_rule_sprite.SetX(rule_x);
+password_rule_sprite.SetY(rule_y);
+password_rule_sprite.SetZ(2);
+password_rule_sprite.SetOpacity(0);
 
 # password prompt: hidden (opacity 0) until Plymouth actually asks for
 # one (LUKS, a TPM passphrase, anything using systemd-ask-password) --
 # most SPACBR installs never trigger this, but the theme should not
 # fall back to something broken/unstyled on the installs that do. A
-# label above the field, not inside it -- the field itself is only for
-# the stars, same layout every real password prompt already uses.
+# label above the rule, stars sitting just above it, same layout every
+# real password prompt already uses.
 password_prompt_sprite = Sprite();
 password_prompt_sprite.SetZ(3);
 password_prompt_sprite.SetOpacity(0);
@@ -243,21 +251,20 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 # count changes, not just once) -- cheap enough (a handful of small
 # Image.Text calls) that redrawing from scratch each time is simpler
 # and safer than trying to diff against the previous bullet count.
-# Only the stars_image (and, once, the field itself) actually move or
-# resize; the prompt label and the field's own box never do.
+# Only the stars_image actually resizes; the rule, and where both the
+# label and the stars start from, never do.
 fun spacbr_display_password_callback(prompt, bullets)
 {
-    field_border_sprite.SetOpacity(1);
-    field_fill_sprite.SetOpacity(1);
+    password_rule_sprite.SetOpacity(1);
 
-    # Label sits above the field -- recomputed every call like before,
+    # Label sits above the rule -- recomputed every call like before,
     # but harmless: Plymouth passes the same prompt string for the
     # whole time one password is being entered, so this yields the
     # exact same position every time, not a visible shift.
     prompt_image = Image.Text(prompt, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
     password_prompt_sprite.SetImage(prompt_image);
     password_prompt_sprite.SetX(Window.GetWidth() / 2 - prompt_image.GetWidth() / 2);
-    password_prompt_sprite.SetY(field_y - prompt_image.GetHeight() - Window.GetHeight() * 0.02);
+    password_prompt_sprite.SetY(rule_y - prompt_image.GetHeight() - Window.GetHeight() * 0.035);
     password_prompt_sprite.SetOpacity(1);
 
     # Stars, not the filled-circle bullets this used to draw -- asterisk
@@ -268,14 +275,14 @@ fun spacbr_display_password_callback(prompt, bullets)
     # plain ASCII asterisk -- guaranteed present, and a real star shape
     # on its own -- is the safe choice, not a fallback compromise.
     #
-    # Left-aligned inside the field and growing rightward from a fixed
-    # start point, not centered against the window -- the field itself
-    # (drawn once, above) is what stays put; only this text grows
-    # inside it, same behavior every real OS password field already
-    # has. Sized up from the prompt label (star_size, not prompt_size)
-    # since an asterisk reads smaller/lighter than a solid circle at
-    # the same point size; extra inter-character spacing for the same
-    # reason.
+    # Left-aligned starting at the rule's own left edge and growing
+    # rightward, not centered against the window -- same "text grows
+    # from a fixed point, nothing about the layout itself moves"
+    # behavior every real OS password field already has. Sized up from
+    # the prompt label (star_size, not prompt_size) since an asterisk
+    # reads smaller/lighter than a solid circle at the same point size;
+    # extra inter-character spacing for the same reason. Sits just
+    # above the rule, like text resting on an underline.
     stars_text = "";
     for (i = 0; i < bullets; i++)
       {
@@ -283,8 +290,8 @@ fun spacbr_display_password_callback(prompt, bullets)
       }
     stars_image = Image.Text(stars_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + star_size);
     password_stars_sprite.SetImage(stars_image);
-    password_stars_sprite.SetX(field_x + field_pad);
-    password_stars_sprite.SetY(field_y + (field_height - stars_image.GetHeight()) / 2);
+    password_stars_sprite.SetX(rule_x);
+    password_stars_sprite.SetY(rule_y - stars_image.GetHeight() - Window.GetHeight() * 0.008);
     password_stars_sprite.SetOpacity(1);
 }
 Plymouth.SetDisplayPasswordFunction(spacbr_display_password_callback);
@@ -296,8 +303,7 @@ fun spacbr_display_normal_callback()
 {
     password_prompt_sprite.SetOpacity(0);
     password_stars_sprite.SetOpacity(0);
-    field_border_sprite.SetOpacity(0);
-    field_fill_sprite.SetOpacity(0);
+    password_rule_sprite.SetOpacity(0);
 }
 Plymouth.SetDisplayNormalFunction(spacbr_display_normal_callback);
 
@@ -309,7 +315,6 @@ fun spacbr_quit_callback()
     percent_sprite.SetOpacity(0);
     password_prompt_sprite.SetOpacity(0);
     password_stars_sprite.SetOpacity(0);
-    field_border_sprite.SetOpacity(0);
-    field_fill_sprite.SetOpacity(0);
+    password_rule_sprite.SetOpacity(0);
 }
 Plymouth.SetQuitFunction(spacbr_quit_callback);

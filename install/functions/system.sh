@@ -156,7 +156,7 @@ deploy_plymouth_theme() {
         return 0
     }
 
-    for name in spacbr.plymouth spacbr.script wallpaper.jpg; do
+    for name in spacbr.plymouth spacbr.script wallpaper.png; do
         if [ ! -f "$dest/$name" ] || ! cmp -s "$src/$name" "$dest/$name"; then
             sudo install -D -m 644 "$src/$name" "$dest/$name"
             changed=1
