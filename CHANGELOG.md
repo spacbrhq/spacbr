@@ -8,6 +8,41 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Boot->desktop transition, part 2: recolor the tty1 flash to eightchrome (2026-08-26)
+
+Follow-up after ruling out extending Plymouth's own lifetime (see the
+entry below): instead, paint tty1's own console background so the
+unavoidable brief gap reads as this system's own color, not an
+unstyled black terminal.
+
+Confirmed against the real kernel driver source
+(`drivers/tty/vt/vt.c`) that `default_red`/`default_grn`/`default_blu`
+are genuine `module_param_array` declarations on the same built-in
+`vt` subsystem as `global_cursor_default` -- settable from the cmdline
+the same way, seeding every VT's palette at the moment the kernel
+creates it, before any userspace runs at all.
+
+Tried the more obvious approach first and confirmed it doesn't work:
+calling `setvtrgb(1)` from `.zshrc` (as the normal autologin'd user,
+no sudo) fails with "ioctl: Operation not permitted", even though that
+user owns `/dev/tty1` outright -- repainting the VT palette needs a
+privileged ioctl that mere device ownership doesn't grant. Setting it
+at the kernel level sidesteps that entirely, and is earlier than any
+shell command could act anyway.
+
+Only VGA/ANSI index 0 ("black") changes, from `0,0,0` to `47,52,63`
+(`0x2f,0x34,0x3f`) -- eightchrome's own background. The other 15
+indices are the kernel's own real defaults (read back from
+`/sys/module/vt/parameters/default_{red,grn,blu}` on the real machine,
+not guessed).
+
+Verified end to end: extracted the rebuilt UKI's actual `.cmdline` PE
+section to confirm it embedded correctly before ever rebooting,
+rebooted for real (successful LUKS unlock), and confirmed the
+*running* kernel's actual module parameter state shows the remapped
+values -- not just that the cmdline string was accepted. No new
+`spacbr doctor` regressions.
+
 ### Boot->desktop transition: investigated, ruled out two approaches, shipped what's real (2026-08-26)
 
 Asked to hide or smooth the brief raw-tty1 flash between Plymouth
