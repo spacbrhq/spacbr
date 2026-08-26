@@ -1,8 +1,8 @@
 #!/bin/sh
 # dwm/dmenu/st/dwmblocks/slock all live in ~/.local/bin -- this needs
 # to be on PATH before anything below tries to run one of them, or
-# `dbus-launch dwm` at the bottom of this file can't find dwm, exits
-# almost instantly, and xinit tears the whole session back down.
+# `dwm` at the bottom of this file can't be found, exits almost
+# instantly, and xinit tears the whole session back down.
 # `.zshrc` execs startx from an interactive login shell that already
 # sourced `.config/shell/profile` (same PATH prepend, so this is
 # usually a no-op by the time it runs) -- kept here anyway as this
