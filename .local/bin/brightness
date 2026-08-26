@@ -81,7 +81,16 @@ menu() {
     esac
 }
 
-case "${1:-}" in
+# Real, reported bug: no args (e.g. launched straight off PATH from
+# dwm's own dmenu_run app launcher -- a completely natural way to
+# invoke any of these scripts, not a misuse) fell through to the
+# usage-error branch and exited, with nothing visible since dmenu_run
+# doesn't show a launched program's stderr anywhere. `spacbr brightness`
+# already special-cased this (`"${@:-menu}"` in the spacbr CLI), so the
+# convenience only existed through one specific invocation path and not
+# the script's own default -- matching that same convention here means
+# it's consistent regardless of how this script actually gets run.
+case "${1:-menu}" in
     up)   change "+ 5" ;;
     down) change "- 5" ;;
     set)
