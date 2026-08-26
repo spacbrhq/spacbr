@@ -1,9 +1,19 @@
 #!/bin/sh
-# dmenu-driven output/input device selection over wpctl.
-# Volume/mute already have dedicated keys in dwm; this covers device switching.
+# dmenu-driven audio menu over wpctl/pactl: device switching (this
+# script's main job) plus a menu entry for every hardware volume/mute
+# key in dwm's config.h (up/down/set/mute/mic-mute), so nothing bound
+# to a physical key is undiscoverable without that specific hardware --
+# keyboard and dmenu are meant to reach the same actions, not diverge.
 
 notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "Audio" "$1"
+    # Same short-lived, replacing style as .local/bin/volume's notify()
+    # (a distinct stack tag, so a device switch doesn't cancel out a
+    # volume-level notification or vice versa) -- these two scripts
+    # cover the same audio subsystem and a plain, default-duration,
+    # stacking notify-send here read as visibly inconsistent next to
+    # volume's OSD-style feedback for the exact same kind of action.
+    command -v notify-send >/dev/null 2>&1 && \
+        notify-send -t 1500 -h string:x-dunst-stack-tag:spacbr-audio "Audio" "$1"
 }
 
 # Extract "id<TAB>name" lines from wpctl status for a given section header
@@ -118,6 +128,7 @@ case "$(printf '%s\n' \
     "Volume down (currently ${current_vol}%)" \
     "Set volume percentage (currently ${current_vol}%)" \
     "Mute toggle" \
+    "Microphone mute toggle" \
     "Output device" \
     "Input device" \
     "Toggle speaker/headphones" \
@@ -132,6 +143,7 @@ case "$(printf '%s\n' \
         esac
         ;;
     "Mute toggle")                 "$(dirname "$0")/volume" mute ;;
+    "Microphone mute toggle")      "$(dirname "$0")/volume" mic-mute ;;
     "Output device")              pick_and_set "Sinks:" "Output" ;;
     "Input device")                pick_and_set "Sources:" "Input" ;;
     "Toggle speaker/headphones")   toggle_speaker_headphones ;;
