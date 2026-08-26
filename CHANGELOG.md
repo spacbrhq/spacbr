@@ -8,6 +8,43 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### Boot->desktop transition: investigated, ruled out two approaches, shipped what's real (2026-08-26)
+
+Asked to hide or smooth the brief raw-tty1 flash between Plymouth
+quitting and Xorg painting. Two seemingly-reasonable fixes turned out
+to be structurally impossible, found by testing/reading source rather
+than assuming either would work:
+
+- Deferring `plymouth quit` until xinitrc paints something: doesn't
+  work. `getty@tty1` (and therefore autologin -> `.zshrc` -> `startx`
+  -> `xinitrc`) has a hard `After=plymouth-quit-wait.service`
+  dependency in the real installed unit, confirmed by testing an
+  `[Unit] After=` reset override in a scratch drop-in (with a proper
+  daemon-reload) -- it did not remove the ordering. `xinitrc` can't
+  call `plymouth quit` before X exists, and X can't start until
+  Plymouth has already quit. Genuinely circular, not just tight timing.
+- Animating a real fade into Plymouth's own quit transition: also
+  doesn't work, for a different reason. Read the actual splash plugin
+  source directly -- the script's quit callback fires exactly once,
+  synchronously, immediately followed by the whole script engine being
+  destroyed in the same call. No event loop time exists afterward for
+  any animation to render more than the single instant frame already
+  in place.
+
+Forcing either would risk `plymouth-quit-wait` hanging forever
+(`TimeoutSec=0`, no timeout) for a sub-second cosmetic gap -- not worth
+the risk.
+
+What's real: `vt.global_cursor_default=0`, confirmed against the
+actual kernel driver source (`drivers/tty/vt/vt.c`) as a genuine
+`module_param` on the built-in `vt` subsystem. Doesn't close the
+unavoidable gap, just disables the blinking cursor during it. Added to
+`KERNEL_CMDLINE` in `live-install.sh`. Verified live: extracted the
+UKI's actual `.cmdline` PE section to confirm it embedded correctly
+before ever rebooting, then rebooted for real -- `/proc/cmdline` on
+the running kernel shows it applied, boot succeeded end to end
+(including a real LUKS unlock), no new `spacbr doctor` regressions.
+
 ### record: Pause/Resume via SIGSTOP/SIGCONT (2026-08-26)
 
 ffmpeg has no real pause feature for x11grab; SIGSTOP/SIGCONT is the
