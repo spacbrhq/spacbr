@@ -4,13 +4,15 @@ export DISPLAY="${DISPLAY:-:0}"
 
 # Dependencies check -- notify-send deliberately excluded: it's
 # supplementary feedback, not something this script's actual job
-# (capturing and saving an image) depends on, and every other SPACBR
-# script treats it as optional (`command -v notify-send && notify-send
-# ...`) rather than a hard requirement. Requiring it here was the one
-# inconsistent exception -- a machine without dunst/notify-send
-# installed could still use every other dmenu script, just without
-# notifications, but this one would refuse to take a screenshot at all.
+# (capturing and saving an image) depends on, and spacbr_notify (below)
+# already treats it as optional rather than a hard requirement.
+# Requiring it here was the one inconsistent exception -- a machine
+# without dunst/notify-send installed could still use every other
+# dmenu script, just without notifications, but this one would refuse
+# to take a screenshot at all.
 for cmd in xclip import; do command -v "$cmd" &>/dev/null || { echo "Missing: $cmd" >&2; exit 1; }; done
+
+. "$HOME/.local/share/spacbr/notify.sh"
 
 OUTDIR="${2:-$HOME/Screenshots}"; mkdir -p "$OUTDIR"
 FILE="$OUTDIR/$(date +%Y%m%d_%H%M%S).png"
@@ -48,7 +50,7 @@ post(){
     # reason that had nothing to do with whether the screenshot itself
     # worked.
     xclip -selection clipboard -t image/png -i "$FILE" || true
-    command -v notify-send &>/dev/null && notify-send -i "$FILE" "Screenshot: $(basename "$FILE")"
+    spacbr_notify -i "$FILE" "Screenshot" "$(basename "$FILE")"
 }
 
 colorpicker(){
@@ -66,7 +68,7 @@ colorpicker(){
     # skipping the notification below for a reason unrelated to whether
     # the color was actually picked.
     echo "$hex" | xclip -selection clipboard -i || true
-    command -v notify-send &>/dev/null && notify-send -i "$TMP" "Color: $hex"
+    spacbr_notify -i "$TMP" "Color" "$hex"
 }
 
 # capture_failed -- same class of bug already found and fixed once in
@@ -76,7 +78,7 @@ colorpicker(){
 # anywhere. Every capture path now falls back to this on failure
 # instead of silently doing nothing.
 capture_failed(){
-    command -v notify-send &>/dev/null && notify-send "Screenshot cancelled or failed"
+    spacbr_notify "Screenshot" "Cancelled or failed"
     exit 1
 }
 

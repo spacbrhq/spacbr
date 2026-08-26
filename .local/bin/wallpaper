@@ -15,9 +15,8 @@ mkdir -p "$statedir"
 # directory just being emptied) previously made every subcommand
 # silently do nothing -- `apply` bailing out on a nonexistent file with
 # a bare `return 1` and no other feedback path anywhere in this script.
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "Wallpaper" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify "Wallpaper" "$1"; }
 
 list() {
     # ! -name '.*' excludes macOS AppleDouble sidecar files (._foo.jpg):

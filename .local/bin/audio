@@ -5,16 +5,11 @@
 # to a physical key is undiscoverable without that specific hardware --
 # keyboard and dmenu are meant to reach the same actions, not diverge.
 
-notify() {
-    # Same short-lived, replacing style as .local/bin/volume's notify()
-    # (a distinct stack tag, so a device switch doesn't cancel out a
-    # volume-level notification or vice versa) -- these two scripts
-    # cover the same audio subsystem and a plain, default-duration,
-    # stacking notify-send here read as visibly inconsistent next to
-    # volume's OSD-style feedback for the exact same kind of action.
-    command -v notify-send >/dev/null 2>&1 && \
-        notify-send -t 1500 -h string:x-dunst-stack-tag:spacbr-audio "Audio" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+# Own stack tag (spacbr-audio, distinct from volume's spacbr-volume) --
+# a device switch here shouldn't cancel out a volume-level notification
+# or vice versa, even though both are the same OSD-style feedback.
+notify() { spacbr_notify -o spacbr-audio "Audio" "$1"; }
 
 # Extract "id<TAB>name" lines from wpctl status for a given section header
 # (Sinks or Sources), stopping at the next section.

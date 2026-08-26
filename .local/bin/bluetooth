@@ -1,9 +1,8 @@
 #!/bin/sh
 # dmenu-driven front-end over bluetoothctl.
 
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "Bluetooth" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify "Bluetooth" "$1"; }
 
 # Found for real on BT-less hardware: with no controller, systemd's own
 # ConditionPathIsDirectory=/sys/class/bluetooth keeps bluetoothd from ever

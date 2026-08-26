@@ -7,18 +7,8 @@
 # notification) it read as "volume keys don't work" even though they
 # did.
 
-notify() {
-    # x-dunst-stack-tag is dunst's own hint for "replace the previous
-    # notification with this tag instead of stacking a new one" --
-    # verified for real that the more commonly-copied
-    # x-canonical-private-synchronous hint (a notify-osd/Canonical
-    # convention) is silently accepted by this dunst (1.13.2) but never
-    # actually rendered: dunstctl reported it as "currently displayed"
-    # while nothing appeared on screen. Confirmed dunst's own hint
-    # renders correctly with the exact same call otherwise unchanged.
-    command -v notify-send >/dev/null 2>&1 && \
-        notify-send -t 1500 -h string:x-dunst-stack-tag:spacbr-volume "Volume" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify -o spacbr-volume "Volume" "$1"; }
 
 # raw_pct: bare number (for `get`/scripting/menu labels). pct: the
 # same with a trailing % (for notify text) -- kept separate so `get`

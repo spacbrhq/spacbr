@@ -12,9 +12,8 @@
 primary="$(xrandr --query | awk '/ connected/ {print $1; exit}')"
 secondary="$(xrandr --query | awk -v skip="$primary" '/ connected/ && $1 != skip {print $1; exit}')"
 
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "Display" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify "Display" "$1"; }
 
 # Only reports success if xrandr actually succeeded -- it rejects a
 # bad/empty output name with a nonzero exit and no visible error on a

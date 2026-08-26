@@ -16,9 +16,8 @@ PIDFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.pid"
 LOGFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.log"
 FILEFILE="${XDG_RUNTIME_DIR:-/tmp}/spacbr-record.file"
 
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "Record" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify "Record" "$1"; }
 
 # Already recording: show the stop option in the menu itself, rather
 # than silently stopping on a bare re-invocation -- Escape cancels

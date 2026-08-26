@@ -18,9 +18,8 @@
 # with an ordinary password prompt on a real tty -- same pattern
 # mirrors and net's nmtui binding already use for privileged actions.
 
-notify() {
-    command -v notify-send >/dev/null 2>&1 && notify-send "DNS" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify "DNS" "$1"; }
 
 iface="$(ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')"
 [ -z "$iface" ] && { notify "No active network connection"; exit 1; }

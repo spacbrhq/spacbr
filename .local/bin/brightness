@@ -11,10 +11,8 @@
 # ddcutil, not brightnessctl: see .local/src/dwm/config.h's comment on
 # this machine having no `backlight`-class device at all.
 
-notify() {
-    command -v notify-send >/dev/null 2>&1 && \
-        notify-send -t 1500 -h string:x-dunst-stack-tag:spacbr-brightness "Brightness" "$1"
-}
+. "$HOME/.local/share/spacbr/notify.sh"
+notify() { spacbr_notify -o spacbr-brightness "Brightness" "$1"; }
 
 pct() {
     ddcutil getvcp 10 2>/dev/null | sed -n 's/.*current value *= *\([0-9]*\).*/\1/p'
