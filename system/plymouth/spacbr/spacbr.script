@@ -218,12 +218,30 @@ password_text_sprite = Sprite();
 password_text_sprite.SetZ(3);
 password_text_sprite.SetOpacity(0);
 
-# Wordmark and track fade in fast (first ~15% of Plymouth's boot-
-# duration estimate), then the fill rule tracks real boot progress for
-# the rest.
+# Wordmark and track fade in fast, driven by real elapsed time
+# (duration), not the progress fraction -- confirmed for real that this
+# matters, not just theoretically: on this machine's actual shutdown/
+# reboot, the splash stayed washed-out and barely visible the *entire*
+# time instead of ever reaching full opacity, because `progress` is a
+# percentage-of-*estimated-total-duration*, and that estimate comes
+# from a cache Plymouth keeps per mode (confirmed from its own source,
+# libply/ply-progress.c and libply-splash-core/ply-boot-splash.c) whose
+# own internal fallback constant is literally named
+# DEFAULT_BOOT_DURATION -- i.e. even Plymouth's own guess-when-unsure
+# path is tuned for how long booting takes, not shutting down, so a
+# fade tied to that percentage can stay near-zero for a mode it was
+# never calibrated for. `duration` (the callback's other argument) is
+# just ply_progress_get_time() -- real elapsed seconds since the splash
+# started, mode-agnostic, always accurate regardless of any cached
+# estimate -- so fading in against a fixed real-time window instead
+# reaches full opacity quickly and reliably in every mode. The fill
+# rule still tracks the real `progress` estimate for the rest of the
+# animation -- that's Plymouth's actual best-effort completion signal,
+# imprecise as it may be, which is a fundamentally different concern
+# from "is anything visible yet".
 fun spacbr_boot_progress_callback(duration, progress)
 {
-    fade = progress * 6;
+    fade = duration / 0.6;
     if (fade > 1)
       {
         fade = 1;
