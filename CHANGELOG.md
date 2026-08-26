@@ -8,6 +8,30 @@ everything below is still "unreleased" in that sense).
 
 ## [Unreleased]
 
+### record: Pause/Resume via SIGSTOP/SIGCONT (2026-08-26)
+
+ffmpeg has no real pause feature for x11grab; SIGSTOP/SIGCONT is the
+standard, documented trick instead -- a stopped process reads no
+frames and advances no timestamps, so resuming continues the output
+with no gap, no frozen frame, and no audio backlog. Paused state is
+read directly from the OS (ps's own "T" stat code) rather than tracked
+in a separate flag file that could drift from reality.
+
+Real correctness wrinkle, handled: a stopped process doesn't process
+*any* signal, including the SIGINT that asks ffmpeg to finalize --
+stopping while paused now sends SIGCONT first, unconditionally, before
+that SIGINT. Without this, stopping a paused recording would leave
+ffmpeg wedged in T state forever with the file never finalized, while
+the script had already deleted its own state and reported success.
+
+Added to the same unified menu as everything else, guarded the same
+way ("Already paused" / "Not paused" / "Not currently recording", never
+a silent no-op). Verified live end-to-end, including the edge case:
+paused a real recording (file size identical across a 3s wait),
+resumed it (growing again), and confirmed stopping while paused
+resumes and finalizes cleanly (`ffprobe` reads a real, correct
+duration from the result, not a truncated file).
+
 ### record: unified menu (Stop always present), new Audio-only mode (2026-08-26)
 
 Real, reported confusion, not a bug: "Stop recording" only ever
