@@ -180,14 +180,8 @@ percent_sprite.SetOpacity(0);
 # next to the real one, since it reused the same block/line-glyph
 # language at a similar size and position -- confusing, not polished,
 # confirmed directly from real photos of the physical screen, not a
-# guess either time. Just the label and the stars, correctly aligned,
-# is the actual fix: real misalignment, also confirmed from the same
-# photos -- the label was centered against the whole window while the
-# stars were left-aligned from a different fixed point, so the two
-# lines never lined up on the same edge. Both now share one fixed
-# anchor (input_x/input_y) instead.
-input_width = Window.GetWidth() * 0.34;
-input_x = Window.GetWidth() / 2 - input_width / 2;
+# guess either time. Just the label and the stars, correctly aligned
+# and centered, is the actual fix.
 input_y = Window.GetHeight() * 0.44;
 
 # password prompt: hidden (opacity 0) until Plymouth actually asks for
@@ -195,22 +189,31 @@ input_y = Window.GetHeight() * 0.44;
 # most SPACBR installs never trigger this, but the theme should not
 # fall back to something broken/unstyled on the installs that do.
 #
-# ONE sprite for both lines, not two -- the real, dynamic fix for the
-# alignment problem that survived two earlier attempts (a shared
-# input_x, then matching the two images' font sizes). Confirmed from
-# Plymouth's own source (script-lib-image.c's Image.Text, backed by
-# ply-label.c -> a real Pango layout, pango_layout_set_text) that two
-# *separate* Image.Text calls each get their own image individually
-# measured and cropped to that call's own content -- there was never a
-# shared reference frame for "same sprite X" to mean "same visual
-# start" against, no matter how carefully the inputs were matched.
-# Pango natively lays out an embedded "\n" as a real multi-line
-# paragraph with one alignment mode applied consistently across every
-# line in that single layout -- so building the prompt and the stars
-# as one two-line string in one Image.Text call, instead of two
-# independent calls, is what actually guarantees they share a left
-# edge, dynamically, for whatever the real text/font turns out to be --
-# not a hardcoded position or size chosen to match this one string.
+# ONE sprite for both lines, not two -- confirmed from Plymouth's own
+# source (script-lib-image.c's Image.Text, backed by ply-label.c -> a
+# real Pango layout, pango_layout_set_text) that two *separate*
+# Image.Text calls each get their own image individually measured and
+# cropped to that call's own content -- there was never a shared
+# reference frame for "same sprite X" to mean "same visual position"
+# against, no matter how carefully the inputs were matched. Building
+# the prompt and the stars as one two-line string in one Image.Text
+# call, instead of two independent calls, is what actually guarantees
+# they share one layout.
+#
+# align: "center" (the 7th, optional positional arg -- confirmed
+# against the real script wrapper, src/plugins/splash/script/
+# script-lib-image.script's `Image.Text = fun (text, red, green, blue,
+# alpha, font, align)`) makes Pango center each line relative to the
+# *other* line's width within that same layout (ply-label.c's
+# size_control(): the layout is explicitly re-measured with its width
+# pinned to the natural widest-line width once known, which is what
+# activates per-line centering instead of it being a no-op). Centering
+# the sprite itself is done every keystroke in the callback below, from
+# that image's own (changing) width -- not a fixed field width, since
+# there's no real maximum passphrase length to reserve one for. This is
+# what keeps the block centered under the wordmark/bar above it instead
+# of pinned to a fixed left edge, dynamically, as the typed length
+# changes -- not a hardcoded position guessed to fit one string.
 password_text_sprite = Sprite();
 password_text_sprite.SetZ(3);
 password_text_sprite.SetOpacity(0);
@@ -256,8 +259,9 @@ Plymouth.SetBootProgressFunction(spacbr_boot_progress_callback);
 # count changes, not just once) -- cheap enough (one small Image.Text
 # call) that redrawing the whole two-line block from scratch each time
 # is simpler and safer than trying to diff against the previous bullet
-# count. input_x/input_y themselves never move; only the text drawn at
-# that fixed point grows.
+# count. input_y never moves; the X position is recomputed every call
+# from the new image's own width, to keep the whole block centered as
+# it grows (see the note above password_text_sprite).
 fun spacbr_display_password_callback(prompt, bullets)
 {
     # Ignore the raw prompt text systemd-ask-password-plymouth actually
@@ -284,14 +288,14 @@ fun spacbr_display_password_callback(prompt, bullets)
       }
 
     # One label, two lines (prompt, then stars, joined by a real
-    # newline) -- see the note above password_text_sprite for why this
-    # is what actually keeps both lines on the same left edge, instead
-    # of two separately-measured images that were never guaranteed to
-    # share one.
+    # newline), "center" alignment -- see the note above
+    # password_text_sprite for why this is what actually keeps both
+    # lines sharing one layout instead of two separately-measured
+    # images that were never guaranteed to line up at all.
     combined_text = spacbr_prompt_text + "\n" + stars_text;
-    combined_image = Image.Text(combined_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size);
+    combined_image = Image.Text(combined_text, 0.882, 0.890, 0.906, 1, "Hack Bold " + prompt_size, "center");
     password_text_sprite.SetImage(combined_image);
-    password_text_sprite.SetX(input_x);
+    password_text_sprite.SetX(Window.GetWidth() / 2 - combined_image.GetWidth() / 2);
     password_text_sprite.SetY(input_y);
     password_text_sprite.SetOpacity(1);
 }
